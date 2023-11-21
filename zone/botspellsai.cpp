@@ -1661,13 +1661,21 @@ bool Bot::AI_EngagedCastCheck() {
 		}
 		else if (botClass == NECROMANCER) {
 			if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Escape), SpellType_Escape)) {
+				LogAI("Escape Phase -> Pet Phase");
 				if (!AICastSpell(this, GetChanceToCastBySpellType(SpellType_Pet), SpellType_Pet)) {
+					LogAI("Pet Phase -> Debuff Phase");
 					if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Debuff), SpellType_Debuff)) {
+						LogAI("Debuff Phase -> Lifetap Phase");
 						if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Lifetap), SpellType_Lifetap)) {
+							LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
 							if (!entity_list.Bot_AICheckCloseBeneficialSpells(this, GetChanceToCastBySpellType(SpellType_InCombatBuff), BotAISpellRange, SpellType_InCombatBuff)) {
+								LogAI("Buff range & spelltype check Phase -> DOT phase");
 								if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_DOT), SpellType_DOT)) {
+									LogAI("DOT Phase -> Heal Phase");
 									if (!AICastSpell(GetPet(), GetChanceToCastBySpellType(SpellType_Heal), SpellType_Heal)) {
+										LogAI("Heal Phase -> Aggro check & Nuke Phase");
 										if (!AICastSpell(GetTarget(), mayGetAggro?0:GetChanceToCastBySpellType(SpellType_Nuke), SpellType_Nuke)) {
+											LogAI("Aggro check & Nuke Phase");
 											failedToCast = true;
 										}
 									}
