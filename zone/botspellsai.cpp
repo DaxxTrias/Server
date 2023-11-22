@@ -453,11 +453,11 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 					uint32 TempDontDotMeBefore = tar->DontDotMeBefore();
 
-					LogAI("Checking spell range.");
-					if (IsValidSpellRange(botSpell.SpellId, tar)) {
-						LogAI("AIDoSpellCast was here.");
+					// LogAI("Checking spell range.");
+					// if (IsValidSpellRange(botSpell.SpellId, tar)) {
+						LogAI("casted_spell init was here.");
 						casted_spell = AIDoSpellCast(s.SpellIndex, tar, s.ManaCost, &TempDontDotMeBefore);
-					}
+					// }
 					
 					LogAI("Checking DontDotMeBefore.");
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
