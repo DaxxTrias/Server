@@ -432,6 +432,8 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 			const int maxDotSelect = 5;
 			int dotSelectCounter = 0;
 
+			LogAI($"Initializing General AI Profile for dotting. Desiring up to {maxDotSelect} amount of dots");
+
 			for (const auto& s : dotList) {
 
 				if (!IsValidSpell(s.SpellId)) {
@@ -439,6 +441,8 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 				}
 
 				if (CheckSpellRecastTimers(this, s.SpellIndex)) {
+
+					LogAI("Beginning check for CanBuffStack (or is target immune) phase")
 
 					if (!(!tar->IsImmuneToSpell(s.SpellId, this) &&
 						  tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
@@ -1661,13 +1665,13 @@ bool Bot::AI_EngagedCastCheck() {
 		}
 		else if (botClass == NECROMANCER) {
 			if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Escape), SpellType_Escape)) {
-				LogAI("Escape Phase -> Pet Phase");
+				// LogAI("Escape Phase -> Pet Phase");
 				if (!AICastSpell(this, GetChanceToCastBySpellType(SpellType_Pet), SpellType_Pet)) {
-					LogAI("Pet Phase -> Debuff Phase");
+					// LogAI("Pet Phase -> Debuff Phase");
 					if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Debuff), SpellType_Debuff)) {
-						LogAI("Debuff Phase -> Lifetap Phase");
+						// LogAI("Debuff Phase -> Lifetap Phase");
 						if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Lifetap), SpellType_Lifetap)) {
-							LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
+							// LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
 							if (!entity_list.Bot_AICheckCloseBeneficialSpells(this, GetChanceToCastBySpellType(SpellType_InCombatBuff), BotAISpellRange, SpellType_InCombatBuff)) {
 								LogAI("Buff range & spelltype check Phase -> DOT phase");
 								if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_DOT), SpellType_DOT)) {
@@ -1675,7 +1679,7 @@ bool Bot::AI_EngagedCastCheck() {
 									if (!AICastSpell(GetPet(), GetChanceToCastBySpellType(SpellType_Heal), SpellType_Heal)) {
 										LogAI("Heal Phase -> Aggro check & Nuke Phase");
 										if (!AICastSpell(GetTarget(), mayGetAggro?0:GetChanceToCastBySpellType(SpellType_Nuke), SpellType_Nuke)) {
-											LogAI("Aggro check & Nuke Phase");
+											// LogAI("Aggro check & Nuke Phase");
 											failedToCast = true;
 										}
 									}
