@@ -431,7 +431,6 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 			const int maxDotSelect = 5;
 			int dotSelectCounter = 0;
-			int testvariable = 0;
 
 			for (const auto& s : dotList) {
 
@@ -441,8 +440,9 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 				if (CheckSpellRecastTimers(this, s.SpellIndex)) {
 
-					if (!(!tar->IsImmuneToSpell(s.SpellId, this) && tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
-							continue;
+					if (!(!tar->IsImmuneToSpell(s.SpellId, this) &&
+						  tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
+						continue;
 					}
 
 					uint32 TempDontDotMeBefore = tar->DontDotMeBefore();
@@ -452,9 +452,7 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 						casted_spell = AIDoSpellCast(s.SpellIndex, tar, s.ManaCost, &TempDontDotMeBefore);
 					// }
 					
-					LogAI("Checking DontDotMeBefore.");
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
-						LogAI("TempDontDotMeBefore was here.");
 						tar->SetDontDotMeBefore(TempDontDotMeBefore);
 					}
 				}
