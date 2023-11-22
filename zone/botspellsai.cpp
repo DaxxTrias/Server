@@ -432,7 +432,7 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 			const int maxDotSelect = 5;
 			int dotSelectCounter = 0;
 
-			LogAI("Initializing General AI Profile for dotting. Desiring up to 5 amount of dots");
+			LogAI("Initializing General AI Profile for dotting classes. Desiring up to 5 amount of dots \n ---START OF LOOP---");
 
 			for (const auto& s : dotList) {
 
@@ -446,17 +446,20 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 					if (!(!tar->IsImmuneToSpell(s.SpellId, this) &&
 						  tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
-						continue;
+							LogAI("CanBuffStack was here.");
+							// continue;
 					}
 
 					uint32 TempDontDotMeBefore = tar->DontDotMeBefore();
 
 					if (IsValidSpellRange(botSpell.SpellId, tar)) {
+						LogAI("AIDoSpellCast was here.");
 						casted_spell = AIDoSpellCast(s.SpellIndex, tar, s.ManaCost, &TempDontDotMeBefore);
 					}
 
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
-						tar->SetDontDotMeBefore(TempDontDotMeBefore);
+						LogAI("TempDontDotMeBefore was here.");
+					// 	tar->SetDontDotMeBefore(TempDontDotMeBefore);
 					}
 				}
 
