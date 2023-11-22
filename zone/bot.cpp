@@ -6649,7 +6649,6 @@ void Bot::UpdateGroupCastingRoles(const Group* group, bool disband)
 
 	Mob* healer = nullptr;
 	Mob* slower = nullptr;
-	Mob* doter = nullptr;
 
 	for (auto iter : group->members) {
 		if (!iter)
@@ -6758,17 +6757,6 @@ void Bot::UpdateGroupCastingRoles(const Group* group, bool disband)
 		LogAI("GroupDoterRole was here.");
 		// GroupDoter
 		switch (iter->GetClass()) {
-		case NECROMANCER:
-		if (!doter)
-			doter = iter;
-		else
-			switch (slower->GetClass()) {
-			case NECROMANCER:
-				break;
-			default:
-				doter = iter;
-			}
-		break;
 		default:
 			break;
 		}
@@ -6778,8 +6766,6 @@ void Bot::UpdateGroupCastingRoles(const Group* group, bool disband)
 		healer->CastToBot()->SetGroupHealer();
 	if (slower && slower->IsBot())
 		slower->CastToBot()->SetGroupSlower();
-	if (doter && doter->IsBot())
-		doter->CastToBot()->SetGroupDoter();
 }
 
 Bot* Bot::GetBotByBotClientOwnerAndBotName(Client* c, const std::string& botName) {
