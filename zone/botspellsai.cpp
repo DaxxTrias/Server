@@ -433,27 +433,20 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 			int dotSelectCounter = 0;
 			int testvariable = 0;
 
-			LogAI("Initializing General AI Profile for dotting classes. Desiring up to 5 amount of dots \n ---START OF LOOP---");
-
 			for (const auto& s : dotList) {
 
 				if (!IsValidSpell(s.SpellId)) {
-					LogAI("IsValidSpell was here.");
 					continue;
 				}
 
 				if (CheckSpellRecastTimers(this, s.SpellIndex)) {
 
-					LogAI("Beginning check for CanBuffStack (or is target immune) phase");
-
 					if (!(!tar->IsImmuneToSpell(s.SpellId, this) && tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
-							LogAI("CanBuffStack was here.");
 							continue;
 					}
 
 					uint32 TempDontDotMeBefore = tar->DontDotMeBefore();
 
-					// LogAI("Checking spell range.");
 					// if (IsValidSpellRange(botSpell.SpellId, tar)) {
 						LogAI("casted_spell init was here.");
 						casted_spell = AIDoSpellCast(s.SpellIndex, tar, s.ManaCost, &TempDontDotMeBefore);
@@ -463,20 +456,15 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
 						LogAI("TempDontDotMeBefore was here.");
 						tar->SetDontDotMeBefore(TempDontDotMeBefore);
-						// tar->SetDontDotMeBefore(0);
 					}
 				}
 
-				// There is a bug around here, where the bot will honor spell settings
-				// regardless of whether enforced spellset is enabled or disabled
+				//todo: There is a bug around here, where the bot will honor spell settings
+				//      regardless of whether enforced spellset is enabled or disabled
 
-				// What if? If it always thinks it has zero dots placed, maybe itll 'force it' to cast more?
-				// this plan failed
-				// LogAI("DotSelectCounter was here.");
 				dotSelectCounter++;
 
 				if ((dotSelectCounter == maxDotSelect) || casted_spell) {
-					LogAI("casted_spell/maxdot was here.");
 					return casted_spell;
 				}
 			}
@@ -1679,21 +1667,13 @@ bool Bot::AI_EngagedCastCheck() {
 		}
 		else if (botClass == NECROMANCER) {
 			if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Escape), SpellType_Escape)) {
-				// LogAI("Escape Phase -> Pet Phase");
 				if (!AICastSpell(this, GetChanceToCastBySpellType(SpellType_Pet), SpellType_Pet)) {
-					// LogAI("Pet Phase -> Debuff Phase");
 					if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Debuff), SpellType_Debuff)) {
-						// LogAI("Debuff Phase -> Lifetap Phase");
 						if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Lifetap), SpellType_Lifetap)) {
-							// LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
 							if (!entity_list.Bot_AICheckCloseBeneficialSpells(this, GetChanceToCastBySpellType(SpellType_InCombatBuff), BotAISpellRange, SpellType_InCombatBuff)) {
-								// LogAI("Buff range & spelltype check Phase -> DOT phase");
 								if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_DOT), SpellType_DOT)) {
-									// LogAI("DOT Phase -> Heal Phase");
 									if (!AICastSpell(GetPet(), GetChanceToCastBySpellType(SpellType_Heal), SpellType_Heal)) {
-										LogAI("Heal Phase -> Aggro check & Nuke Phase");
 										if (!AICastSpell(GetTarget(), mayGetAggro?0:GetChanceToCastBySpellType(SpellType_Nuke), SpellType_Nuke)) {
-											// LogAI("Aggro check & Nuke Phase");
 											failedToCast = true;
 										}
 									}

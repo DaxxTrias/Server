@@ -6627,8 +6627,6 @@ bool Bot::IsArcheryRange(Mob *target) {
 
 void Bot::UpdateGroupCastingRoles(const Group* group, bool disband)
 {
-	LogAI("UpdateGroupCastingRoles was here.");
-
 	if (!group)
 		return;
 
@@ -6736,7 +6734,6 @@ void Bot::UpdateGroupCastingRoles(const Group* group, bool disband)
 			break;
 		}
 
-		LogAI("GroupNukerRole was here.");
 		// GroupNuker
 		switch (iter->GetClass()) {
 			// wizard
@@ -6754,7 +6751,6 @@ void Bot::UpdateGroupCastingRoles(const Group* group, bool disband)
 			break;
 		}
 
-		LogAI("GroupDoterRole was here.");
 		// GroupDoter
 		switch (iter->GetClass()) {
 		default:
