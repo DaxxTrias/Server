@@ -431,6 +431,7 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 			const int maxDotSelect = 5;
 			int dotSelectCounter = 0;
+			int testvariable = 0;
 
 			LogAI("Initializing General AI Profile for dotting classes. Desiring up to 5 amount of dots \n ---START OF LOOP---");
 
@@ -463,6 +464,16 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 						tar->SetDontDotMeBefore(TempDontDotMeBefore);
 					}
 				}
+
+				// despite having ^enforcecasting turned off, he would cast venom bolt repeatedly
+					// however disabling venom bolt caused him to nuke, rather then use the 3 other dots
+					// he would then repeatedly nuke. why would it refuse the other 3 dots and cast a nuke?
+					// but more importantly why would he care what the enforcement settings are when hes set to **optional**?
+					//todo: bug with enforcesettings? doesnt care whether enforced or not?
+
+				// (it runs the loop twice in the initial start? or is this continuous loop?)
+				int testvariable++;
+				LogAI(DotSelectCounter was here."" + testvariable);
 
 				// What if? If it always thinks it has zero dots placed, maybe itll 'force it' to cast more?
 				// dotSelectCounter++;
