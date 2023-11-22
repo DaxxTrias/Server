@@ -437,6 +437,7 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 			for (const auto& s : dotList) {
 
 				if (!IsValidSpell(s.SpellId)) {
+					LogAI("IsValidSpell was here.");
 					continue;
 				}
 
@@ -458,12 +459,13 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 					}
 
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
-						LogAI("TempDontDotMeBefore was here.");
-					// 	tar->SetDontDotMeBefore(TempDontDotMeBefore);
+						LogAI("TempDontDotMeBefore was");
+						tar->SetDontDotMeBefore(TempDontDotMeBefore);
 					}
 				}
 
-				dotSelectCounter++;
+				// What if? If it always thinks it has zero dots placed, maybe itll 'force it' to cast more?
+				// dotSelectCounter++;
 
 				if ((dotSelectCounter == maxDotSelect) || casted_spell) {
 					return casted_spell;
