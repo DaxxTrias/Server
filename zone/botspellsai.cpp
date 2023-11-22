@@ -461,22 +461,18 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
 						LogAI("TempDontDotMeBefore was");
-						tar->SetDontDotMeBefore(TempDontDotMeBefore);
+						// tar->SetDontDotMeBefore(TempDontDotMeBefore);
+						tar->SetDontDotMeBefore(0);
 					}
 				}
 
-				// despite having ^enforcecasting turned off, he would cast venom bolt repeatedly
-				// however disabling venom bolt caused him to nuke, rather then use the 3 other dots
-				// he would then repeatedly nuke. why would it refuse the other 3 dots and cast a nuke?
-				// but more importantly why would he care what the enforcement settings are when hes set to **optional**?
-				//todo: bug with enforcesettings? doesnt care whether enforced or not?
-
-				// (it runs the loop twice in the initial start? or is this continuous loop?)
-				// int testvariable++;
-				// LogAI("DotSelectCounter was here." + testvariable);
+				// There is a bug around here, where the bot will honor spell settings
+				// regardless of whether enforced spellset is enabled or disabled
 
 				// What if? If it always thinks it has zero dots placed, maybe itll 'force it' to cast more?
-				// dotSelectCounter++;
+				// this plan failed
+				LogAI("DotSelectCounter was here.");
+				dotSelectCounter++;
 
 				if ((dotSelectCounter == maxDotSelect) || casted_spell) {
 					return casted_spell;
@@ -1687,15 +1683,15 @@ bool Bot::AI_EngagedCastCheck() {
 					if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Debuff), SpellType_Debuff)) {
 						// LogAI("Debuff Phase -> Lifetap Phase");
 						if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Lifetap), SpellType_Lifetap)) {
-							// LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
+							LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
 							if (!entity_list.Bot_AICheckCloseBeneficialSpells(this, GetChanceToCastBySpellType(SpellType_InCombatBuff), BotAISpellRange, SpellType_InCombatBuff)) {
 								LogAI("Buff range & spelltype check Phase -> DOT phase");
 								if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_DOT), SpellType_DOT)) {
-									LogAI("DOT Phase -> Heal Phase");
+									// LogAI("DOT Phase -> Heal Phase");
 									if (!AICastSpell(GetPet(), GetChanceToCastBySpellType(SpellType_Heal), SpellType_Heal)) {
 										LogAI("Heal Phase -> Aggro check & Nuke Phase");
 										if (!AICastSpell(GetTarget(), mayGetAggro?0:GetChanceToCastBySpellType(SpellType_Nuke), SpellType_Nuke)) {
-											// LogAI("Aggro check & Nuke Phase");
+											LogAI("Aggro check & Nuke Phase");
 											failedToCast = true;
 										}
 									}
