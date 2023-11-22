@@ -432,7 +432,7 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 			const int maxDotSelect = 5;
 			int dotSelectCounter = 0;
 
-			LogAI($"Initializing General AI Profile for dotting. Desiring up to {maxDotSelect} amount of dots");
+			LogAI("Initializing General AI Profile for dotting. Desiring up to 5 amount of dots");
 
 			for (const auto& s : dotList) {
 
@@ -442,7 +442,7 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 				if (CheckSpellRecastTimers(this, s.SpellIndex)) {
 
-					LogAI("Beginning check for CanBuffStack (or is target immune) phase")
+					LogAI("Beginning check for CanBuffStack (or is target immune) phase");
 
 					if (!(!tar->IsImmuneToSpell(s.SpellId, this) &&
 						  tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
