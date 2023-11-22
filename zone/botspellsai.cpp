@@ -446,23 +446,24 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 					LogAI("Beginning check for CanBuffStack (or is target immune) phase");
 
-					if (!(!tar->IsImmuneToSpell(s.SpellId, this) &&
-						  tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
+					if (!(!tar->IsImmuneToSpell(s.SpellId, this) && tar->CanBuffStack(s.SpellId, botLevel, true) >= 0)) {
 							LogAI("CanBuffStack was here.");
-							// continue;
+							continue;
 					}
 
 					uint32 TempDontDotMeBefore = tar->DontDotMeBefore();
 
+					LogAI("Checking spell range.");
 					if (IsValidSpellRange(botSpell.SpellId, tar)) {
 						LogAI("AIDoSpellCast was here.");
 						casted_spell = AIDoSpellCast(s.SpellIndex, tar, s.ManaCost, &TempDontDotMeBefore);
 					}
-
+					
+					LogAI("Checking DontDotMeBefore.");
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
-						LogAI("TempDontDotMeBefore was");
-						// tar->SetDontDotMeBefore(TempDontDotMeBefore);
-						tar->SetDontDotMeBefore(0);
+						LogAI("TempDontDotMeBefore was here.");
+						tar->SetDontDotMeBefore(TempDontDotMeBefore);
+						// tar->SetDontDotMeBefore(0);
 					}
 				}
 
@@ -471,10 +472,11 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 				// What if? If it always thinks it has zero dots placed, maybe itll 'force it' to cast more?
 				// this plan failed
-				LogAI("DotSelectCounter was here.");
+				// LogAI("DotSelectCounter was here.");
 				dotSelectCounter++;
 
 				if ((dotSelectCounter == maxDotSelect) || casted_spell) {
+					LogAI("casted_spell/maxdot was here.");
 					return casted_spell;
 				}
 			}
@@ -1683,15 +1685,15 @@ bool Bot::AI_EngagedCastCheck() {
 					if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Debuff), SpellType_Debuff)) {
 						// LogAI("Debuff Phase -> Lifetap Phase");
 						if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_Lifetap), SpellType_Lifetap)) {
-							LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
+							// LogAI("Lifetap Phase -> Buff range & spelltype check Phase");
 							if (!entity_list.Bot_AICheckCloseBeneficialSpells(this, GetChanceToCastBySpellType(SpellType_InCombatBuff), BotAISpellRange, SpellType_InCombatBuff)) {
-								LogAI("Buff range & spelltype check Phase -> DOT phase");
+								// LogAI("Buff range & spelltype check Phase -> DOT phase");
 								if (!AICastSpell(GetTarget(), GetChanceToCastBySpellType(SpellType_DOT), SpellType_DOT)) {
 									// LogAI("DOT Phase -> Heal Phase");
 									if (!AICastSpell(GetPet(), GetChanceToCastBySpellType(SpellType_Heal), SpellType_Heal)) {
 										LogAI("Heal Phase -> Aggro check & Nuke Phase");
 										if (!AICastSpell(GetTarget(), mayGetAggro?0:GetChanceToCastBySpellType(SpellType_Nuke), SpellType_Nuke)) {
-											LogAI("Aggro check & Nuke Phase");
+											// LogAI("Aggro check & Nuke Phase");
 											failedToCast = true;
 										}
 									}
