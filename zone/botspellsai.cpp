@@ -447,10 +447,9 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 					uint32 TempDontDotMeBefore = tar->DontDotMeBefore();
 
-					// if (IsValidSpellRange(botSpell.SpellId, tar)) {
-						LogAI("casted_spell init was here.");
+					if (IsValidSpellRange(s.SpellId, tar)) {
 						casted_spell = AIDoSpellCast(s.SpellIndex, tar, s.ManaCost, &TempDontDotMeBefore);
-					// }
+					}
 					
 					if (TempDontDotMeBefore != tar->DontDotMeBefore()) {
 						tar->SetDontDotMeBefore(TempDontDotMeBefore);
@@ -459,7 +458,6 @@ bool Bot::BotCastDOT(Mob* tar, uint8 botLevel, const BotSpell& botSpell, const b
 
 				//todo: There is a bug around here, where the bot will honor spell settings
 				//      regardless of whether enforced spellset is enabled or disabled
-
 				dotSelectCounter++;
 
 				if ((dotSelectCounter == maxDotSelect) || casted_spell) {
