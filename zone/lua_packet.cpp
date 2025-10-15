@@ -83,6 +83,11 @@ int Lua_Packet::GetRawOpcode() {
 	return static_cast<int>(self->GetOpcodeBypass());
 }
 
+int Lua_Packet::GetProtocolOpcode() {
+	Lua_Safe_Call_Int();
+	return static_cast<int>(self->GetProtocolOpcode());
+}
+
 void Lua_Packet::SetRawOpcode(int op) {
 	Lua_Safe_Call_Void();
 	self->SetOpcode(static_cast<EmuOpcode>(op));
@@ -329,6 +334,7 @@ luabind::scope lua_register_packet() {
 	.property("valid", &Lua_Packet::Valid)
 	.def("GetOpcode", &Lua_Packet::GetOpcode)
 	.def("GetRawOpcode", &Lua_Packet::GetRawOpcode)
+	.def("GetProtocolOpcode", &Lua_Packet::GetProtocolOpcode)
 	.def("GetSize", &Lua_Packet::GetSize)
 	.def("GetWritePosition", &Lua_Packet::GetWritePosition)
 	.def("ReadDouble", &Lua_Packet::ReadDouble)
@@ -837,7 +843,7 @@ luabind::scope lua_register_packet_opcodes() {
 		luabind::value("HideCorpse", static_cast<int>(OP_HideCorpse)),
 		luabind::value("TargetBuffs", static_cast<int>(OP_TargetBuffs)),
 		luabind::value("TradeBusy", static_cast<int>(OP_TradeBusy)),
-		luabind::value("GuildUpdateURLAndChannel", static_cast<int>(OP_GuildUpdateURLAndChannel)),
+		luabind::value("GuildUpdate", static_cast<int>(OP_GuildUpdate)),
 		luabind::value("CameraEffect", static_cast<int>(OP_CameraEffect)),
 		luabind::value("SpellEffect", static_cast<int>(OP_SpellEffect)),
 		luabind::value("DzQuit", static_cast<int>(OP_DzQuit)),
@@ -890,6 +896,7 @@ luabind::scope lua_register_packet_opcodes() {
 		luabind::value("Weblink", static_cast<int>(OP_Weblink)),
 		luabind::value("InspectMessageUpdate", static_cast<int>(OP_InspectMessageUpdate)),
 		luabind::value("ItemPreview", static_cast<int>(OP_ItemPreview)),
+		luabind::value("ItemPreviewRequest", static_cast<int>(OP_ItemPreviewRequest)),
 		luabind::value("MercenaryDataRequest", static_cast<int>(OP_MercenaryDataRequest)),
 		luabind::value("MercenaryDataResponse", static_cast<int>(OP_MercenaryDataResponse)),
 		luabind::value("MercenaryHire", static_cast<int>(OP_MercenaryHire)),
@@ -909,7 +916,9 @@ luabind::scope lua_register_packet_opcodes() {
 		luabind::value("Marquee", static_cast<int>(OP_Marquee)),
 		luabind::value("ClientTimeStamp", static_cast<int>(OP_ClientTimeStamp)),
 		luabind::value("GuildPromote", static_cast<int>(OP_GuildPromote)),
-		luabind::value("Fling", static_cast<int>(OP_Fling))
+		luabind::value("Fling", static_cast<int>(OP_Fling)),
+		luabind::value("PickZoneWindow", static_cast<int>(OP_PickZoneWindow)),
+		luabind::value("TradeSkillRecipeInspect", static_cast<int>(OP_TradeSkillRecipeInspect))
 	)];
 }
 

@@ -36,6 +36,9 @@
 #include "../classes.h"
 #include "../races.h"
 #include "../raid.h"
+#include "../guilds.h"
+//#include "../repositories/trader_repository.h"
+#include "../cereal/include/cereal/types/vector.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -73,7 +76,7 @@ namespace UF
 	{
 		//create our opcode manager if we havent already
 		if (opcodes == nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			//load up the opcode manager.
 			//TODO: figure out how to support shared memory with multiple patches...
 			opcodes = new RegularOpcodeManager();
@@ -114,7 +117,7 @@ namespace UF
 		//we need to go to every stream and replace it's manager.
 
 		if (opcodes != nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			if (!opcodes->ReloadOpcodes(opfile.c_str())) {
 				LogNetcode("[OPCODES] Error reloading opcodes file [{}] for patch [{}]", opfile.c_str(), name);
 				return;
@@ -195,7 +198,7 @@ namespace UF
 		unsigned char *emu_buffer = in->pBuffer;
 		uint32 opcode = *((uint32*)emu_buffer);
 
-		if (opcode == 8) {
+		if (opcode == AlternateCurrencyMode::Populate) {
 			AltCurrencyPopulate_Struct *populate = (AltCurrencyPopulate_Struct*)emu_buffer;
 
 			auto outapp = new EQApplicationPacket(
@@ -306,50 +309,134 @@ namespace UF
 		EQApplicationPacket *in = *p;
 		*p = nullptr;
 
-		char *Buffer = (char *)in->pBuffer;
+		uint32 action = *(uint32 *)in->pBuffer;
 
-		uint8 SubAction = VARSTRUCT_DECODE_TYPE(uint8, Buffer);
+		switch (action) {
+			case BazaarSearch: {
+				LogTrading(
+					"Encode OP_BazaarSearch(UF) BazaarSearch action <green>[{}]",
+					action
+				);
+				std::vector<BazaarSearchResultsFromDB_Struct> results {};
+				auto bsms = (BazaarSearchMessaging_Struct *)in->pBuffer;
+				EQ::Util::MemoryStreamReader ss(
+					reinterpret_cast<char *>(bsms->payload),
+					in->size - sizeof(BazaarSearchMessaging_Struct)
+				);
+				cereal::BinaryInputArchive ar(ss);
+				ar(results);
 
-		if (SubAction != BazaarSearchResults)
-		{
-			dest->FastQueuePacket(&in, ack_req);
-			return;
+				auto  size    = results.size() * sizeof(BazaarSearchResults_Struct);
+				auto  buffer  = new uchar[size];
+				uchar *bufptr = buffer;
+				memset(buffer, 0, size);
+
+				for (auto row = results.begin(); row != results.end(); ++row) {
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, structs::UFBazaarTraderBuyerActions::BazaarSearch);
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, row->trader_entity_id);
+					strn0cpy(reinterpret_cast<char *>(bufptr), row->trader_name.c_str(), 64);
+					bufptr += 64;
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, 1);
+					VARSTRUCT_ENCODE_TYPE(int32, bufptr, row->item_id);
+					VARSTRUCT_ENCODE_TYPE(int32, bufptr, row->serial_number);
+					bufptr += 4;
+					if (row->stackable) {
+						strn0cpy(
+							reinterpret_cast<char *>(bufptr),
+							fmt::format("{}({})", row->item_name.c_str(), row->charges).c_str(),
+							64
+						);
+					}
+					else {
+						strn0cpy(
+							reinterpret_cast<char *>(bufptr),
+							fmt::format("{}({})", row->item_name.c_str(), row->count).c_str(),
+							64
+						);
+					}
+					bufptr += 64;
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, row->cost);
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, row->item_stat);
+				}
+
+				auto outapp = new EQApplicationPacket(OP_BazaarSearch, size);
+				memcpy(outapp->pBuffer, buffer, size);
+				dest->FastQueuePacket(&outapp);
+
+				safe_delete(outapp);
+				safe_delete_array(buffer);
+				safe_delete(in);
+				break;
+			}
+			case BazaarInspect:
+			case WelcomeMessage: {
+				LogTrading(
+					"Encode OP_BazaarSearch(UF) BazaarInspect/WelcomeMessage action <green>[{}]",
+					action
+				);
+				dest->FastQueuePacket(&in, ack_req);
+				break;
+			}
+			default: {
+				LogTrading(
+					"Encode OP_BazaarSearch(UF) unhandled action <red>[{}]",
+					action
+				);
+				dest->FastQueuePacket(&in, ack_req);
+			}
 		}
+	}
 
-		unsigned char *__emu_buffer = in->pBuffer;
+	ENCODE(OP_BecomeTrader)
+	{
+		uint32 action = *(uint32 *)(*p)->pBuffer;
 
-		BazaarSearchResults_Struct *emu = (BazaarSearchResults_Struct *)__emu_buffer;
-
-		int EntryCount = in->size / sizeof(BazaarSearchResults_Struct);
-
-		if (EntryCount == 0 || (in->size % sizeof(BazaarSearchResults_Struct)) != 0)
+		switch (action)
 		{
-			LogNetcode("[STRUCTS] Wrong size on outbound [{}]: Got [{}], expected multiple of [{}]", opcodes->EmuToName(in->GetOpcode()), in->size, sizeof(BazaarSearchResults_Struct));
-			delete in;
-			return;
+			case TraderOff:
+			{
+				ENCODE_LENGTH_EXACT(BecomeTrader_Struct);
+				SETUP_DIRECT_ENCODE(BecomeTrader_Struct, structs::BecomeTrader_Struct);
+				LogTrading(
+                    "Encode OP_BecomeTrader(UF) TraderOff action <green>[{}] entity_id <green>[{}] trader_name "
+                    "<green>[{}]",
+                    emu->action,
+                    emu->entity_id,
+                    emu->trader_name
+                );
+				eq->action    = structs::UFBazaarTraderBuyerActions::Zero;
+				eq->entity_id = emu->entity_id;
+				FINISH_ENCODE();
+				break;
+			}
+			case TraderOn:
+			{
+				ENCODE_LENGTH_EXACT(BecomeTrader_Struct);
+				SETUP_DIRECT_ENCODE(BecomeTrader_Struct, structs::BecomeTrader_Struct);
+				LogTrading(
+                    "Encode OP_BecomeTrader(UF) TraderOn action <green>[{}] entity_id <green>[{}] trader_name "
+                    "<green>[{}]",
+                    emu->action,
+                    emu->entity_id,
+                    emu->trader_name
+                );
+				eq->action    = structs::UFBazaarTraderBuyerActions::BeginTraderMode;
+				eq->entity_id = emu->entity_id;
+				strn0cpy(eq->trader_name, emu->trader_name, sizeof(eq->trader_name));
+				FINISH_ENCODE();
+				break;
+			}
+			default:
+			{
+				LogTrading(
+					"Encode OP_BecomeTrader(UF) unhandled action <red>[{}] Sending packet as is.",
+					action
+				);
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+				dest->FastQueuePacket(&in, ack_req);
+			}
 		}
-
-		in->size = EntryCount * sizeof(structs::BazaarSearchResults_Struct);
-		in->pBuffer = new unsigned char[in->size];
-		memset(in->pBuffer, 0, in->size);
-
-		structs::BazaarSearchResults_Struct *eq = (structs::BazaarSearchResults_Struct *)in->pBuffer;
-
-		for (int i = 0; i < EntryCount; ++i, ++emu, ++eq)
-		{
-			OUT(Beginning.Action);
-			OUT(SellerID);
-			memcpy(eq->SellerName, emu->SellerName, sizeof(eq->SellerName));
-			OUT(NumItems);
-			OUT(ItemID);
-			OUT(SerialNumber);
-			memcpy(eq->ItemName, emu->ItemName, sizeof(eq->ItemName));
-			OUT(Cost);
-			OUT(ItemStat);
-		}
-
-		delete[] __emu_buffer;
-		dest->FastQueuePacket(&in, ack_req);
 	}
 
 	ENCODE(OP_Buff)
@@ -1134,6 +1221,30 @@ namespace UF
 				PutFieldN(level);
 				PutFieldN(banker);
 				PutFieldN(class_);
+				//Translate older ranks to new values* /
+				switch (emu_e->rank) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						emu_e->rank = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						emu_e->rank = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						emu_e->rank = GUILD_LEADER_TI;
+						break;
+					}
+					default: {
+						emu_e->rank = GUILD_RANK_NONE_TI;
+						break;
+					}
+				}
 				PutFieldN(rank);
 				PutFieldN(time_last_on);
 				PutFieldN(tribute_enable);
@@ -1157,53 +1268,142 @@ namespace UF
 
 	ENCODE(OP_GuildsList)
 	{
-		EQApplicationPacket *in = *p;
+		EQApplicationPacket* in = *p;
 		*p = nullptr;
 
-		uint32 NumberOfGuilds = in->size / 64;
-		uint32 PacketSize = 68;	// 64 x 0x00 + a uint32 that I am guessing is the highest guild ID in use.
+		GuildsListMessaging_Struct   glms{};
+		EQ::Util::MemoryStreamReader ss(reinterpret_cast<char *>(in->pBuffer), in->size);
+		cereal::BinaryInputArchive   ar(ss);
+		ar(glms);
 
-		unsigned char *__emu_buffer = in->pBuffer;
-		char *InBuffer = (char *)__emu_buffer;
-		uint32 HighestGuildID = 0;
+		auto packet_size = 64 + 4 + glms.guild_detail.size() * 4 + glms.string_length;
+		auto buffer      = new uchar[packet_size];
+		auto buf_pos     = buffer;
 
-		for (unsigned int i = 0; i < NumberOfGuilds; ++i)
-		{
-			if (InBuffer[0])
-			{
-				PacketSize += (5 + strlen(InBuffer));
-				HighestGuildID = i - 1;
+		memset(buf_pos, 0, 64);
+		buf_pos += 64;
+
+		VARSTRUCT_ENCODE_TYPE(uint32, buf_pos, glms.no_of_guilds);
+
+		for (auto const& g : glms.guild_detail) {
+			if (g.guild_id < UF::constants::MAX_GUILD_ID) {
+				VARSTRUCT_ENCODE_TYPE(uint32, buf_pos, g.guild_id);
+				strn0cpy((char *) buf_pos, g.guild_name.c_str(), g.guild_name.length() + 1);
+				buf_pos += g.guild_name.length() + 1;
 			}
-			InBuffer += 64;
 		}
 
-		PacketSize++;	// Appears to be an extra 0x00 at the very end.
-		in->size = PacketSize;
-		in->pBuffer = new unsigned char[in->size];
-		InBuffer = (char *)__emu_buffer;
-		char *OutBuffer = (char *)in->pBuffer;
+		auto outapp = new EQApplicationPacket(OP_GuildsList);
 
-		// Init the first 64 bytes to zero, as per live.
-		//
-		memset(OutBuffer, 0, 64);
-		OutBuffer += 64;
+		outapp->size    = packet_size;
+		outapp->pBuffer = buffer;
 
-		VARSTRUCT_ENCODE_TYPE(uint32, OutBuffer, HighestGuildID);
+		dest->FastQueuePacket(&outapp);
+	}
 
-		for (unsigned int i = 0; i < NumberOfGuilds; ++i)
-		{
-			if (InBuffer[0])
-			{
-				VARSTRUCT_ENCODE_TYPE(uint32, OutBuffer, i - 1);
-				VARSTRUCT_ENCODE_STRING(OutBuffer, InBuffer);
+	ENCODE(OP_GuildMemberAdd)
+	{
+		ENCODE_LENGTH_EXACT(GuildMemberAdd_Struct)
+		SETUP_DIRECT_ENCODE(GuildMemberAdd_Struct, structs::GuildMemberAdd_Struct)
+
+		OUT(guild_id)
+		OUT(level)
+		OUT(class_)
+		switch (emu->rank_) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank_ = GUILD_MEMBER_TI;
+				break;
 			}
-			InBuffer += 64;
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank_ = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank_ = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				eq->rank_ = GUILD_RANK_NONE_TI;
+				break;
+			}
 		}
+		OUT(zone_id)
+		OUT(last_on)
+		OUT_str(player_name)
 
-		VARSTRUCT_ENCODE_TYPE(uint8, OutBuffer, 0x00);
+		FINISH_ENCODE()
+	}
 
-		delete[] __emu_buffer;
-		dest->FastQueuePacket(&in, ack_req);
+	ENCODE(OP_GuildMemberRankAltBanker)
+	{
+		ENCODE_LENGTH_EXACT(GuildMemberRank_Struct)
+		SETUP_DIRECT_ENCODE(GuildMemberRank_Struct, structs::GuildMemberRank_Struct)
+
+		OUT(guild_id)
+		OUT(alt_banker)
+		OUT_str(player_name)
+
+		switch (emu->rank_) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank_ = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank_ = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank_ = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				eq->rank_ = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
+		FINISH_ENCODE()
+	}
+
+	ENCODE(OP_SendGuildTributes)
+	{
+		ENCODE_LENGTH_ATLEAST(structs::GuildTributeAbility_Struct)
+		SETUP_VAR_ENCODE(GuildTributeAbility_Struct)
+		ALLOC_VAR_ENCODE(structs::GuildTributeAbility_Struct, sizeof(GuildTributeAbility_Struct) + strlen(emu->ability.name))
+
+		eq->guild_id           = emu->guild_id;
+		eq->ability.tribute_id = emu->ability.tribute_id;
+		eq->ability.tier_count = emu->ability.tier_count;
+		strncpy(eq->ability.name, emu->ability.name, strlen(emu->ability.name));
+		for (int i = 0; i < ntohl(emu->ability.tier_count); i++) {
+			eq->ability.tiers[i].cost            = emu->ability.tiers[i].cost;
+			eq->ability.tiers[i].level           = emu->ability.tiers[i].level;
+			eq->ability.tiers[i].tribute_item_id = emu->ability.tiers[i].tribute_item_id;
+		}
+		FINISH_ENCODE()
+	}
+
+	ENCODE(OP_GuildTributeDonateItem)
+	{
+		SETUP_DIRECT_ENCODE(GuildTributeDonateItemReply_Struct, structs::GuildTributeDonateItemReply_Struct);
+
+		Log(Logs::Detail, Logs::Netcode, "UF::ENCODE(OP_GuildTributeDonateItem)");
+
+		OUT(quantity)
+		OUT(favor)
+		eq->unknown8 = 0;
+		eq->slot     = ServerToUFSlot(emu->slot);
+
+		FINISH_ENCODE()
 	}
 
 	ENCODE(OP_Illusion)
@@ -1829,6 +2029,30 @@ namespace UF
 		OUT(pvp);
 		OUT(anon);
 		OUT(gm);
+		//Translate older ranks to new values* /
+		switch (emu->guildrank) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				emu->guildrank = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				emu->guildrank = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				emu->guildrank = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				emu->guildrank = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
 		OUT(guildrank);
 		OUT(guildbanker);
 		//	OUT(unknown13054[12]);
@@ -2300,6 +2524,19 @@ namespace UF
 		FINISH_ENCODE();
 	}
 
+	ENCODE(OP_ShopRequest)
+	{
+		ENCODE_LENGTH_EXACT(MerchantClick_Struct);
+		SETUP_DIRECT_ENCODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		OUT(npc_id);
+		OUT(player_id);
+		OUT(command);
+		OUT(rate);
+
+		FINISH_ENCODE();
+	}
+
 	ENCODE(OP_SomeItemPacketMaybe)
 	{
 		// This Opcode is not named very well. It is used for the animation of arrows leaving the player's bow
@@ -2332,29 +2569,88 @@ namespace UF
 
 	ENCODE(OP_SpawnAppearance)
 	{
-		EQApplicationPacket *in = *p;
-		*p = nullptr;
+		ENCODE_LENGTH_EXACT(SpawnAppearance_Struct);
+		SETUP_DIRECT_ENCODE(SpawnAppearance_Struct, structs::SpawnAppearance_Struct);
 
-		unsigned char *emu_buffer = in->pBuffer;
-
-		SpawnAppearance_Struct *sas = (SpawnAppearance_Struct *)emu_buffer;
-
-		if (sas->type != AT_Size)
-		{
-			dest->FastQueuePacket(&in, ack_req);
-			return;
+		OUT(spawn_id);
+		OUT(type);
+		OUT(parameter);
+		switch (emu->type) {
+			case AppearanceType::GuildRank: {
+				//Translate new ranks to old values* /
+				switch (emu->parameter) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						eq->parameter = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						eq->parameter = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						eq->parameter = GUILD_LEADER_TI;
+						break;
+					}
+					default: {
+						eq->parameter = GUILD_RANK_NONE_TI;
+						break;
+					}
+				}
+				break;
+			}
+			case AppearanceType::GuildShow: {
+				FAIL_ENCODE();
+				return;
+			}
+			default: {
+				break;
+			}
 		}
 
-		auto outapp = new EQApplicationPacket(OP_ChangeSize, sizeof(ChangeSize_Struct));
-		ChangeSize_Struct *css = (ChangeSize_Struct *)outapp->pBuffer;
+		FINISH_ENCODE();
+	}
 
-		css->EntityID = sas->spawn_id;
-		css->Size = (float)sas->parameter;
-		css->Unknown08 = 0;
-		css->Unknown12 = 1.0f;
+	ENCODE(OP_SetGuildRank)
+	{
+		ENCODE_LENGTH_EXACT(GuildSetRank_Struct);
+		SETUP_DIRECT_ENCODE(GuildSetRank_Struct, structs::GuildSetRank_Struct);
 
-		dest->FastQueuePacket(&outapp, ack_req);
-		delete in;
+		eq->unknown00 = 0;
+		eq->unknown04 = 0;
+
+		switch (emu->rank) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				emu->rank = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				emu->rank = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				emu->rank = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				emu->rank = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
+
+		memcpy(eq->member_name, emu->member_name, sizeof(eq->member_name));
+		OUT(banker);
+
+		FINISH_ENCODE();
 	}
 
 	ENCODE(OP_SpawnDoor)
@@ -2533,30 +2829,168 @@ namespace UF
 
 	ENCODE(OP_Trader)
 	{
-		if ((*p)->size != sizeof(TraderBuy_Struct)) {
-			EQApplicationPacket *in = *p;
-			*p = nullptr;
-			dest->FastQueuePacket(&in, ack_req);
-			return;
-		}
+		auto action = *(uint32 *) (*p)->pBuffer;
 
-		ENCODE_FORWARD(OP_TraderBuy);
+		switch (action) {
+			case TraderOn: {
+				ENCODE_LENGTH_EXACT(Trader_ShowItems_Struct);
+				SETUP_DIRECT_ENCODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
+				LogTrading(
+					"Encode OP_Trader BeginTraderMode action <green>[{}]",
+					action
+				);
+
+				eq->action = structs::UFBazaarTraderBuyerActions::BeginTraderMode;
+				OUT(entity_id);
+
+				FINISH_ENCODE();
+				break;
+			}
+			case TraderOff: {
+				ENCODE_LENGTH_EXACT(Trader_ShowItems_Struct);
+				SETUP_DIRECT_ENCODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
+				LogTrading(
+					"Encode OP_Trader EndTraderMode action <green>[{}]",
+					action
+				);
+
+				eq->action = structs::UFBazaarTraderBuyerActions::EndTraderMode;
+				OUT(entity_id);
+
+				FINISH_ENCODE();
+				break;
+			}
+			case ListTraderItems: {
+				ENCODE_LENGTH_EXACT(Trader_Struct);
+				SETUP_DIRECT_ENCODE(Trader_Struct, structs::Trader_Struct);
+				LogTrading(
+					"Encode OP_Trader ListTraderItems action <green>[{}]",
+					action
+				);
+
+				eq->action = structs::UFBazaarTraderBuyerActions::ListTraderItems;
+				std::copy_n(emu->items, UF::invtype::BAZAAR_SIZE, eq->item_id);
+				std::copy_n(emu->item_cost, UF::invtype::BAZAAR_SIZE, eq->item_cost);
+
+				FINISH_ENCODE();
+				break;
+			}
+			case BuyTraderItem: {
+				ENCODE_LENGTH_EXACT(TraderBuy_Struct);
+				SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
+				LogTrading(
+					"Encode OP_Trader item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+					eq->item_id,
+					eq->price,
+					eq->quantity,
+					eq->trader_id
+				);
+
+				eq->action = structs::UFBazaarTraderBuyerActions::BuyTraderItem;
+				OUT(price);
+				OUT(trader_id);
+				OUT(item_id);
+				OUT(already_sold);
+				OUT(quantity);
+				strn0cpy(eq->item_name, emu->item_name, sizeof(eq->item_name));
+
+				FINISH_ENCODE();
+				break;
+			}
+			case ItemMove: {
+				LogTrading(
+					"Encode OP_Trader ItemMove action <green>[{}]",
+					action
+				);
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+				dest->FastQueuePacket(&in, ack_req);
+				break;
+			}
+			default: {
+				EQApplicationPacket *in = *p;
+				*p                      = nullptr;
+
+				dest->FastQueuePacket(&in, ack_req);
+				LogError("Unknown Encode OP_Trader action <red>{} received.  Unhandled.", action);
+			}
+		}
 	}
 
 	ENCODE(OP_TraderBuy)
 	{
 		ENCODE_LENGTH_EXACT(TraderBuy_Struct);
 		SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
+		LogTrading(
+			"Encode OP_TraderBuy item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+			emu->item_id,
+			emu->price,
+			emu->quantity,
+			emu->trader_id
+		);
 
-		OUT(Action);
-		OUT(Price);
-		OUT(TraderID);
-		memcpy(eq->ItemName, emu->ItemName, sizeof(eq->ItemName));
-		OUT(ItemID);
-		OUT(Quantity);
-		OUT(AlreadySold);
+		OUT(action);
+		OUT(price);
+		OUT(trader_id);
+		OUT(item_id);
+		OUT(already_sold);
+		OUT(quantity);
+		OUT_str(item_name);
 
 		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_TraderShop)
+	{
+		auto action = *(uint32 *)(*p)->pBuffer;
+
+		switch (action) {
+			case ClickTrader: {
+				ENCODE_LENGTH_EXACT(TraderClick_Struct);
+				SETUP_DIRECT_ENCODE(TraderClick_Struct, structs::TraderClick_Struct);
+				LogTrading(
+					"ClickTrader action <green>[{}] trader_id <green>[{}]",
+					action,
+					emu->TraderID
+				);
+
+				eq->action    = 0;
+				eq->trader_id = emu->TraderID;
+				eq->approval  = emu->Approval;
+
+				FINISH_ENCODE();
+				break;
+			}
+			case BuyTraderItem: {
+				ENCODE_LENGTH_EXACT(TraderBuy_Struct);
+				SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
+				LogTrading(
+					"Encode OP_TraderShop item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+					eq->item_id,
+					eq->price,
+					eq->quantity,
+					eq->trader_id
+				);
+
+				eq->action = structs::UFBazaarTraderBuyerActions::BuyTraderItem;
+				OUT(price);
+				OUT(trader_id);
+				OUT(item_id);
+				OUT(already_sold);
+				OUT(quantity);
+				strn0cpy(eq->item_name, emu->item_name, sizeof(eq->item_name));
+
+				FINISH_ENCODE();
+				break;
+			}
+			default: {
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+
+				dest->FastQueuePacket(&in, ack_req);
+				LogError("Unknown Encode OP_TraderShop action <red>[{}] received.  Unhandled.", action);
+			}
+		}
 	}
 
 	ENCODE(OP_TributeItem)
@@ -2779,8 +3213,8 @@ namespace UF
 			}
 
 			float SpawnSize = emu->size;
-			if (!((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522))
+			if (!((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin))
 				)
 			{
 				PacketSize -= (sizeof(structs::Texture_Struct) * EQ::textures::materialCount);
@@ -2830,7 +3264,7 @@ namespace UF
 			Bitfields->targetable = 1;
 			Bitfields->targetable_with_hotkey = emu->targetable_with_hotkey ? 1 : 0;
 			Bitfields->statue = 0;
-			Bitfields->trader = 0;
+			Bitfields->trader = emu->trader ? 1 : 0;
 			Bitfields->buyer = 0;
 
 			Bitfields->showname = ShowName;
@@ -2945,6 +3379,30 @@ namespace UF
 			else
 			{
 				VARSTRUCT_ENCODE_TYPE(uint32, Buffer, emu->guildID);
+				//Translate older ranks to new values* /
+				switch (emu->guildrank) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						emu->guildrank = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						emu->guildrank = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						emu->guildrank = GUILD_LEADER_TI;
+						break;
+					}
+					default: {
+						emu->guildrank = GUILD_RANK_NONE_TI;
+						break;
+					}
+				}
 				VARSTRUCT_ENCODE_TYPE(uint32, Buffer, emu->guildrank);
 			}
 			VARSTRUCT_ENCODE_TYPE(uint8, Buffer, emu->class_);
@@ -2982,8 +3440,8 @@ namespace UF
 
 			Buffer += sizeof(structs::Spawn_Struct_Position);
 
-			if ((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522)
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
 				)
 			{
 				for (k = EQ::textures::textureBegin; k < EQ::textures::materialCount; ++k)
@@ -3018,8 +3476,8 @@ namespace UF
 				VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 0);
 			}
 
-			if ((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522)
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
 				)
 			{
 				structs::Texture_Struct *Equipment = (structs::Texture_Struct *)Buffer;
@@ -3129,20 +3587,49 @@ namespace UF
 
 	DECODE(OP_BazaarSearch)
 	{
-		char *Buffer = (char *)__packet->pBuffer;
+		uint32 action = *(uint32 *) __packet->pBuffer;
 
-		uint8 SubAction = VARSTRUCT_DECODE_TYPE(uint8, Buffer);
+		switch (action) {
+			case structs::UFBazaarTraderBuyerActions::BazaarSearch: {
+				DECODE_LENGTH_EXACT(structs::BazaarSearch_Struct);
+				SETUP_DIRECT_DECODE(BazaarSearchCriteria_Struct, structs::BazaarSearch_Struct);
 
-		if ((SubAction != BazaarInspectItem) || (__packet->size != sizeof(structs::NewBazaarInspect_Struct)))
-			return;
+				emu->action           = eq->Beginning.Action;
+				emu->item_stat        = eq->ItemStat;
+				emu->max_cost         = eq->MaxPrice;
+				emu->min_cost         = eq->MinPrice;
+				emu->max_level        = eq->MaxLlevel;
+				emu->min_level        = eq->Minlevel;
+                emu->race             = eq->Race;
+                emu->slot             = eq->Slot;
+                emu->type             = eq->Type == UINT32_MAX ? UINT8_MAX : eq->Type;
+                emu->trader_entity_id = eq->TraderID;
+                emu->trader_id        = 0;
+                emu->_class           = eq->Class_;
+                emu->search_scope     = eq->TraderID > 0 ? NonRoFBazaarSearchScope : Local_Scope;
+                emu->max_results      = RuleI(Bazaar, MaxSearchResults);
+                strn0cpy(emu->item_name, eq->Name, sizeof(emu->item_name));
 
-		SETUP_DIRECT_DECODE(NewBazaarInspect_Struct, structs::NewBazaarInspect_Struct);
-		MEMSET_IN(structs::NewBazaarInspect_Struct);
-		IN(Beginning.Action);
-		memcpy(emu->Name, eq->Name, sizeof(emu->Name));
-		IN(SerialNumber);
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::UFBazaarTraderBuyerActions::BazaarInspect: {
+				SETUP_DIRECT_DECODE(BazaarInspect_Struct, structs::BazaarInspect_Struct);
 
-		FINISH_DIRECT_DECODE();
+				IN(action);
+				memcpy(emu->player_name, eq->player_name, sizeof(emu->player_name));
+				IN(serial_number);
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::UFBazaarTraderBuyerActions::WelcomeMessage: {
+				break;
+			}
+			default: {
+				LogTrading("(UF) Unhandled action <red>[{}]", action);
+			}
+		}
 	}
 
 	DECODE(OP_BookButton)
@@ -3577,6 +4064,34 @@ namespace UF
 		DECODE_FORWARD(OP_GroupInvite);
 	}
 
+	DECODE(OP_GuildDemote)
+	{
+		DECODE_LENGTH_EXACT(structs::GuildDemoteStruct);
+		SETUP_DIRECT_DECODE(GuildDemoteStruct, structs::GuildDemoteStruct);
+
+		memcpy(emu->name, eq->name, sizeof(emu->name));
+		memcpy(emu->target, eq->target, sizeof(emu->target));
+		emu->rank = GUILD_MEMBER;
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_GuildTributeDonateItem)
+	{
+		DECODE_LENGTH_EXACT(structs::GuildTributeDonateItemRequest_Struct);
+		SETUP_DIRECT_DECODE(GuildTributeDonateItemRequest_Struct, structs::GuildTributeDonateItemRequest_Struct);
+
+		Log(Logs::Detail, Logs::Netcode, "UF::DECODE(OP_GuildTributeDonateItem)");
+
+		IN(quantity);
+		IN(tribute_master_id);
+		IN(guild_id);
+
+		emu->slot = UFToServerSlot(eq->slot);
+
+		FINISH_DIRECT_DECODE();
+	}
+
 	DECODE(OP_InspectRequest)
 	{
 		DECODE_LENGTH_EXACT(structs::Inspect_Struct);
@@ -3782,18 +4297,112 @@ namespace UF
 		FINISH_DIRECT_DECODE();
 	}
 
+	DECODE(OP_ShopRequest)
+	{
+		DECODE_LENGTH_EXACT(structs::MerchantClick_Struct);
+		SETUP_DIRECT_DECODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		IN(npc_id);
+		IN(player_id);
+		IN(command);
+		IN(rate);
+		emu->tab_display = 0;
+		emu->unknown020 = 0;
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_Trader)
+	{
+		auto action = (uint32) __packet->pBuffer[0];
+
+		switch (action) {
+			case structs::UFBazaarTraderBuyerActions::BeginTraderMode: {
+				DECODE_LENGTH_EXACT(structs::BeginTrader_Struct);
+				SETUP_DIRECT_DECODE(ClickTrader_Struct, structs::BeginTrader_Struct);
+				LogTrading(
+					"Decode OP_Trader BeginTraderMode action <red>[{}]",
+					action
+				);
+
+				emu->action      = TraderOn;
+				emu->unknown_004 = 0;
+				std::copy_n(eq->serial_number, UF::invtype::BAZAAR_SIZE, emu->serial_number);
+				std::copy_n(eq->cost, UF::invtype::BAZAAR_SIZE, emu->item_cost);
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::UFBazaarTraderBuyerActions::EndTraderMode: {
+				DECODE_LENGTH_EXACT(structs::Trader_ShowItems_Struct);
+				SETUP_DIRECT_DECODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
+				LogTrading(
+					"Decode OP_Trader(UF) EndTraderMode action <red>[{}]",
+					action
+				);
+
+				emu->action = TraderOff;
+				IN(entity_id);
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::UFBazaarTraderBuyerActions::PriceUpdate:
+			case structs::UFBazaarTraderBuyerActions::ItemMove:
+			case structs::UFBazaarTraderBuyerActions::EndTransaction:
+			case structs::UFBazaarTraderBuyerActions::ListTraderItems: {
+				LogTrading(
+					"Decode OP_Trader(UF) Price/ItemMove/EndTransaction/ListTraderItems action <red>[{}]",
+					action
+				);
+				break;
+			}
+			case structs::UFBazaarTraderBuyerActions::ReconcileItems: {
+				break;
+			}
+			default: {
+				LogError("Unhandled(UF) action <red>[{}] received.", action);
+			}
+		}
+	}
+
 	DECODE(OP_TraderBuy)
 	{
 		DECODE_LENGTH_EXACT(structs::TraderBuy_Struct);
 		SETUP_DIRECT_DECODE(TraderBuy_Struct, structs::TraderBuy_Struct);
-		MEMSET_IN(TraderBuy_Struct);
+		LogTrading(
+			"Decode OP_TraderBuy(UF) item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+			eq->item_id,
+			eq->price,
+			eq->quantity,
+			eq->trader_id
+		);
 
-		IN(Action);
-		IN(Price);
-		IN(TraderID);
-		memcpy(emu->ItemName, eq->ItemName, sizeof(emu->ItemName));
-		IN(ItemID);
-		IN(Quantity);
+		emu->action = BuyTraderItem;
+		IN(price);
+		IN(trader_id);
+		IN(item_id);
+		IN(quantity);
+		IN(already_sold);
+		strn0cpy(emu->item_name, eq->item_name, sizeof(eq->item_name));
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_TraderShop)
+	{
+		DECODE_LENGTH_EXACT(structs::TraderClick_Struct);
+		SETUP_DIRECT_DECODE(TraderClick_Struct, structs::TraderClick_Struct);
+		LogTrading(
+			"(UF) action <green>[{}] trader_id <green>[{}] approval <green>[{}]",
+			eq->action,
+			eq->trader_id,
+			eq->approval
+		);
+
+		emu->Code     = ClickTrader;
+		emu->TraderID = eq->trader_id;
+		emu->Approval = eq->approval;
 
 		FINISH_DIRECT_DECODE();
 	}
@@ -4299,12 +4908,12 @@ namespace UF
 			UFSlot = serverSlot - 2;
 		}
 
-		else if (serverSlot <= EQ::invbag::GENERAL_BAGS_8_END && serverSlot >= EQ::invbag::GENERAL_BAGS_BEGIN) {
-			UFSlot = serverSlot + 11;
+		else if (serverSlot <= EQ::invbag::GENERAL_BAGS_END && serverSlot >= EQ::invbag::GENERAL_BAGS_BEGIN) {
+			UFSlot = serverSlot - (EQ::invbag::GENERAL_BAGS_BEGIN - invbag::GENERAL_BAGS_BEGIN)/*3748*/ - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::GENERAL_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT)); // + 11;
 		}
 
 		else if (serverSlot <= EQ::invbag::CURSOR_BAG_END && serverSlot >= EQ::invbag::CURSOR_BAG_BEGIN) {
-			UFSlot = serverSlot - 9;
+			UFSlot = serverSlot - (EQ::invbag::CURSOR_BAG_BEGIN - invbag::CURSOR_BAG_BEGIN)/*5668*/; // - 9;
 		}
 
 		else if (serverSlot <= EQ::invslot::TRIBUTE_END && serverSlot >= EQ::invslot::TRIBUTE_BEGIN) {
@@ -4324,7 +4933,7 @@ namespace UF
 		}
 
 		else if (serverSlot <= EQ::invbag::BANK_BAGS_END && serverSlot >= EQ::invbag::BANK_BAGS_BEGIN) {
-			UFSlot = serverSlot + 1;
+			UFSlot = serverSlot - (EQ::invbag::BANK_BAGS_BEGIN - invbag::BANK_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::BANK_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT)); // + 1;
 		}
 
 		else if (serverSlot <= EQ::invslot::SHARED_BANK_END && serverSlot >= EQ::invslot::SHARED_BANK_BEGIN) {
@@ -4332,7 +4941,7 @@ namespace UF
 		}
 
 		else if (serverSlot <= EQ::invbag::SHARED_BANK_BAGS_END && serverSlot >= EQ::invbag::SHARED_BANK_BAGS_BEGIN) {
-			UFSlot = serverSlot + 1;
+			UFSlot = serverSlot - (EQ::invbag::SHARED_BANK_BAGS_BEGIN - invbag::SHARED_BANK_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::SHARED_BANK_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT)); // + 1;
 		}
 
 		else if (serverSlot <= EQ::invslot::TRADE_END && serverSlot >= EQ::invslot::TRADE_BEGIN) {
@@ -4340,7 +4949,7 @@ namespace UF
 		}
 
 		else if (serverSlot <= EQ::invbag::TRADE_BAGS_END && serverSlot >= EQ::invbag::TRADE_BAGS_BEGIN) {
-			UFSlot = serverSlot;
+			UFSlot = serverSlot - (EQ::invbag::TRADE_BAGS_BEGIN - invbag::TRADE_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::TRADE_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT)); // + 0;
 		}
 
 		else if (serverSlot <= EQ::invslot::WORLD_END && serverSlot >= EQ::invslot::WORLD_BEGIN) {
@@ -4382,11 +4991,11 @@ namespace UF
 		}
 
 		else if (ufSlot <= invbag::GENERAL_BAGS_END && ufSlot >= invbag::GENERAL_BAGS_BEGIN) {
-			ServerSlot = ufSlot - 11;
+			ServerSlot = ufSlot + (EQ::invbag::GENERAL_BAGS_BEGIN - invbag::GENERAL_BAGS_BEGIN)/*3748*/ + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((ufSlot - invbag::GENERAL_BAGS_BEGIN) / invbag::SLOT_COUNT)); // - 11;
 		}
 
 		else if (ufSlot <= invbag::CURSOR_BAG_END && ufSlot >= invbag::CURSOR_BAG_BEGIN) {
-			ServerSlot = ufSlot + 9;
+			ServerSlot = ufSlot + (EQ::invbag::CURSOR_BAG_BEGIN - invbag::CURSOR_BAG_BEGIN)/*5668*/; // + 9;
 		}
 
 		else if (ufSlot <= invslot::TRIBUTE_END && ufSlot >= invslot::TRIBUTE_BEGIN) {
@@ -4406,7 +5015,7 @@ namespace UF
 		}
 
 		else if (ufSlot <= invbag::BANK_BAGS_END && ufSlot >= invbag::BANK_BAGS_BEGIN) {
-			ServerSlot = ufSlot - 1;
+			ServerSlot = ufSlot + (EQ::invbag::BANK_BAGS_BEGIN - invbag::BANK_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((ufSlot - invbag::BANK_BAGS_BEGIN) / invbag::SLOT_COUNT)); // - 1;
 		}
 
 		else if (ufSlot <= invslot::SHARED_BANK_END && ufSlot >= invslot::SHARED_BANK_BEGIN) {
@@ -4414,7 +5023,7 @@ namespace UF
 		}
 
 		else if (ufSlot <= invbag::SHARED_BANK_BAGS_END && ufSlot >= invbag::SHARED_BANK_BAGS_BEGIN) {
-			ServerSlot = ufSlot - 1;
+			ServerSlot = ufSlot + (EQ::invbag::SHARED_BANK_BAGS_BEGIN - invbag::SHARED_BANK_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((ufSlot - invbag::SHARED_BANK_BAGS_BEGIN) / invbag::SLOT_COUNT)); // - 1;
 		}
 
 		else if (ufSlot <= invslot::TRADE_END && ufSlot >= invslot::TRADE_BEGIN) {
@@ -4422,7 +5031,7 @@ namespace UF
 		}
 
 		else if (ufSlot <= invbag::TRADE_BAGS_END && ufSlot >= invbag::TRADE_BAGS_BEGIN) {
-			ServerSlot = ufSlot;
+			ServerSlot = ufSlot + (EQ::invbag::TRADE_BAGS_BEGIN - invbag::TRADE_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((ufSlot - invbag::TRADE_BAGS_BEGIN) / invbag::SLOT_COUNT)); // - 0;
 		}
 
 		else if (ufSlot <= invslot::WORLD_END && ufSlot >= invslot::WORLD_BEGIN) {

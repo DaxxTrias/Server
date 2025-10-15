@@ -1,6 +1,8 @@
 #include "world_event_scheduler.h"
 #include "../common/servertalk.h"
 #include <ctime>
+#include "../common/rulesys.h"
+#include "../common/server_reload_types.h"
 
 void WorldEventScheduler::Process(ZSList *zs_list)
 {
@@ -31,13 +33,10 @@ void WorldEventScheduler::Process(ZSList *zs_list)
 		);
 
 		for (auto &e: m_events) {
-
 			// discard uninteresting events as its less work to calculate time on events we don't care about
 			// different processes are interested in different events
-			if (
-				e.event_type != ServerEvents::EVENT_TYPE_BROADCAST &&
-				e.event_type != ServerEvents::EVENT_TYPE_RELOAD_WORLD
-				) {
+			if (e.event_type != ServerEvents::EVENT_TYPE_BROADCAST &&
+				e.event_type != ServerEvents::EVENT_TYPE_RELOAD_WORLD) {
 				continue;
 			}
 
@@ -57,11 +56,7 @@ void WorldEventScheduler::Process(ZSList *zs_list)
 				if (e.event_type == ServerEvents::EVENT_TYPE_RELOAD_WORLD) {
 					LogScheduler("Sending reload world event [{}]", e.event_data.c_str());
 
-					auto pack = new ServerPacket(ServerOP_ReloadWorld, sizeof(ReloadWorld_Struct));
-					auto *reload_world = (ReloadWorld_Struct *) pack->pBuffer;
-					reload_world->global_repop = ReloadWorld::Repop;
-					zs_list->SendPacket(pack);
-					safe_delete(pack);
+					zs_list->SendServerReload(ServerReload::Type::WorldRepop, nullptr);
 				}
 			}
 		}

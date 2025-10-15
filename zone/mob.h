@@ -20,7 +20,7 @@
 #define MOB_H
 
 #include "common.h"
-#include "data_bucket.h"
+#include "../common/data_bucket.h"
 #include "entity.h"
 #include "hate_list.h"
 #include "pathfinder_interface.h"
@@ -41,8 +41,6 @@
 
 char* strn0cpy(char* dest, const char* source, uint32 size);
 
-#define MAX_SPECIAL_ATTACK_PARAMS 9
-
 class Client;
 class EQApplicationPacket;
 class Group;
@@ -60,6 +58,11 @@ namespace EQ
 {
 	struct ItemData;
 	class ItemInstance;
+}
+
+namespace DeathSave {
+    constexpr uint32 HP300  = 1;
+    constexpr uint32 HP8000 = 2;
 }
 
 enum class eSpecialAttacks : int {
@@ -83,7 +86,7 @@ struct AppearanceStruct {
 	uint8  hair             = UINT8_MAX;
 	uint8  hair_color       = UINT8_MAX;
 	uint8  helmet_texture   = UINT8_MAX;
-	uint16 race_id          = RACE_DOUG_0;
+	uint16 race_id          = Race::Doug;
 	bool   send_effects     = true;
 	float  size             = -1.0f;
 	Client *target          = nullptr;
@@ -95,24 +98,23 @@ class Mob : public Entity {
 public:
 	enum CLIENT_CONN_STATUS { CLIENT_CONNECTING, CLIENT_CONNECTED, CLIENT_LINKDEAD,
 						CLIENT_KICKED, DISCONNECTED, CLIENT_ERROR, CLIENT_CONNECTINGALL };
-	enum eStandingPetOrder { SPO_Follow, SPO_Sit, SPO_Guard, SPO_FeignDeath };
 
-	struct SpecialAbility {
-		SpecialAbility() {
+	struct MobSpecialAbility {
+		MobSpecialAbility() {
 			level = 0;
 			timer = nullptr;
-			for(int i = 0; i < MAX_SPECIAL_ATTACK_PARAMS; ++i) {
+			for (int i = 0; i < SpecialAbility::MaxParameters; ++i) {
 				params[i] = 0;
 			}
 		}
 
-		~SpecialAbility() {
+		~MobSpecialAbility() {
 			safe_delete(timer);
 		}
 
 		int level;
 		Timer *timer;
-		int params[MAX_SPECIAL_ATTACK_PARAMS];
+		int params[SpecialAbility::MaxParameters];
 	};
 
 	struct AuraInfo {
@@ -140,7 +142,7 @@ public:
 		uint8 in_gender,
 		uint16 in_race,
 		uint8 in_class,
-		bodyType in_bodytype,
+		uint8 in_bodytype,
 		uint8 in_deity,
 		uint8 in_level,
 		uint32 in_npctype_id,
@@ -189,7 +191,8 @@ public:
 		bool in_always_aggros_foes,
 		int32 in_heroic_strikethrough,
 		bool keeps_sold_items,
-		int64 in_hp_regen_per_second = 0
+		int64 in_hp_regen_per_second = 0,
+		uint32 npc_tint_id = 0
 	);
 	virtual ~Mob();
 
@@ -198,9 +201,19 @@ public:
 
 	void DisplayInfo(Mob *mob);
 
-	std::unordered_map<uint16, Mob *> close_mobs;
-	Timer                             mob_close_scan_timer;
-	Timer                             mob_check_moving_timer;
+	std::unordered_map<uint16, Mob *>  m_close_mobs;
+	std::unordered_map<int, glm::vec4> m_last_seen_mob_position;
+	Timer                              m_scan_close_mobs_timer;
+	Timer                              m_see_close_mobs_timer;
+	Timer                              m_mob_check_moving_timer;
+
+	uint16 m_last_wearchange_race_id = 0;
+	// client_id -> slot_id -> key
+	std::unordered_map<uint32_t, std::unordered_map<uint8_t, uint64_t>> m_last_seen_wearchange;
+	Timer m_clear_wearchange_cache_timer;
+
+	// Bot attack flag
+	Timer bot_attack_flag_timer;
 
 	//Somewhat sorted: needs documenting!
 
@@ -255,16 +268,17 @@ public:
 	void CommonOutgoingHitSuccess(Mob *defender, DamageHitInfo &hit, ExtraAttackOptions *opts = nullptr);
 	bool HasDied();
 	virtual bool CheckDualWield();
-	void DoMainHandAttackRounds(Mob *target, ExtraAttackOptions *opts = nullptr);
-	void DoOffHandAttackRounds(Mob *target, ExtraAttackOptions *opts = nullptr);
+	void DoMainHandAttackRounds(Mob *target, ExtraAttackOptions *opts = nullptr, bool rampage = false);
+	void DoOffHandAttackRounds(Mob *target, ExtraAttackOptions *opts = nullptr, bool rampage = false);
 	virtual bool CheckDoubleAttack();
 	// inline process for places where we need to do them outside of the AI_Process
-	void ProcessAttackRounds(Mob *target, ExtraAttackOptions *opts = nullptr)
+	void ProcessAttackRounds(Mob *target, ExtraAttackOptions *opts = nullptr, bool rampage = false)
 	{
 		if (target) {
-			DoMainHandAttackRounds(target, opts);
-			if (CanThisClassDualWield())
-				DoOffHandAttackRounds(target, opts);
+			DoMainHandAttackRounds(target, opts, rampage);
+			if (CanThisClassDualWield()) {
+				DoOffHandAttackRounds(target, opts, rampage);
+			}
 		}
 		return;
 	}
@@ -324,13 +338,12 @@ public:
 	virtual void SetSlotTint(uint8 material_slot, uint8 red_tint, uint8 green_tint, uint8 blue_tint);
 	virtual void WearChange(uint8 material_slot, uint32 texture, uint32 color = 0, uint32 hero_forge_model = 0);
 
-	void ChangeSize(float in_size, bool bNoRestriction = false);
+	void ChangeSize(float in_size, bool unrestricted = false);
 	void DoAnim(const int animation_id, int animation_speed = 0, bool ackreq = true, eqFilterType filter = FilterNone);
 	void ProjectileAnimation(Mob* to, int item_id, bool IsArrow = false, float speed = 0, float angle = 0, float tilt = 0, float arc = 0, const char *IDFile = nullptr, EQ::skills::SkillType skillInUse = EQ::skills::SkillArchery);
 	void SendAppearanceEffect(uint32 parm1, uint32 parm2, uint32 parm3, uint32 parm4, uint32 parm5, Client *specific_target=nullptr, uint32 value1slot = 1, uint32 value1ground = 1, uint32 value2slot = 1, uint32 value2ground = 1,
 		uint32 value3slot = 1, uint32 value3ground = 1, uint32 value4slot = 1, uint32 value4ground = 1, uint32 value5slot = 1, uint32 value5ground = 1);
 	void SendLevelAppearance();
-	void SendStunAppearance();
 	void SendTargetable(bool on, Client *specific_target = nullptr);
 	void SetMobTextureProfile(uint8 material_slot, uint32 texture, uint32 color = 0, uint32 hero_forge_model = 0);
 
@@ -397,6 +410,7 @@ public:
 	virtual bool CheckFizzle(uint16 spell_id);
 	virtual bool CheckSpellLevelRestriction(Mob *caster, uint16 spell_id);
 	virtual bool IsImmuneToSpell(uint16 spell_id, Mob *caster);
+
 	virtual float GetAOERange(uint16 spell_id);
 	void InterruptSpell(uint16 spellid = SPELL_UNKNOWN);
 	void InterruptSpell(uint16, uint16, uint16 spellid = SPELL_UNKNOWN);
@@ -441,6 +455,8 @@ public:
 	void BuffFadeBySlot(int slot, bool iRecalcBonuses = true);
 	void BuffFadeDetrimentalByCaster(Mob *caster);
 	void BuffFadeBySitModifier();
+	void BuffFadeSongs();
+	void BuffDetachCaster(Mob *caster);
 	bool IsAffectedByBuffByGlobalGroup(GlobalGroup group);
 	void BuffModifyDurationBySpellID(uint16 spell_id, int32 newDuration);
 	int AddBuff(Mob *caster, const uint16 spell_id, int duration = 0, int32 level_override = -1, bool disable_buff_overwrite = false);
@@ -495,14 +511,15 @@ public:
 	inline bool HasEndurUpkeep() const { return endur_upkeep; }
 	inline void SetEndurUpkeep(bool val) { endur_upkeep = val; }
 	bool HasBuffWithSpellGroup(int spell_group);
-	void SetAppearenceEffects(int32 slot, int32 value);
+	void SetAppearanceEffects(int32 slot, int32 value);
 	void ListAppearanceEffects(Client* c);
-	void ClearAppearenceEffects();
-	void SendSavedAppearenceEffects(Client *receiver);
+	void ClearAppearanceEffects();
+	void SendSavedAppearanceEffects(Client *receiver);
 	void SetBuffDuration(int spell_id, int duration = 0, int level_override = -1);
 	void ApplySpellBuff(int spell_id, int duration = 0, int level_override = -1);
 	int GetBuffStatValueBySpell(int32 spell_id, const char* stat_identifier);
 	int GetBuffStatValueBySlot(uint8 slot, const char* stat_identifier);
+	virtual bool GetIllusionBlock() const { return false; }
 
 	//Basic Stats/Inventory
 	virtual void SetLevel(uint8 in_level, bool command = false) { level = in_level; }
@@ -535,19 +552,18 @@ public:
 	bool CanClassEquipItem(uint32 item_id);
 	bool CanRaceEquipItem(uint32 item_id);
 	bool AffectedBySpellExcludingSlot(int slot, int effect);
-	virtual bool Death(Mob* killerMob, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill) = 0;
+	virtual bool Death(Mob* killer_mob, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, KilledByTypes killed_by = KilledByTypes::Killed_NPC, bool is_buff_tic = false) = 0;
 	virtual void Damage(Mob* from, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill,
 		bool avoidable = true, int8 buffslot = -1, bool iBuffTic = false, eSpecialAttacks special = eSpecialAttacks::None) = 0;
 	void SetHP(int64 hp);
 	inline void SetOOCRegen(int64 new_ooc_regen) { ooc_regen = new_ooc_regen; }
-	virtual void Heal();
 	virtual void HealDamage(uint64 ammount, Mob* caster = nullptr, uint16 spell_id = SPELL_UNKNOWN);
 	virtual void SetMaxHP() { current_hp = max_hp; }
 	virtual inline uint16 GetBaseRace() const { return base_race; }
 	virtual inline uint8 GetBaseGender() const { return base_gender; }
 	virtual uint16 GetFactionRace();
 	virtual inline uint16 GetDeity() const { return deity; }
-	virtual EQ::deity::DeityTypeBit GetDeityBit() { return EQ::deity::GetDeityBitmask((EQ::deity::DeityType)deity); }
+	virtual uint32 GetDeityBit() { return Deity::GetBitmask(deity); }
 	inline uint16 GetRace() const { return race; }
 	inline uint16 GetModel() const { return (use_model == 0) ? race : use_model; }
 	inline uint8 GetGender() const { return gender; }
@@ -584,6 +600,7 @@ public:
 	inline const char* GetName() const { return name; }
 	inline const char* GetOrigName() const { return orig_name; }
 	inline const char* GetLastName() const { return lastname; }
+	inline const uint8 GetPreviousPetOrder() const { return m_previous_pet_order; }
 	const char *GetCleanName();
 	virtual void SetName(const char *new_name = nullptr) { new_name ? strn0cpy(name, new_name, 64) :
 		strn0cpy(name, GetName(), 64); return; };
@@ -659,6 +676,7 @@ public:
 		((static_cast<float>(current_mana) / max_mana) * 100); }
 	virtual int64 CalcMaxMana();
 	uint32 GetNPCTypeID() const { return npctype_id; }
+	inline bool IsZoneController() const { return npctype_id == ZONE_CONTROLLER_NPC_ID; }
 	void SetNPCTypeID(uint32 npctypeid) { npctype_id = npctypeid; }
 	inline const glm::vec4& GetPosition() const { return m_Position; }
 	inline void SetPosition(const float x, const float y, const float z) { m_Position.x = x; m_Position.y = y; m_Position.z = z; }
@@ -674,6 +692,7 @@ public:
 	inline const float GetRelativeHeading() const { return m_RelativePosition.w; }
 	inline const float GetSize() const { return size; }
 	inline const float GetBaseSize() const { return base_size; }
+	inline const float SetBestZ(float z_coord) const { return z_coord + GetZOffset(); }
 	inline const GravityBehavior GetFlyMode() const { return flymode; }
 	bool IsBoat() const; // Checks races - used on mob instantiation
 	bool GetIsBoat() const { return is_boat; } // Set on instantiation for speed
@@ -696,6 +715,7 @@ public:
 	virtual bool HasGroup() = 0;
 	virtual Raid* GetRaid() = 0;
 	virtual Group* GetGroup() = 0;
+	bool IsInGroupOrRaid(Mob* other, bool same_raid_group = false);
 
 	//Faction
 	virtual inline int32 GetPrimaryFaction() const { return 0; }
@@ -713,10 +733,10 @@ public:
 	float GetMovespeed() const { return IsRunning() ? GetRunspeed() : GetWalkspeed(); }
 	bool IsRunning() const { return m_is_running; }
 	void SetRunning(bool val) { m_is_running = val; }
+	float GetCurrentSpeed() { return current_speed; }
 	virtual void GMMove(float x, float y, float z, float heading = 0.01, bool save_guard_spot = true);
-	virtual void GMMove(const glm::vec4 &position);
+	virtual void GMMove(const glm::vec4 &position, bool save_guard_spot = true);
 	void SetDelta(const glm::vec4& delta);
-	void MakeSpawnUpdateNoDelta(PlayerPositionUpdateServer_Struct* spu);
 	void MakeSpawnUpdate(PlayerPositionUpdateServer_Struct* spu);
 	void SentPositionPacket(float dx, float dy, float dz, float dh, int anim, bool send_to_self = false);
 	virtual void StopMoving();
@@ -724,7 +744,7 @@ public:
 	void SetSpawned() { spawned = true; };
 	bool Spawned() { return spawned; };
 	virtual bool ShouldISpawnFor(Client *c) { return true; }
-	void SetFlyMode(GravityBehavior flymode);
+	void SetFlyMode(GravityBehavior in_flymode);
 	void Teleport(const glm::vec3 &pos);
 	void Teleport(const glm::vec4 &pos);
 	void TryMoveAlong(float distance, float angle, bool send = true);
@@ -748,19 +768,23 @@ public:
 	int64 GetHateAmount(Mob* tmob, bool is_dam = false) { return hate_list.GetEntHateAmount(tmob,is_dam);}
 	int64 GetDamageAmount(Mob* tmob) { return hate_list.GetEntHateAmount(tmob, true);}
 	int GetHateRatio(Mob *first, Mob *with) { return hate_list.GetHateRatio(first, with); }
-	Mob* GetHateTop() { return hate_list.GetEntWithMostHateOnList(this);}
-	Mob* GetSecondaryHate(Mob *skip) { return hate_list.GetEntWithMostHateOnList(this, skip); }
+	Mob* GetHateTop() { return hate_list.GetMobWithMostHateOnList(this);}
+	Bot* GetHateTopBot() { return hate_list.GetMobWithMostHateOnList(this, nullptr, false, EntityFilterType::Bots)->CastToBot();}
+	Client* GetHateTopClient() { return hate_list.GetMobWithMostHateOnList(this, nullptr, false, EntityFilterType::Clients)->CastToClient();}
+	NPC* GetHateTopNPC() { return hate_list.GetMobWithMostHateOnList(this, nullptr, false, EntityFilterType::NPCs)->CastToNPC();}
+	Mob* GetSecondaryHate(Mob *skip) { return hate_list.GetMobWithMostHateOnList(this, skip); }
 	Mob* GetHateDamageTop(Mob* other) { return hate_list.GetDamageTopOnHateList(other);}
-	Mob* GetHateRandom() { return hate_list.GetRandomEntOnHateList();}
-	Client* GetHateRandomClient() { return hate_list.GetRandomClientOnHateList(); }
-	NPC* GetHateRandomNPC() { return hate_list.GetRandomNPCOnHateList(); }
-	Bot* GetHateRandomBot() { return hate_list.GetRandomBotOnHateList(); }
-	Mob* GetHateMost() { return hate_list.GetEntWithMostHateOnList();}
+	Mob* GetHateRandom() { return hate_list.GetRandomMobOnHateList(); }
+	Bot* GetHateRandomBot() { return hate_list.GetRandomMobOnHateList(EntityFilterType::Bots)->CastToBot(); }
+	Client* GetHateRandomClient() { return hate_list.GetRandomMobOnHateList(EntityFilterType::Clients)->CastToClient(); }
+	NPC* GetHateRandomNPC() { return hate_list.GetRandomMobOnHateList(EntityFilterType::NPCs)->CastToNPC(); }
+	Mob* GetHateMost() { return hate_list.GetMobWithMostHateOnList();}
 	Mob* GetHateClosest(bool skip_mezzed = false) { return hate_list.GetClosestEntOnHateList(this, skip_mezzed); }
 	Bot* GetHateClosestBot(bool skip_mezzed = false) { return hate_list.GetClosestEntOnHateList(this, skip_mezzed, EntityFilterType::Bots)->CastToBot(); }
 	Client* GetHateClosestClient(bool skip_mezzed = false) { return hate_list.GetClosestEntOnHateList(this, skip_mezzed, EntityFilterType::Clients)->CastToClient(); }
 	NPC* GetHateClosestNPC(bool skip_mezzed = false) { return hate_list.GetClosestEntOnHateList(this, skip_mezzed, EntityFilterType::NPCs)->CastToNPC(); }
 	bool IsEngaged() { return(!hate_list.IsHateListEmpty()); }
+	inline uint32 GetHateListCount(HateListCountType count_type = HateListCountType::All) { return hate_list.GetHateListCount(count_type); }
 	bool HasPrimaryAggro() { return PrimaryAggro; }
 	bool HasAssistAggro() { return AssistAggro; }
 	void SetPrimaryAggro(bool value) { PrimaryAggro = value; if (value) AssistAggro = false; }
@@ -778,6 +802,10 @@ public:
 	bool CheckLosFN(float posX, float posY, float posZ, float mobSize);
 	static bool CheckLosFN(glm::vec3 posWatcher, float sizeWatcher, glm::vec3 posTarget, float sizeTarget);
 	virtual bool CheckWaterLoS(Mob* m);
+	bool CheckPositioningLosFN(Mob* other, float posX, float posY, float posZ);
+	bool CheckDoorLoSCheat(Mob* other); //door skipping checks for LoS
+	bool CheckLosCheatExempt(Mob* other); //exemptions to bypass los
+	bool DoLosChecks(Mob* other);
 	inline void SetLastLosState(bool value) { last_los_check = value; }
 	inline bool CheckLastLosState() const { return last_los_check; }
 	std::string GetMobDescription();
@@ -813,7 +841,7 @@ public:
 
 	//Other Packet
 	void CreateDespawnPacket(EQApplicationPacket* app, bool Decay);
-	void CreateHorseSpawnPacket(EQApplicationPacket* app, const char* ownername, uint16 ownerid, Mob* ForWho = 0);
+	void CreateHorseSpawnPacket(EQApplicationPacket* app, Mob* m = nullptr);
 	void CreateSpawnPacket(EQApplicationPacket* app, Mob* ForWho = 0);
 	static void CreateSpawnPacket(EQApplicationPacket* app, NewSpawn_Struct* ns);
 	virtual void FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho);
@@ -821,6 +849,7 @@ public:
 	void SendHPUpdate(bool force_update_all = false);
 	virtual void ResetHPUpdateTimer() {}; // does nothing
 	static void SetSpawnLastNameByClass(NewSpawn_Struct* ns);
+	void SendRename(Mob* sender, const char* old_name, const char* new_name);
 
 	//Util
 	static uint32 RandomTimer(int min, int max);
@@ -830,16 +859,17 @@ public:
 	virtual void MakePet(uint16 spell_id, const char* pettype, const char *petname = nullptr);
 	virtual void MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower, const char *petname = nullptr, float in_size = 0.0f);
 	bool IsWarriorClass() const;
-	char GetCasterClass() const;
+	bool IsIntelligenceCasterClass() const;
+	bool IsPureMeleeClass() const;
+	bool IsWisdomCasterClass() const;
 	uint8 GetArchetype() const;
+	const std::string GetArchetypeName();
 	void SetZone(uint32 zone_id, uint32 instance_id);
 	void SendStatsWindow(Client* c, bool use_window);
 	void ShowStats(Client* client);
 	void ShowBuffs(Client* c);
 	bool PlotPositionAroundTarget(Mob* target, float &x_dest, float &y_dest, float &z_dest, bool lookForAftArc = true);
-	bool PlotPositionOnArcInFrontOfTarget(Mob *target, float &x_dest, float &y_dest, float &z_dest, float distance, float min_deg = 5.0f, float max_deg = 150.0f);
-	bool PlotPositionOnArcBehindTarget(Mob *target, float &x_dest, float &y_dest, float &z_dest, float distance);
-	bool PlotPositionBehindMeFacingTarget(Mob *target, float &x_dest, float &y_dest, float &z_dest, float min_dist = 1.0f, float max_dist = 5.0f);
+
 	virtual int GetKillExpMod() const { return 100; }
 
 	// aura functions
@@ -936,7 +966,8 @@ public:
 	void TrySympatheticProc(Mob *target, uint32 spell_id);
 	uint16 GetSympatheticFocusEffect(focusType type, uint16 spell_id);
 	bool TryFadeEffect(int slot);
-	uint16 GetSpellEffectResistChance(uint16 spell_id);
+	void DispelMagic(Mob* casterm, uint16 spell_id, int effect_value);
+	bool TrySpellEffectResist(uint16 spell_id);
 	int32 GetVulnerability(Mob *caster, uint32 spell_id, uint32 ticsremaining, bool from_buff_tic = false);
 	int64 GetFcDamageAmtIncoming(Mob *caster, int32 spell_id, bool from_buff_tic = false);
 	int64 GetFocusIncoming(focusType type, int effect, Mob *caster, uint32 spell_id); //**** This can be removed when bot healing focus code is updated ****
@@ -986,6 +1017,7 @@ public:
 	inline void SetDualWieldingSameDelayWeapons(int32 val) { dw_same_delay = val; }
 	bool IsTargetedFocusEffect(int focus_type);
 	bool HasPersistDeathIllusion(int32 spell_id);
+	void DoShieldDamageOnShielderSpellEffect(Mob* shield_target, int64 hit_damage_done, EQ::skills::SkillType skillInUse);
 
 
 	bool TryDoubleMeleeRoundEffect();
@@ -1008,19 +1040,19 @@ public:
 	int16 GetModVulnerability(const uint8 resist);
 
 	void SetAllowBeneficial(bool value) { m_AllowBeneficial = value; }
-	bool GetAllowBeneficial() { if (m_AllowBeneficial || GetSpecialAbility(ALLOW_BENEFICIAL)){return true;} return false; }
+	bool GetAllowBeneficial() { if (m_AllowBeneficial || GetSpecialAbility(SpecialAbility::AllowBeneficial)){return true;} return false; }
 	void SetDisableMelee(bool value) { m_DisableMelee = value; }
-	bool IsMeleeDisabled() { if (m_DisableMelee || GetSpecialAbility(DISABLE_MELEE)){return true;} return false; }
+	bool IsMeleeDisabled() { if (m_DisableMelee || GetSpecialAbility(SpecialAbility::DisableMelee)){return true;} return false; }
 
 	bool IsOffHandAtk() const { return offhand; }
 	inline void OffHandAtk(bool val) { offhand = val; }
 
-	void SetFlurryChance(uint8 value) { SetSpecialAbilityParam(SPECATK_FLURRY, 0, value); }
-	uint8 GetFlurryChance() { return GetSpecialAbilityParam(SPECATK_FLURRY, 0); }
+	void SetFlurryChance(uint8 value) { SetSpecialAbilityParam(SpecialAbility::Flurry, 0, value); }
+	uint8 GetFlurryChance() { return GetSpecialAbilityParam(SpecialAbility::Flurry, 0); }
 
-	static uint32 GetAppearanceValue(EmuAppearance iAppearance);
-	void SendAppearancePacket(uint32 type, uint32 value, bool WholeZone = true, bool iIgnoreSelf = false, Client *specific_target=nullptr);
-	void SetAppearance(EmuAppearance app, bool iIgnoreSelf = true);
+	static uint32 GetAppearanceValue(EmuAppearance in_appearance);
+	void SendAppearancePacket(uint32 type, uint32 value, bool whole_zone = true, bool ignore_self = false, Client* target = nullptr);
+	void SetAppearance(EmuAppearance app, bool ignore_self = true);
 	inline EmuAppearance GetAppearance() const { return _appearance; }
 	inline const int GetAnimation() const { return animation; }
 	inline void SetAnimation(int a) { animation = a; }
@@ -1039,6 +1071,7 @@ public:
 	void SendWearChangeAndLighting(int8 last_texture);
 	inline uint8 GetActiveLightType() { return m_Light.Type[EQ::lightsource::LightActive]; }
 	bool UpdateActiveLight(); // returns true if change, false if no change
+	uint32 GetNpcTintId() { return m_npc_tint_id; }
 
 	EQ::LightSourceProfile* GetLightProfile() { return &m_Light; }
 
@@ -1049,30 +1082,34 @@ public:
 	Mob* GetUltimateOwner();
 	void SetPetID(uint16 NewPetID);
 	inline uint16 GetPetID() const { return petid; }
-	inline PetType GetPetType() const { return typeofpet; }
-	void SetPetType(PetType p) { typeofpet = p; }
+	inline uint8 GetPetType() const { return type_of_pet; }
+	void SetPetType(uint8 pet_type) { type_of_pet = pet_type; }
 	inline int16 GetPetPower() const { return (petpower < 0) ? 0 : petpower; }
 	void SetPetPower(int16 p) { if (p < 0) petpower = 0; else petpower = p; }
-	bool IsFamiliar() const { return(typeofpet == petFamiliar); }
-	bool IsAnimation() const { return(typeofpet == petAnimation); }
-	bool IsCharmed() const { return(typeofpet == petCharmed); }
-	bool IsTargetLockPet() const { return(typeofpet == petTargetLock); }
+	bool IsFamiliar() const { return type_of_pet == PetType::Familiar; }
+	bool IsAnimation() const { return type_of_pet == PetType::Animation; }
+	bool IsCharmed() const { return type_of_pet == PetType::Charmed; }
+	bool IsTargetLockPet() const { return type_of_pet == PetType::TargetLock; }
 	inline uint32 GetPetTargetLockID() { return pet_targetlock_id; };
 	inline void SetPetTargetLockID(uint32 value) { pet_targetlock_id = value; };
-	void SetOwnerID(uint16 NewOwnerID);
+	void SetOwnerID(uint16 new_owner_id);
 	inline uint16 GetOwnerID() const { return ownerid; }
-	inline virtual bool HasOwner() { if(GetOwnerID()==0){return false;} return( entity_list.GetMob(GetOwnerID()) != 0); }
-	inline virtual bool IsPet() { return(HasOwner() && !IsMerc()); }
+	inline virtual bool HasOwner() { if (!GetOwnerID()){ return false; } return entity_list.GetMob(GetOwnerID()) != 0; }
+	inline virtual bool IsPet() { return HasOwner() && !IsMerc(); }
 	bool HasPet() const;
+	virtual bool IsCharmedPet() { return IsPet() && IsCharmed(); }
 	inline bool HasTempPetsActive() const { return(hasTempPet); }
 	inline void SetTempPetsActive(bool i) { hasTempPet = i; }
 	inline int16 GetTempPetCount() const { return count_TempPet; }
 	inline void SetTempPetCount(int16 i) { count_TempPet = i; }
 	bool HasPetAffinity() { if (aabonuses.GivePetGroupTarget || itembonuses.GivePetGroupTarget || spellbonuses.GivePetGroupTarget) return true; return false; }
+	inline bool IsPetOwnerBot() const { return pet_owner_bot; }
+	inline void SetPetOwnerBot(bool b) { pet_owner_bot = b; }
 	inline bool IsPetOwnerClient() const { return pet_owner_client; }
-	inline void SetPetOwnerClient(bool value) { pet_owner_client = value; }
+	inline void SetPetOwnerClient(bool b) { pet_owner_client = b; }
 	inline bool IsPetOwnerNPC() const { return pet_owner_npc; }
-	inline void SetPetOwnerNPC(bool value) { pet_owner_npc = value; }
+	inline void SetPetOwnerNPC(bool b) { pet_owner_npc = b; }
+	inline bool IsPetOwnerOfClientBot() const { return pet_owner_bot || pet_owner_client; }
 	inline bool IsTempPet() const { return _IsTempPet; }
 	inline void SetTempPet(bool value) { _IsTempPet = value; }
 	inline bool IsHorse() { return is_horse; }
@@ -1080,22 +1117,30 @@ public:
 	int GetPetACBonusFromOwner();
 	int GetPetATKBonusFromOwner();
 
-	inline const bodyType GetBodyType() const { return bodytype; }
-	inline const bodyType GetOrigBodyType() const { return orig_bodytype; }
-	void SetBodyType(bodyType new_body, bool overwrite_orig);
+	inline const uint8 GetBodyType() const { return bodytype; }
+	inline const uint8 GetOrigBodyType() const { return orig_bodytype; }
+	void SetBodyType(uint8 new_body, bool overwrite_orig);
 
 	bool invulnerable;
 	bool qglobal;
 
+	inline std::vector<uint32> GetBotAttackFlags() { return bot_attack_flags; }
+	inline void SetBotAttackFlag(uint32 value) { bot_attack_flags.push_back(value); }
+	inline void ClearBotAttackFlags() { bot_attack_flags.clear(); }
+	bool HasBotAttackFlag(Mob* tar);
+
 	virtual void SetAttackTimer();
 	inline void SetInvul(bool invul) { invulnerable=invul; }
-	inline bool GetInvul(void) { return invulnerable; }
-	inline void SetExtraHaste(int Haste) { ExtraHaste = Haste; }
+	inline bool GetInvul() { return invulnerable; }
+	void SetExtraHaste(int haste, bool need_to_save = true);
+	inline int GetExtraHaste() { return extra_haste; }
 	virtual int GetHaste();
 	int32 GetMeleeMitigation();
 
 	uint8 GetWeaponDamageBonus(const EQ::ItemData* weapon, bool offhand = false);
 	const DamageTable &GetDamageTable() const;
+	int GetMobFixedOffenseSkill();
+	int GetMobFixedWeaponSkill();
 	void ApplyDamageTable(DamageHitInfo &hit);
 	virtual int GetHandToHandDamage(void);
 
@@ -1121,7 +1166,7 @@ public:
 
 	void DoSpecialAttackDamage(Mob *who, EQ::skills::SkillType skill, int base_damage, int min_damage = 0, int32 hate_override = -1, int ReuseTime = 10);
 	void DoThrowingAttackDmg(Mob* other, const EQ::ItemInstance* RangeWeapon = nullptr, const EQ::ItemData* AmmoItem = nullptr, int32 weapon_damage = 0, int16 chance_mod = 0, int16 focus = 0, int ReuseTime = 0, uint32 range_id = 0, int AmmoSlot = 0, float speed = 4.0f, bool DisableProcs = false);
-	void DoMeleeSkillAttackDmg(Mob* other, int32 weapon_damage, EQ::skills::SkillType skillinuse, int16 chance_mod = 0, int16 focus = 0, bool CanRiposte = false, int ReuseTime = 0);
+	void DoMeleeSkillAttackDmg(Mob* other, int32 weapon_damage, EQ::skills::SkillType skillinuse, int16 chance_mod = 0, int16 focus = 0, bool can_riposte = false, int ReuseTime = 0);
 	void DoArcheryAttackDmg(Mob* other, const EQ::ItemInstance* RangeWeapon = nullptr, const EQ::ItemInstance* Ammo = nullptr, int32 weapon_damage = 0, int16 chance_mod = 0, int16 focus = 0, int ReuseTime = 0, uint32 range_id = 0, uint32 ammo_id = 0, const EQ::ItemData *AmmoItem = nullptr, int AmmoSlot = 0, float speed = 4.0f, bool DisableProcs = false);
 	bool TryProjectileAttack(Mob* other, const EQ::ItemData *item, EQ::skills::SkillType skillInUse, uint64 weapon_dmg, const EQ::ItemInstance* RangeWeapon, const EQ::ItemInstance* Ammo, int AmmoSlot, float speed, bool DisableProcs = false);
 	void ProjectileAttack();
@@ -1133,6 +1178,7 @@ public:
 	bool Rampage(ExtraAttackOptions *opts);
 	bool AddRampage(Mob*);
 	void ClearRampage();
+	void RemoveFromRampageList(Mob* mob, bool remove_feigned = false);
 	void SetBottomRampageList();
 	void SetTopRampageList();
 	void AreaRampage(ExtraAttackOptions *opts);
@@ -1141,7 +1187,7 @@ public:
 	void StartEnrage();
 	void ProcessEnrage();
 	bool IsEnraged();
-	void Taunt(NPC *who, bool always_succeed, int chance_bonus = 0, bool FromSpell = false, int32 bonus_hate = 0);
+	void Taunt(NPC *who, bool always_succeed, int chance_bonus = 0, bool from_spell = false, int32 bonus_hate = 0);
 
 	virtual void AI_Init();
 	virtual void AI_Start(uint32 iMoveDelay = 0);
@@ -1165,8 +1211,8 @@ public:
 	inline const float GetAssistRange() const { return (spellbonuses.AssistRange == -1) ? pAssistRange : spellbonuses.AssistRange; }
 
 
-	inline void SetPetOrder(eStandingPetOrder i) { pStandingPetOrder = i; }
-	inline const eStandingPetOrder GetPetOrder() const { return pStandingPetOrder; }
+	void SetPetOrder(uint8 pet_order);
+	inline const uint8 GetPetOrder() const { return m_pet_order; }
 	inline void SetHeld(bool nState) { held = nState; }
 	inline const bool IsHeld() const { return held; }
 	inline void SetGHeld(bool nState) { gheld = nState; }
@@ -1194,8 +1240,12 @@ public:
 	int GetFearSpeed() { return _GetFearSpeed(); }
 	bool IsFeared() { return (spellbonuses.IsFeared || flee_mode); } // This returns true if the mob is feared or fleeing due to low HP
 	inline void StartFleeing() { flee_mode = true; CalculateNewFearpoint(); }
+	void StopFleeing();
+	inline bool IsFleeing() { return flee_mode; }
 	void ProcessFlee();
 	void CheckFlee();
+	void FleeInfo(Mob* client);
+	int GetFleeRatio(Mob* other = nullptr);
 	inline bool IsBlind() { return spellbonuses.IsBlind; }
 
 	inline bool			CheckAggro(Mob* other) {return hate_list.IsEntOnHateList(other);}
@@ -1218,19 +1268,20 @@ public:
 	float				GetFixedZ(const glm::vec3 &destination, int32 z_find_offset = 5);
 	virtual int			GetStuckBehavior() const { return 0; }
 
-	void				NPCSpecialAttacks(const char* parse, int permtag, bool reset = true, bool remove = false);
-	inline uint32		DontHealMeBefore() const { return pDontHealMeBefore; }
-	inline uint32		DontBuffMeBefore() const { return pDontBuffMeBefore; }
-	inline uint32		DontDotMeBefore() const { return pDontDotMeBefore; }
-	inline uint32		DontRootMeBefore() const { return pDontRootMeBefore; }
-	inline uint32		DontSnareMeBefore() const { return pDontSnareMeBefore; }
-	inline uint32		DontCureMeBefore() const { return pDontCureMeBefore; }
-	void				SetDontRootMeBefore(uint32 time) { pDontRootMeBefore = time; }
-	void				SetDontHealMeBefore(uint32 time) { pDontHealMeBefore = time; }
-	void				SetDontBuffMeBefore(uint32 time) { pDontBuffMeBefore = time; }
-	void				SetDontDotMeBefore(uint32 time) { pDontDotMeBefore = time; }
-	void				SetDontSnareMeBefore(uint32 time) { pDontSnareMeBefore = time; }
-	void				SetDontCureMeBefore(uint32 time) { pDontCureMeBefore = time; }
+	void NPCSpecialAttacks(const char *parse, int permtag, bool reset = true, bool remove = false);
+	inline uint32 DontHealMeBefore() const { return m_dont_heal_me_before; }
+	inline uint32 DontBuffMeBefore() const { return m_dont_buff_me_before; }
+	inline uint32 DontDotMeBefore() const { return m_dont_dot_me_before; }
+	inline uint32 DontRootMeBefore() const { return m_dont_root_me_before; }
+	inline uint32 DontSnareMeBefore() const { return m_dont_snare_me_before; }
+	inline uint32 DontCureMeBefore() const { return m_dont_cure_me_before; }
+
+	void SetDontRootMeBefore(uint32 time) { m_dont_root_me_before = time; }
+	void SetDontHealMeBefore(uint32 time) { m_dont_heal_me_before = time; }
+	void SetDontBuffMeBefore(uint32 time) { m_dont_buff_me_before = time; }
+	void SetDontDotMeBefore(uint32 time) { m_dont_dot_me_before = time; }
+	void SetDontSnareMeBefore(uint32 time) { m_dont_snare_me_before = time; }
+	void SetDontCureMeBefore(uint32 time) { m_dont_cure_me_before = time; }
 
 	// calculate interruption of spell via movement of mob
 	void SaveSpellLoc() { m_SpellLocation = glm::vec3(m_Position); }
@@ -1245,9 +1296,10 @@ public:
 	void SetLooting(uint16 val) { entity_id_being_looted = val; }
 
 	bool CheckWillAggro(Mob *mob);
+	bool IsPetAggroExempt(Mob *pet_owner);
 
 	void InstillDoubt(Mob *who);
-	bool Charmed() const { return typeofpet == petCharmed; }
+	bool Charmed() const { return type_of_pet == PetType::Charmed; }
 	static uint32 GetLevelHP(uint8 tlevel);
 	uint32 GetZoneID() const; //for perl
 	uint16 GetInstanceVersion() const; //for perl
@@ -1326,6 +1378,10 @@ public:
 	inline virtual bool IsBlockedBuff(int32 SpellID) { return false; }
 	inline virtual bool IsBlockedPetBuff(int32 SpellID) { return false; }
 
+	inline void RestoreEndurance() { SetEndurance(GetMaxEndurance()); }
+	inline void RestoreHealth() { SetMaxHP(); SendHPUpdate(); }
+	inline void RestoreMana() { SetMana(GetMaxMana()); }
+
 	std::string GetGlobal(const char *varname);
 	void SetGlobal(const char *varname, const char *newvalue, int options, const char *duration, Mob *other = nullptr);
 	void TarGlobal(const char *varname, const char *value, const char *duration, int npcid, int charid, int zoneid);
@@ -1338,6 +1394,9 @@ public:
 
 	std::string GetRacePlural();
 	std::string GetClassPlural();
+
+	inline void SetMerchantSessionEntityID(uint16 value) { m_merchant_session_entity_id = value; }
+	inline uint16 GetMerchantSessionEntityID() { return m_merchant_session_entity_id; }
 
 	//Command #Tune functions
 	void TuneGetStats(Mob* defender, Mob *attacker);
@@ -1449,6 +1508,16 @@ public:
 	void CalcHeroicBonuses(StatBonuses* newbon);
 
 	DataBucketKey GetScopedBucketKeys();
+	bool LoadDataBucketsCache();
+
+	bool IsCloseToBanker();
+
+	std::unordered_map<uint16, Mob *> &GetCloseMobList(float distance = 0.0f);
+	void CheckScanCloseMobsMovingTimer();
+
+	void ClearDataBucketCache();
+	bool IsGuildmaster() const;
+	bool IsDestroying() const { return m_destroying; }
 
 protected:
 	void CommonDamage(Mob* other, int64 &damage, const uint16 spell_id, const EQ::skills::SkillType attack_skill, bool &avoidable, const int8 buffslot, const bool iBuffTic, eSpecialAttacks specal = eSpecialAttacks::None);
@@ -1526,7 +1595,7 @@ protected:
 	StatBonuses aabonuses;
 	uint16 petid;
 	uint16 ownerid;
-	PetType typeofpet;
+	uint8 type_of_pet;
 	int16 petpower;
 	uint32 follow_id;
 	uint32 follow_dist;
@@ -1535,6 +1604,7 @@ protected:
 	bool rare_spawn;
 	int32 heroic_strikethrough;
 	bool keeps_sold_items;
+	uint32 m_npc_tint_id;
 
 	uint32 m_PlayerState;
 	uint32 GetPlayerState() { return m_PlayerState; }
@@ -1549,8 +1619,8 @@ protected:
 	uint8 base_gender;
 	uint16 base_race;
 	uint8 class_;
-	bodyType bodytype;
-	bodyType orig_bodytype;
+	uint8 bodytype;
+	uint8 orig_bodytype;
 	uint16 deity;
 	uint8 level;
 	uint8 orig_level;
@@ -1650,8 +1720,6 @@ protected:
 	int32 appearance_effects_id[MAX_APPEARANCE_EFFECTS];
 	int32 appearance_effects_slot[MAX_APPEARANCE_EFFECTS];
 
-	int queue_wearchange_slot;
-
 	Timer shield_timer;
 	uint32 m_shield_target_id;
 	uint32 m_shielder_id;
@@ -1705,7 +1773,7 @@ protected:
 
 	uint8 aa_title;
 
-	int ExtraHaste; // for the #haste command
+	int extra_haste; // for the #haste command
 	bool mezzed;
 	bool stunned;
 	bool charmed; //this isnt fully implemented yet
@@ -1756,7 +1824,8 @@ protected:
 	Timer viral_timer;
 
 	// MobAI stuff
-	eStandingPetOrder pStandingPetOrder;
+	uint8 m_pet_order;
+	uint8 m_previous_pet_order;
 	uint32 minLastFightingDelayMoving;
 	uint32 maxLastFightingDelayMoving;
 	float pAggroRange = 0;
@@ -1815,12 +1884,12 @@ protected:
 
 	bool pause_timer_complete;
 	bool DistractedFromGrid;
-	uint32 pDontHealMeBefore;
-	uint32 pDontBuffMeBefore;
-	uint32 pDontDotMeBefore;
-	uint32 pDontRootMeBefore;
-	uint32 pDontSnareMeBefore;
-	uint32 pDontCureMeBefore;
+	uint32 m_dont_heal_me_before;
+	uint32 m_dont_buff_me_before;
+	uint32 m_dont_dot_me_before;
+	uint32 m_dont_root_me_before;
+	uint32 m_dont_snare_me_before;
+	uint32 m_dont_cure_me_before;
 
 	// hp event
 	int nexthpevent;
@@ -1830,9 +1899,13 @@ protected:
 	bool hasTempPet;
 	bool _IsTempPet;
 	int16 count_TempPet;
-	bool pet_owner_client; //Flags regular and pets as belonging to a client
-	bool pet_owner_npc;    //Flags regular and pets as belonging to a npc
+	bool pet_owner_bot;    // Flags pets as belonging to a Bot
+	bool pet_owner_client; // Flags pets as belonging to a Client
+	bool pet_owner_npc;    // Flags pets as belonging to an NPC
 	uint32 pet_targetlock_id;
+
+	//bot attack flags
+	std::vector<uint32> bot_attack_flags;
 
 	glm::vec3 m_TargetRing;
 
@@ -1842,7 +1915,7 @@ protected:
 	void InsertQuestGlobal(int charid, int npcid, int zoneid, const char *name, const char *value, int expdate);
 	uint32 emoteid;
 
-	SpecialAbility SpecialAbilities[MAX_SPECIAL_ATTACK];
+	MobSpecialAbility SpecialAbilities[SpecialAbility::Max];
 	bool bEnraged;
 	bool destructibleobject;
 
@@ -1861,11 +1934,14 @@ protected:
 
 	MobMovementManager *mMovementManager;
 
+	uint16 m_merchant_session_entity_id;
+
 private:
 	Mob* target;
 	EQ::InventoryProfile m_inv;
 	std::shared_ptr<HealRotation> m_target_of_heal_rotation;
 	bool m_manual_follow;
+	bool m_destroying;
 
 	void SetHeroicStrBonuses(StatBonuses* n);
 	void SetHeroicStaBonuses(StatBonuses* n);

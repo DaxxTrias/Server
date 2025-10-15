@@ -6,7 +6,7 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_GROUP_LEADERS_REPOSITORY_H
@@ -105,7 +105,7 @@ public:
 		e.gid            = 0;
 		e.leadername     = "";
 		e.marknpc        = "";
-		e.leadershipaa   = 0;
+		e.leadershipaa   = "";
 		e.maintank       = "";
 		e.assist         = "";
 		e.puller         = "";
@@ -136,8 +136,9 @@ public:
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
-				"{} WHERE id = {} LIMIT 1",
+				"{} WHERE {} = {} LIMIT 1",
 				BaseSelect(),
+				PrimaryKey(),
 				group_leaders_id
 			)
 		);
@@ -146,7 +147,7 @@ public:
 		if (results.RowCount() == 1) {
 			GroupLeaders e{};
 
-			e.gid            = static_cast<int32_t>(atoi(row[0]));
+			e.gid            = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.leadername     = row[1] ? row[1] : "";
 			e.marknpc        = row[2] ? row[2] : "";
 			e.leadershipaa   = row[3] ? row[3] : "";
@@ -154,7 +155,7 @@ public:
 			e.assist         = row[5] ? row[5] : "";
 			e.puller         = row[6] ? row[6] : "";
 			e.mentoree       = row[7] ? row[7] : "";
-			e.mentor_percent = static_cast<int32_t>(atoi(row[8]));
+			e.mentor_percent = row[8] ? static_cast<int32_t>(atoi(row[8])) : 0;
 
 			return e;
 		}
@@ -191,7 +192,7 @@ public:
 		v.push_back(columns[0] + " = " + std::to_string(e.gid));
 		v.push_back(columns[1] + " = '" + Strings::Escape(e.leadername) + "'");
 		v.push_back(columns[2] + " = '" + Strings::Escape(e.marknpc) + "'");
-		v.push_back(columns[3] + " = '" + Strings::Escape(e.leadershipaa) + "'");
+		v.push_back(columns[3] + " = '" + e.leadershipaa + "'");
 		v.push_back(columns[4] + " = '" + Strings::Escape(e.maintank) + "'");
 		v.push_back(columns[5] + " = '" + Strings::Escape(e.assist) + "'");
 		v.push_back(columns[6] + " = '" + Strings::Escape(e.puller) + "'");
@@ -221,7 +222,7 @@ public:
 		v.push_back(std::to_string(e.gid));
 		v.push_back("'" + Strings::Escape(e.leadername) + "'");
 		v.push_back("'" + Strings::Escape(e.marknpc) + "'");
-		v.push_back("'" + Strings::Escape(e.leadershipaa) + "'");
+		v.push_back("'" + e.leadershipaa + "'");
 		v.push_back("'" + Strings::Escape(e.maintank) + "'");
 		v.push_back("'" + Strings::Escape(e.assist) + "'");
 		v.push_back("'" + Strings::Escape(e.puller) + "'");
@@ -259,7 +260,7 @@ public:
 			v.push_back(std::to_string(e.gid));
 			v.push_back("'" + Strings::Escape(e.leadername) + "'");
 			v.push_back("'" + Strings::Escape(e.marknpc) + "'");
-			v.push_back("'" + Strings::Escape(e.leadershipaa) + "'");
+			v.push_back("'" + e.leadershipaa + "'");
 			v.push_back("'" + Strings::Escape(e.maintank) + "'");
 			v.push_back("'" + Strings::Escape(e.assist) + "'");
 			v.push_back("'" + Strings::Escape(e.puller) + "'");
@@ -298,7 +299,7 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			GroupLeaders e{};
 
-			e.gid            = static_cast<int32_t>(atoi(row[0]));
+			e.gid            = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.leadername     = row[1] ? row[1] : "";
 			e.marknpc        = row[2] ? row[2] : "";
 			e.leadershipaa   = row[3] ? row[3] : "";
@@ -306,7 +307,7 @@ public:
 			e.assist         = row[5] ? row[5] : "";
 			e.puller         = row[6] ? row[6] : "";
 			e.mentoree       = row[7] ? row[7] : "";
-			e.mentor_percent = static_cast<int32_t>(atoi(row[8]));
+			e.mentor_percent = row[8] ? static_cast<int32_t>(atoi(row[8])) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -331,7 +332,7 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			GroupLeaders e{};
 
-			e.gid            = static_cast<int32_t>(atoi(row[0]));
+			e.gid            = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.leadername     = row[1] ? row[1] : "";
 			e.marknpc        = row[2] ? row[2] : "";
 			e.leadershipaa   = row[3] ? row[3] : "";
@@ -339,7 +340,7 @@ public:
 			e.assist         = row[5] ? row[5] : "";
 			e.puller         = row[6] ? row[6] : "";
 			e.mentoree       = row[7] ? row[7] : "";
-			e.mentor_percent = static_cast<int32_t>(atoi(row[8]));
+			e.mentor_percent = row[8] ? static_cast<int32_t>(atoi(row[8])) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -398,6 +399,78 @@ public:
 		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
 	}
 
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const GroupLeaders &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.gid));
+		v.push_back("'" + Strings::Escape(e.leadername) + "'");
+		v.push_back("'" + Strings::Escape(e.marknpc) + "'");
+		v.push_back("'" + e.leadershipaa + "'");
+		v.push_back("'" + Strings::Escape(e.maintank) + "'");
+		v.push_back("'" + Strings::Escape(e.assist) + "'");
+		v.push_back("'" + Strings::Escape(e.puller) + "'");
+		v.push_back("'" + Strings::Escape(e.mentoree) + "'");
+		v.push_back(std::to_string(e.mentor_percent));
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<GroupLeaders> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.gid));
+			v.push_back("'" + Strings::Escape(e.leadername) + "'");
+			v.push_back("'" + Strings::Escape(e.marknpc) + "'");
+			v.push_back("'" + e.leadershipaa + "'");
+			v.push_back("'" + Strings::Escape(e.maintank) + "'");
+			v.push_back("'" + Strings::Escape(e.assist) + "'");
+			v.push_back("'" + Strings::Escape(e.puller) + "'");
+			v.push_back("'" + Strings::Escape(e.mentoree) + "'");
+			v.push_back(std::to_string(e.mentor_percent));
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_GROUP_LEADERS_REPOSITORY_H

@@ -28,7 +28,6 @@
 #include "../common/inventory_profile.h"
 #include "../common/races.h"
 #include "../common/classes.h"
-#include "../common/languages.h"
 #include "../common/skills.h"
 #include "../common/extprofile.h"
 #include "../common/strings.h"
@@ -36,6 +35,8 @@
 #include "../common/random.h"
 #include "../common/shareddb.h"
 #include "../common/opcodemgr.h"
+#include "../common/data_verification.h"
+#include "../common/data_bucket.h"
 
 #include "client.h"
 #include "worlddb.h"
@@ -50,7 +51,12 @@
 #include "../common/zone_store.h"
 #include "../common/repositories/account_repository.h"
 #include "../common/repositories/player_event_logs_repository.h"
+#include "../common/repositories/inventory_repository.h"
 #include "../common/events/player_event_logs.h"
+#include "../common/content/world_content_service.h"
+#include "../common/repositories/group_id_repository.h"
+#include "../common/repositories/character_data_repository.h"
+#include "../common/skill_caps.h"
 
 #include <iostream>
 #include <iomanip>
@@ -83,10 +89,6 @@
 std::vector<RaceClassAllocation> character_create_allocations;
 std::vector<RaceClassCombos> character_create_race_class_combos;
 
-extern ZSList zoneserver_list;
-extern LoginServerList loginserverlist;
-extern ClientList client_list;
-extern EQ::Random emu_random;
 extern uint32 numclients;
 extern volatile bool RunLoops;
 extern volatile bool UCSServerAvailable_;
@@ -130,6 +132,8 @@ Client::Client(EQStreamInterface* ieqs)
 }
 
 Client::~Client() {
+	ClearDataBucketsCache();
+
 	if (RunLoops && cle && zone_id == 0)
 		cle->SetOnline(CLE_Status::Offline);
 
@@ -188,18 +192,25 @@ bool Client::CanTradeFVNoDropItem()
 
 void Client::SendEnterWorld(std::string name)
 {
-	char char_name[64] = { 0 };
-	if (is_player_zoning && database.GetLiveChar(GetAccountID(), char_name)) {
-		if(database.GetAccountIDByChar(char_name) != GetAccountID()) {
+	std::string live_name {};
+
+	if (is_player_zoning) {
+		live_name = database.GetLiveChar(GetAccountID());
+		if (database.GetAccountIDByChar(live_name) != GetAccountID()) {
 			eqs->Close();
 			return;
-		} else {
-			LogInfo("Telling client to continue session");
 		}
+
+		LogInfo("Zoning with live_name [{}] account_id [{}]", live_name, GetAccountID());
 	}
 
-	auto outapp = new EQApplicationPacket(OP_EnterWorld, strlen(char_name) + 1);
-	memcpy(outapp->pBuffer,char_name,strlen(char_name)+1);
+	if (!is_player_zoning && RuleB(World, EnableAutoLogin)) {
+		live_name = AccountRepository::GetAutoLoginCharacterNameByAccountID(database, GetAccountID());
+		LogInfo("Attempting to auto login with live_name [{}] account_id [{}]", live_name, GetAccountID());
+	}
+
+	auto outapp = new EQApplicationPacket(OP_EnterWorld, live_name.length() + 1);
+	memcpy(outapp->pBuffer, live_name.c_str(), live_name.length() + 1);
 	QueuePacket(outapp);
 	safe_delete(outapp);
 }
@@ -435,48 +446,50 @@ void Client::SendPostEnterWorld() {
 
 bool Client::HandleSendLoginInfoPacket(const EQApplicationPacket *app)
 {
-	if (app->size != sizeof(LoginInfo_Struct)) {
+	if (app->size != sizeof(LoginInfo)) {
 		return false;
 	}
 
-	auto *login_info = (LoginInfo_Struct *) app->pBuffer;
+	auto *r = (LoginInfo *) app->pBuffer;
 
 	// Quagmire - max len for name is 18, pass 15
 	char name[19]     = {0};
 	char password[16] = {0};
-	strn0cpy(name, (char *) login_info->login_info, 18);
-	strn0cpy(password, (char *) &(login_info->login_info[strlen(name) + 1]), 15);
+	strn0cpy(name, (char *) r->login_info, 18);
+	strn0cpy(password, (char *) &(r->login_info[strlen(name) + 1]), 15);
 
-	LogDebug("Receiving Login Info Packet from Client | name [{0}] password [{1}]", name, password);
+	LogDebug("Receiving login info packet from client | name [{}] password [{}]", name, password);
 
 	if (strlen(password) <= 1) {
 		LogInfo("Login without a password");
 		return false;
 	}
 
-	is_player_zoning = (login_info->zoning == 1);
+	is_player_zoning = (r->zoning == 1);
 
 	uint32 id = Strings::ToInt(name);
 	if (id == 0) {
-		LogWarning("Receiving Login Info Packet from Client | account_id is 0 - disconnecting");
+		LogWarning("Receiving login info packet from client | account_id is 0 - disconnecting");
 		return false;
 	}
 
 	LogClientLogin("Checking authentication id [{}]", id);
 
-	if ((cle = client_list.CheckAuth(id, password))) {
+	if ((cle = ClientList::Instance()->CheckAuth(id, password))) {
+		LoadDataBucketsCache();
+
 		LogClientLogin("Checking authentication id [{}] passed", id);
 		if (!is_player_zoning) {
 			// Track who is in and who is out of the game
-			char *inout= (char *) "";
+			std::string in_out;
 
-			if (cle->GetOnline() == CLE_Status::Never){
+			if (cle->GetOnline() == CLE_Status::Never) {
 				// Desktop -> Char Select
-				inout = (char *) "In";
+				in_out = "in";
 			}
 			else {
 				// Game -> Char Select
-				inout=(char *) "Out";
+				in_out = "out";
 			}
 
 			// Always at Char select at this point.
@@ -485,7 +498,7 @@ bool Client::HandleSendLoginInfoPacket(const EQApplicationPacket *app)
 			// Could use a Logging Out Completely message somewhere.
 			cle->SetOnline(CLE_Status::CharSelect);
 
-			LogInfo("Account ({}) Logging({}) to character select :: LSID [{}] ", cle->AccountName(), inout, cle->LSID());
+			LogInfo("Account ({}) Logging ({}) to character select :: LSID [{}] ", cle->AccountName(), in_out, cle->LSID());
 		}
 		else {
 			cle->SetOnline();
@@ -502,7 +515,7 @@ bool Client::HandleSendLoginInfoPacket(const EQApplicationPacket *app)
 			ServerLSPlayerJoinWorld_Struct* join =(ServerLSPlayerJoinWorld_Struct*)pack->pBuffer;
 			strcpy(join->key,GetLSKey());
 			join->lsaccount_id = GetLSID();
-			loginserverlist.SendPacket(pack);
+			LoginServerList::Instance()->SendPacket(pack);
 			safe_delete(pack);
 		}
 
@@ -514,9 +527,38 @@ bool Client::HandleSendLoginInfoPacket(const EQApplicationPacket *app)
 		SendEnterWorld(cle->name());
 		SendPostEnterWorld();
 		if (!is_player_zoning) {
-			SendExpansionInfo();
-			SendCharInfo();
-			database.LoginIP(cle->AccountID(), long2ip(GetIP()));
+			const auto supported_clients = RuleS(World, SupportedClients);
+			bool skip_char_info = false;
+			if (!supported_clients.empty()) {
+				const std::string& name = EQ::versions::ClientVersionName(m_ClientVersion);
+				const auto& clients = Strings::Split(supported_clients, ",");
+				if (std::find(clients.begin(), clients.end(), name) == clients.end()) {
+					SendUnsupportedClientPacket(
+						fmt::format(
+							"Client Not In Supported List [{}]",
+							supported_clients
+						)
+					);
+					skip_char_info = true;
+				}
+			}
+			const auto& custom_files_key = RuleS(World, CustomFilesKey);
+			if (!skip_char_info && !custom_files_key.empty() && cle->Admin() < RuleI(World, CustomFilesAdminLevel)) {
+				// Modified clients can utilize this unused block in login_info to send custom payloads on login
+				// which indicates they are using custom client files with the correct version, based on key payload.
+				const auto client_key = std::string(reinterpret_cast<char*>(r->unknown064));
+				if (custom_files_key != client_key) {
+					std::string message = fmt::format("Missing Files [{}]", RuleS(World, CustomFilesUrl) );
+					SendUnsupportedClientPacket(message);
+					skip_char_info = true;
+				}
+			}
+
+			if (!skip_char_info) {
+				SendExpansionInfo();
+				SendCharInfo();
+				database.LoginIP(cle->AccountID(), long2ip(GetIP()));
+			}
 		}
 
 		cle->SetIP(GetIP());
@@ -535,134 +577,126 @@ bool Client::HandleNameApprovalPacket(const EQApplicationPacket *app)
 		return false;
 	}
 
-	auto length = snprintf(char_name, 64, "%s", (char*)app->pBuffer);
-	uchar race = app->pBuffer[64];
-	uchar clas = app->pBuffer[68];
+	auto n = (NameApproval_Struct*) app->pBuffer;
 
-	LogInfo("Name approval request. Name=[{}], race=[{}], class=[{}]", char_name, GetRaceIDName(race), GetClassIDName(clas));
+	strn0cpy(char_name, n->name, sizeof(char_name));
 
-	EQApplicationPacket *outapp;
-	outapp = new EQApplicationPacket;
-	outapp->SetOpcode(OP_ApproveName);
-	outapp->pBuffer = new uchar[1];
-	outapp->size = 1;
+	const uint32 length   = strlen(n->name);
+	const uint32 race_id  = n->race_id;
+	const uint32 class_id = n->class_id;
 
-	bool valid = true;
-	/* Name must be between 4 and 15 characters long, packet forged if this is true */
-	if (length < 4 || length > 15) {
-		valid = false;
+	if (!IsPlayerRace(race_id)) {
+		LogInfo("Invalid Race ID.");
+		return false;
 	}
-	/* Name must begin with an upper-case letter, can be sent with some tricking of the client */
-	else if (islower(char_name[0])) {
-		valid = false;
+
+	if (!EQ::ValueWithin(class_id, Class::Warrior, Class::Berserker)) {
+		LogInfo("Invalid Class ID.");
+		return false;
 	}
-	/* Name must not have any spaces, packet forged if this is true */
-	else if (strstr(char_name, " ")) {
-		valid = false;
-	}
-	/* I would like to do this later, since it's likely more expensive, but oh well */
-	else if (!database.CheckNameFilter(char_name)) {
-		valid = false;
-	}
-	else {
-		/* Name must not not contain any uppercase letters, can be sent with some tricking of the client */
+
+	LogInfo(
+		"char_name [{}] race_id [{}] class_id [{}]",
+		char_name,
+		GetRaceIDName(race_id),
+		GetClassIDName(class_id)
+	);
+
+	bool is_valid = true;
+
+	if (!EQ::ValueWithin(length, 4, 15)) { /* Name must be between 4 and 15 characters long, packet forged if this is true */
+		is_valid = false;
+	} else if (islower(char_name[0])) { /* Name must begin with an upper-case letter, can be sent with some tricking of the client */
+		is_valid = false;
+	} else if (strstr(char_name, " ")) { /* Name must not have any spaces, packet forged if this is true */
+		is_valid = false;
+	} else if (!database.CheckNameFilter(char_name)) { /* I would like to do this later, since it's likely more expensive, but oh well */
+		is_valid = false;
+	} else { /* Name must not contain any uppercase letters, can be sent with some tricking of the client */
 		for (int i = 1; i < length; ++i) {
 			if (isupper(char_name[i])) {
-				valid = false;
+				is_valid = false;
 				break;
 			}
 		}
 	}
 
-	/* Still not invalid, let's see if it's taken */
-	if (valid) {
-		valid = database.ReserveName(GetAccountID(), char_name);
+	if (is_valid) { /* Still not invalid, let's see if it's taken */
+		is_valid = database.ReserveName(GetAccountID(), char_name);
 	}
 
-	outapp->pBuffer[0] = valid ? 1 : 0;
+	auto outapp = new EQApplicationPacket(OP_ApproveName, 1);
+
+	outapp->pBuffer[0] = is_valid ? 1 : 0;
+
 	QueuePacket(outapp);
 	safe_delete(outapp);
 
-	if (!valid)
+	if (!is_valid) {
 		memset(char_name, 0, sizeof(char_name));
+	}
 
 	return true;
 }
 
 bool Client::HandleGenerateRandomNamePacket(const EQApplicationPacket *app) {
-	// creates up to a 10 char name
-	char vowels[18]="aeiouyaeiouaeioe";
-	char cons[48]="bcdfghjklmnpqrstvwxzybcdgklmnprstvwbcdgkpstrkd";
-	char rndname[17]="\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-	char paircons[33]="ngrkndstshthphsktrdrbrgrfrclcr";
-	int rndnum=emu_random.Int(0, 75),n=1;
-	bool dlc=false;
-	bool vwl=false;
-	bool dbl=false;
-	if (rndnum>63)
-	{	// rndnum is 0 - 75 where 64-75 is cons pair, 17-63 is cons, 0-16 is vowel
-		rndnum=(rndnum-61)*2;	// name can't start with "ng" "nd" or "rk"
-		rndname[0]=paircons[rndnum];
-		rndname[1]=paircons[rndnum+1];
-		n=2;
-	}
-	else if (rndnum>16)
-	{
-		rndnum-=17;
-		rndname[0]=cons[rndnum];
-	}
-	else
-	{
-		rndname[0]=vowels[rndnum];
-		vwl=true;
-	}
-	int namlen=emu_random.Int(5, 10);
-	for (int i=n;i<namlen;i++)
-	{
-		dlc=false;
-		if (vwl)	//last char was a vowel
-		{			// so pick a cons or cons pair
-			rndnum=emu_random.Int(0, 62);
-			if (rndnum>46)
-			{	// pick a cons pair
-				if (i>namlen-3)	// last 2 chars in name?
-				{	// name can only end in cons pair "rk" "st" "sh" "th" "ph" "sk" "nd" or "ng"
-					rndnum=emu_random.Int(0, 7)*2;
-				}
-				else
-				{	// pick any from the set
-					rndnum=(rndnum-47)*2;
-				}
-				rndname[i]=paircons[rndnum];
-				rndname[i+1]=paircons[rndnum+1];
-				dlc=true;	// flag keeps second letter from being doubled below
-				i+=1;
-			}
-			else
-			{	// select a single cons
-				rndname[i]=cons[rndnum];
+	char newName[17] = {0};
+	bool unique = false;
+
+	while (!unique) {
+		std::string cons = "bcdfghjklmnpqrstvwxyz";
+		std::string vows = "aeou";
+		std::string allVows = "aeiou";
+		std::vector<std::string> endPhon = {"a", "e", "i", "o", "u", "os", "as", "us", "is", "y", "an", "en", "in", "on", "un"};
+
+		std::random_device rd;
+		std::mt19937 gen(rd());
+
+		std::uniform_int_distribution<int> lenDist(5, 10);
+		std::uniform_int_distribution<int> firstCharDist(0, 1);
+		std::uniform_int_distribution<int> consDist(0, cons.size() - 1);
+		std::uniform_int_distribution<int> vowDist(0, vows.size() - 1);
+		std::uniform_int_distribution<int> allVowDist(0, allVows.size() - 1);
+		std::uniform_int_distribution<int> endPhonDist(0, endPhon.size() - 1);
+
+		int len = 0;
+		memset(newName, 0, sizeof(newName));
+
+		if (firstCharDist(gen) == 0) {
+			newName[len++] = vows[vowDist(gen)];
+			newName[len++] = cons[consDist(gen)];
+		} else {
+			newName[len++] = cons[consDist(gen)];
+			newName[len++] = allVows[allVowDist(gen)];
+		}
+
+		newName[0] = toupper(newName[0]);
+
+		while (len < lenDist(gen) - 1) {
+			if (len % 2 == 0) {
+				newName[len++] = cons[consDist(gen)];
+			} else {
+				newName[len++] = allVows[allVowDist(gen)];
 			}
 		}
-		else
-		{		// select a vowel
-			rndname[i]=vowels[emu_random.Int(0, 16)];
+
+		std::string end = endPhon[endPhonDist(gen)];
+		for (char c : end) {
+			if (len < 10) newName[len++] = c;
 		}
-		vwl=!vwl;
-		if (!dbl && !dlc)
-		{	// one chance at double letters in name
-			if (!emu_random.Int(0, i+9))	// chances decrease towards end of name
-			{
-				rndname[i+1]=rndname[i];
-				dbl=true;
-				i+=1;
+
+		if (database.CheckNameFilter(newName)) {
+			std::string query = StringFormat("SELECT `name` FROM `character_data` WHERE `name` = '%s'", newName);
+			auto res = database.QueryDatabase(query);
+			if (res.Success() && res.RowCount() == 0) {
+				unique = true;
 			}
 		}
 	}
 
-	rndname[0]=toupper(rndname[0]);
 	NameGeneration_Struct* ngs = (NameGeneration_Struct*)app->pBuffer;
-	memset(ngs->name,0,64);
-	strcpy(ngs->name,rndname);
+	memset(ngs->name, 0, 64);
+	strcpy(ngs->name, newName);
 
 	QueuePacket(app);
 	return true;
@@ -764,26 +798,55 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
 		RuleB(World, EnableIPExemptions) ||
 		RuleI(World, MaxClientsPerIP) > 0
 	) {
-		client_list.GetCLEIP(GetIP()); //Check current CLE Entry IPs against incoming connection
+		ClientList::Instance()->GetCLEIP(GetIP()); //Check current CLE Entry IPs against incoming connection
 	}
 
 	auto ew = (EnterWorld_Struct *) app->pBuffer;
 	strn0cpy(char_name, ew->name, sizeof(char_name));
 
-	uint32 temporary_account_id = 0;
-	charid = database.GetCharacterInfo(char_name, &temporary_account_id, &zone_id, &instance_id);
-	if (!charid) {
+	const auto& l = CharacterDataRepository::GetWhere(
+		database,
+		fmt::format(
+			"`name` = '{}' LIMIT 1",
+			Strings::Escape(char_name)
+		)
+	);
+
+	if (l.empty()) {
 		LogInfo("Could not get CharInfo for [{}]", char_name);
 		eqs->Close();
 		return true;
 	}
 
+	auto r = WorldContentService::Instance()->FindZone(zone_id, instance_id);
+	if (r.zone_id && r.instance.id != instance_id) {
+		LogInfo(
+			"Zone [{}] has been remapped to instance_id [{}] from instance_id [{}] for client [{}]",
+			r.zone.short_name,
+			r.instance.id,
+			instance_id,
+			char_name
+		);
+		instance_id = r.instance.id;
+	}
+
+	const auto& e = l.front();
+
 	// Make sure this account owns this character
-	if (temporary_account_id != account_id) {
-		LogInfo("Account [{}] does not own the character named [{}] from account [{}]", account_id, char_name, temporary_account_id);
+	if (e.account_id != account_id) {
+		LogInfo(
+			"Account [{}] does not own the character named [{}] from account [{}]",
+			account_id,
+			char_name,
+			e.account_id
+		);
 		eqs->Close();
 		return true;
 	}
+
+	charid      = e.id;
+	zone_id     = e.zone_id;
+	instance_id = e.zone_instance;
 
 	// This can probably be moved outside and have another method return requested info (don't forget to remove the #include "../common/shareddb.h" above)
 	// (This is a literal translation of the original process..I don't see why it can't be changed to a single-target query over account iteration)
@@ -875,7 +938,14 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
 	}
 
 	if(!is_player_zoning) {
-		database.SetGroupID(char_name, 0, charid);
+		GroupIdRepository::DeleteWhere(
+			database,
+			fmt::format(
+				"`character_id` = {} AND `name` = '{}'",
+				charid,
+				Strings::Escape(char_name)
+			)
+		);
 		database.SetLoginFlags(charid, false, false, 1);
 	} else {
 		auto group_id = database.GetGroupID(char_name);
@@ -894,14 +964,19 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
 	}
 
 	auto outapp = new EQApplicationPacket(OP_MOTD);
-	std::string motd_message;
-	if (database.GetVariable("MOTD", motd_message)) {
-		outapp->size = motd_message.length() + 1;
+	std::string motd = RuleS(World, MOTD);
+	if (!motd.empty()) {
+		outapp->size    = motd.length() + 1;
 		outapp->pBuffer = new uchar[outapp->size];
 		memset(outapp->pBuffer, 0, outapp->size);
-		strcpy((char*)outapp->pBuffer, motd_message.c_str());
+		strcpy((char*) outapp->pBuffer, motd.c_str());
+	} else if (database.GetVariable("MOTD", motd)) {
+		outapp->size    = motd.length() + 1;
+		outapp->pBuffer = new uchar[outapp->size];
+		memset(outapp->pBuffer, 0, outapp->size);
+		strcpy((char*) outapp->pBuffer, motd.c_str());
 	} else { // Null Message of the Day. :)
-		outapp->size = 1;
+		outapp->size    = 1;
 		outapp->pBuffer = new uchar[outapp->size];
 		outapp->pBuffer[0] = 0;
 	}
@@ -910,7 +985,7 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
 	safe_delete(outapp);
 
 	// set mailkey - used for duration of character session
-	int mail_key = emu_random.Int(1, INT_MAX);
+	uint32 mail_key = EQ::Random::Instance()->Int(1, INT_MAX);
 
 	database.SetMailKey(charid, GetIP(), mail_key);
 	if (UCSServerAvailable_) {
@@ -945,8 +1020,8 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
 		}
 
 		buffer = fmt::format("{},{},{}.{},{}{:08X}",
-			config->ChatHost,
-			config->ChatPort,
+			config->GetUCSHost(),
+			config->GetUCSPort(),
 			config->ShortName,
 			GetCharName(),
 			static_cast<char>(connection_type),
@@ -971,8 +1046,8 @@ bool Client::HandleEnterWorldPacket(const EQApplicationPacket *app) {
 		}
 
 		buffer = fmt::format("{},{},{}.{},{}{:08X}",
-			config->MailHost,
-			config->MailPort,
+			config->GetUCSHost(),
+			config->GetUCSPort(),
 			config->ShortName,
 			GetCharName(),
 			static_cast<char>(connection_type),
@@ -1023,7 +1098,7 @@ bool Client::HandlePacket(const EQApplicationPacket *app) {
 		OpcodeManager::EmuToName(app->GetOpcode()),
 		o->EmuToEQ(app->GetOpcode()) == 0 ? app->GetProtocolOpcode() : o->EmuToEQ(app->GetOpcode()),
 		app->Size(),
-		(LogSys.IsLogEnabled(Logs::Detail, Logs::PacketClientServer) ? DumpPacketToString(app) : "")
+		(EQEmuLogSys::Instance()->IsLogEnabled(Logs::Detail, Logs::PacketClientServer) ? DumpPacketToString(app) : "")
 	);
 
 	if (!eqs->CheckState(ESTABLISHED)) {
@@ -1172,7 +1247,7 @@ bool Client::Process() {
 			ServerLSPlayerLeftWorld_Struct* logout =(ServerLSPlayerLeftWorld_Struct*)pack->pBuffer;
 			strcpy(logout->key,GetLSKey());
 			logout->lsaccount_id = GetLSID();
-			loginserverlist.SendPacket(pack);
+			LoginServerList::Instance()->SendPacket(pack);
 			safe_delete(pack);
 		}
 		LogInfo("Client disconnected (not active in process)");
@@ -1338,18 +1413,18 @@ void Client::EnterWorld(bool TryBootup) {
 			return;
 		}
 
-		zone_server = zoneserver_list.FindByInstanceID(instance_id);
+		zone_server = ZSList::Instance()->FindByInstanceID(instance_id);
 	}
 	else
 	{
-		zone_server = zoneserver_list.FindByZoneID(zone_id);
+		zone_server = ZSList::Instance()->FindByZoneID(zone_id);
 	}
 
 	const char *zone_name = ZoneName(zone_id, true);
 	if (zone_server) {
 		if (false == enter_world_triggered) {
 			//Drop any clients we own in other zones.
-			zoneserver_list.DropClient(GetLSID(), zone_server);
+			ZSList::Instance()->DropClient(GetLSID(), zone_server);
 
 			// warn the zone we're coming
 			zone_server->IncomingClient(this);
@@ -1360,9 +1435,9 @@ void Client::EnterWorld(bool TryBootup) {
 	}
 	else {
 		if (TryBootup) {
-			LogInfo("Attempting autobootup of [{}] ([{}]:[{}])", zone_name, zone_id, instance_id);
+			LogInfo("Attempting autobootup of [{}] [{}] [{}]", zone_name, zone_id, instance_id);
 			autobootup_timeout.Start();
-			zone_waiting_for_bootup = zoneserver_list.TriggerBootup(zone_id, instance_id);
+			zone_waiting_for_bootup = ZSList::Instance()->TriggerBootup(zone_id, instance_id);
 			if (zone_waiting_for_bootup == 0) {
 				LogInfo("No zoneserver available to boot up");
 				TellClientZoneUnavailable();
@@ -1378,7 +1453,7 @@ void Client::EnterWorld(bool TryBootup) {
 
 	zone_waiting_for_bootup = 0;
 
-	if (GetAdmin() < 80 && zoneserver_list.IsZoneLocked(zone_id)) {
+	if (GetAdmin() < 80 && ZSList::Instance()->IsZoneLocked(zone_id)) {
 		LogInfo("Enter world failed. Zone is locked");
 		TellClientZoneUnavailable();
 		return;
@@ -1424,11 +1499,11 @@ void Client::Clearance(int8 response)
 	ZoneServer* zs = nullptr;
 	if(instance_id > 0)
 	{
-		zs = zoneserver_list.FindByInstanceID(instance_id);
+		zs = ZSList::Instance()->FindByInstanceID(instance_id);
 	}
 	else
 	{
-		zs = zoneserver_list.FindByZoneID(zone_id);
+		zs = ZSList::Instance()->FindByZoneID(zone_id);
 	}
 
 	if(zs == 0 || response == -1 || response == 0)
@@ -1532,19 +1607,20 @@ void Client::QueuePacket(const EQApplicationPacket* app, bool ack_req) {
 	eqs->QueuePacket(app, ack_req);
 }
 
-void Client::SendGuildList() {
-	EQApplicationPacket *outapp;
-	outapp = new EQApplicationPacket(OP_GuildsList);
+void Client::SendGuildList()
+{
+	auto guilds_list = guild_mgr.MakeGuildList();
 
-	//ask the guild manager to build us a nice guild list packet
-	outapp->pBuffer = guild_mgr.MakeGuildList("", outapp->size);
-	if(outapp->pBuffer == nullptr) {
-		safe_delete(outapp);
-		return;
-	}
+	std::stringstream           ss;
+	cereal::BinaryOutputArchive ar(ss);
+	ar(guilds_list);
 
+	uint32 packet_size = ss.str().length();
 
-	eqs->FastQueuePacket((EQApplicationPacket **)&outapp);
+	std::unique_ptr<EQApplicationPacket> out(new EQApplicationPacket(OP_GuildsList, packet_size));
+	memcpy(out->pBuffer, ss.str().data(), out->size);
+
+	QueuePacket(out.get());
 }
 
 // @merth: I have no idea what this struct is for, so it's hardcoded for now
@@ -1605,10 +1681,18 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 	inv.SetInventoryVersion(EQ::versions::ConvertClientVersionBitToClientVersion(m_ClientVersionBit));
 	inv.SetGMInventory(false); // character cannot have gm flag at this point
 
-	time_t bday = time(nullptr);
+	time_t  bday = time(nullptr);
 	in_addr in;
 
-	int stats_sum = cc->STR + cc->STA + cc->AGI + cc->DEX + cc->WIS + cc->INT + cc->CHA;
+	const uint32 stats_sum = (
+		cc->AGI +
+		cc->CHA +
+		cc->DEX +
+		cc->INT +
+		cc->STA +
+		cc->STR +
+		cc->WIS
+	);
 
 	in.s_addr = GetIP();
 
@@ -1621,7 +1705,7 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 	);
 	LogInfo("Name [{}]", name);
 	LogInfo(
-		"Race [{}] Class [{}] Gender [{}] Deity [{}] Start zone [{}] Tutorial [{}]",
+		"race [{}] class [{}] gender [{}] deity [{}] start_zone [{}] tutorial [{}]",
 		cc->race,
 		cc->class_,
 		cc->gender,
@@ -1629,21 +1713,20 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 		cc->start_zone,
 		cc->tutorial ? "true" : "false"
 	);
-	LogInfo("STR STA AGI DEX WIS INT CHA Total");
 	LogInfo(
-		" [{}] [{}] [{}] [{}] [{}] [{}] [{}] [{}]",
-		cc->STR,
-		cc->STA,
+		"AGI [{}] CHA [{}] DEX [{}] INT [{}] STA [{}] STR [{}] WIS [{}] Total [{}]",
 		cc->AGI,
-		cc->DEX,
-		cc->WIS,
-		cc->INT,
 		cc->CHA,
+		cc->DEX,
+		cc->INT,
+		cc->STA,
+		cc->STR,
+		cc->WIS,
 		stats_sum
 	);
-	LogInfo("Face [{}] Eye colors [{}] [{}]", cc->face, cc->eyecolor1, cc->eyecolor2);
-	LogInfo("Hairstyle [{}] Haircolor [{}]", cc->hairstyle, cc->haircolor);
-	LogInfo("Beard [{}] Beardcolor [{}]", cc->beard, cc->beardcolor);
+	LogInfo("Face [{}] Eye Colors [{}] [{}]", cc->face, cc->eyecolor1, cc->eyecolor2);
+	LogInfo("Hair [{}] Hair Color [{}]", cc->hairstyle, cc->haircolor);
+	LogInfo("Beard [{}] Beard Color [{}]", cc->beard, cc->beardcolor);
 
 	/* Validate the char creation struct */
 	if (m_ClientVersionBit & EQ::versions::maskSoFAndLater) {
@@ -1661,36 +1744,40 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 	/* Convert incoming cc_s to the new PlayerProfile_Struct */
 	memset(&pp, 0, sizeof(PlayerProfile_Struct));	// start building the profile
 
-	strn0cpy(pp.name, name, 63);
+	strn0cpy(pp.name, name, sizeof(pp.name));
 
-	pp.race				= cc->race;
-	pp.class_			= cc->class_;
-	pp.gender			= cc->gender;
-	pp.deity			= cc->deity;
-	pp.STR				= cc->STR;
-	pp.STA				= cc->STA;
-	pp.AGI				= cc->AGI;
-	pp.DEX				= cc->DEX;
-	pp.WIS				= cc->WIS;
-	pp.INT				= cc->INT;
-	pp.CHA				= cc->CHA;
-	pp.face				= cc->face;
-	pp.eyecolor1		= cc->eyecolor1;
-	pp.eyecolor2		= cc->eyecolor2;
-	pp.hairstyle		= cc->hairstyle;
-	pp.haircolor		= cc->haircolor;
-	pp.beard			= cc->beard;
-	pp.beardcolor		= cc->beardcolor;
-	pp.drakkin_heritage		= cc->drakkin_heritage;
-	pp.drakkin_tattoo		= cc->drakkin_tattoo;
-	pp.drakkin_details		= cc->drakkin_details;
-	pp.birthday		= bday;
-	pp.lastlogin	= bday;
-	pp.level			= 1;
-	pp.points			= 5;
-	pp.cur_hp			= 1000; // 1k hp during dev only
-	pp.hunger_level = 6000;
-	pp.thirst_level = 6000;
+	pp.race             = cc->race;
+	pp.class_           = cc->class_;
+	pp.gender           = cc->gender;
+	pp.deity            = cc->deity;
+	pp.STR              = cc->STR;
+	pp.STA              = cc->STA;
+	pp.AGI              = cc->AGI;
+	pp.DEX              = cc->DEX;
+	pp.WIS              = cc->WIS;
+	pp.INT              = cc->INT;
+	pp.CHA              = cc->CHA;
+	pp.face             = cc->face;
+	pp.eyecolor1        = cc->eyecolor1;
+	pp.eyecolor2        = cc->eyecolor2;
+	pp.hairstyle        = cc->hairstyle;
+	pp.haircolor        = cc->haircolor;
+	pp.beard            = cc->beard;
+	pp.beardcolor       = cc->beardcolor;
+	pp.drakkin_heritage = cc->drakkin_heritage;
+	pp.drakkin_tattoo   = cc->drakkin_tattoo;
+	pp.drakkin_details  = cc->drakkin_details;
+	pp.birthday         = bday;
+	pp.lastlogin        = bday;
+	pp.level            = 1;
+	pp.points           = 5;
+	pp.cur_hp           = 1000;
+	pp.hunger_level     = 6000;
+	pp.thirst_level     = 6000;
+
+	/* Set default skills for everybody */
+	pp.skills[EQ::skills::SkillSwimming]     = RuleI(Skills, SwimmingStartValue);
+	pp.skills[EQ::skills::SkillSenseHeading] = RuleI(Skills, SenseHeadingStartValue);
 
 	/* Set Racial and Class specific language and skills */
 	SetRacialLanguages(&pp);
@@ -1698,16 +1785,12 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 	SetClassStartingSkills(&pp);
 	SetClassLanguages(&pp);
 
-	pp.skills[EQ::skills::SkillSwimming] = RuleI(Skills, SwimmingStartValue);
-	pp.skills[EQ::skills::SkillSenseHeading] = RuleI(Skills, SenseHeadingStartValue);
+	memset(pp.spell_book, std::numeric_limits<uint8>::max(), (sizeof(uint32) * EQ::spells::SPELLBOOK_SIZE));
+	memset(pp.mem_spells, std::numeric_limits<uint8>::max(), (sizeof(uint32) * EQ::spells::SPELL_GEM_COUNT));
 
-//	strcpy(pp.servername, WorldConfig::get()->ShortName.c_str());
-
-	memset(pp.spell_book, 0xFF, (sizeof(uint32) * EQ::spells::SPELLBOOK_SIZE));
-	memset(pp.mem_spells, 0xFF, (sizeof(uint32) * EQ::spells::SPELL_GEM_COUNT));
-
-	for (auto& buff : pp.buffs)
-		buff.spellid = 0xFFFF;
+	for (auto& b : pp.buffs) {
+		b.spellid = std::numeric_limits<uint16>::max();
+	}
 
 	/* If server is PVP by default, make all character set to it. */
 	pp.pvp = database.GetServerType() == 1 ? 1 : 0;
@@ -1719,56 +1802,38 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 			pp.zone_id = RuleI(World, SoFStartZoneID);
 			cc->start_zone = pp.zone_id;
 		}
-	}
-	else {
+	} else {
 		LogInfo("Found [TitaniumStartZoneID] rule setting [{}]", RuleI(World, TitaniumStartZoneID));
 		if (RuleI(World, TitaniumStartZoneID) > 0) { 	/* if there's a startzone variable put them in there */
-
-			pp.zone_id = RuleI(World, TitaniumStartZoneID);
+			pp.zone_id     = RuleI(World, TitaniumStartZoneID);
 			cc->start_zone = pp.zone_id;
 		}
 	}
-	/* use normal starting zone logic to either get defaults, or if startzone was set, load that from the db table.*/
-	bool ValidStartZone = content_db.GetStartZone(&pp, cc, m_ClientVersionBit & EQ::versions::maskTitaniumAndEarlier);
 
-	if (!ValidStartZone){
+	/* use normal starting zone logic to either get defaults, or if startzone was set, load that from the db table.*/
+	const bool is_valid_start_zone = content_db.GetStartZone(&pp, cc, m_ClientVersionBit & EQ::versions::maskTitaniumAndEarlier);
+	if (!is_valid_start_zone){
 		return false;
 	}
 
-	/* just in case  */
 	if (!pp.zone_id) {
-		pp.zone_id = 1;		// qeynos
+		pp.zone_id = Zones::QEYNOS;
+
 		pp.x = pp.y = pp.z = -1;
 	}
 
-	/* Set Home Binds  -- yep, all of them */
-	pp.binds[1].zone_id = pp.zone_id;
-	pp.binds[1].x = pp.x;
-	pp.binds[1].y = pp.y;
-	pp.binds[1].z = pp.z;
-	pp.binds[1].heading = pp.heading;
-
-	pp.binds[2].zone_id = pp.zone_id;
-	pp.binds[2].x = pp.x;
-	pp.binds[2].y = pp.y;
-	pp.binds[2].z = pp.z;
-	pp.binds[2].heading = pp.heading;
-
-	pp.binds[3].zone_id = pp.zone_id;
-	pp.binds[3].x = pp.x;
-	pp.binds[3].y = pp.y;
-	pp.binds[3].z = pp.z;
-	pp.binds[3].heading = pp.heading;
-
-	pp.binds[4].zone_id = pp.zone_id;
-	pp.binds[4].x = pp.x;
-	pp.binds[4].y = pp.y;
-	pp.binds[4].z = pp.z;
-	pp.binds[4].heading = pp.heading;
+	for (uint8 slot_id = 1; slot_id < 5; slot_id++) {
+		pp.binds[slot_id].zone_id = pp.zone_id;
+		pp.binds[slot_id].x       = pp.x;
+		pp.binds[slot_id].y       = pp.y;
+		pp.binds[slot_id].z       = pp.z;
+		pp.binds[slot_id].heading = pp.heading;
+	}
 
 	/* Overrides if we have the tutorial flag set! */
 	if (cc->tutorial && RuleB(World, EnableTutorialButton)) {
 		pp.zone_id = RuleI(World, TutorialZoneID);
+
 		auto z = GetZone(pp.zone_id);
 		if (z) {
 			pp.x = z->safe_x;
@@ -1778,17 +1843,17 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 	}
 
 	/*  Will either be the same as home or tutorial if enabled. */
-	if(RuleB(World, StartZoneSameAsBindOnCreation))	{
+	if (RuleB(World, StartZoneSameAsBindOnCreation)) {
 		pp.binds[0].zone_id = pp.zone_id;
-		pp.binds[0].x = pp.x;
-		pp.binds[0].y = pp.y;
-		pp.binds[0].z = pp.z;
+		pp.binds[0].x       = pp.x;
+		pp.binds[0].y       = pp.y;
+		pp.binds[0].z       = pp.z;
 		pp.binds[0].heading = pp.heading;
 	}
 
 	if (GetZone(pp.zone_id)) {
 		LogInfo(
-			"Current location [{}] [{}] [{:.2f}] [{:.2f}] [{:.2f}] [{:.2f}]",
+			"Current location zone_short_name [{}] zone_id [{}] x [{:.2f}] y [{:.2f}] z [{:.2f}] heading [{:.2f}]",
 			ZoneName(pp.zone_id),
 			pp.zone_id,
 			pp.x,
@@ -1800,37 +1865,34 @@ bool Client::OPCharCreate(char *name, CharCreate_Struct *cc)
 
 	if (GetZone(pp.binds[0].zone_id)) {
 		LogInfo(
-			"Bind location [{}] [{}] [{:.2f}] [{:.2f}] [{:.2f}]",
+			"Bind location zone_short_name [{}] zone_id [{}] x [{:.2f}] y [{:.2f}] z [{:.2f}] heading [{:.2f}]",
 			ZoneName(pp.binds[0].zone_id),
 			pp.binds[0].zone_id,
 			pp.binds[0].x,
 			pp.binds[0].y,
-			pp.binds[0].z
+			pp.binds[0].z,
+			pp.binds[4].heading
 		);
 	}
 
 	if (GetZone(pp.binds[4].zone_id)) {
 		LogInfo(
-			"Home location [{}] [{}] [{:.2f}] [{:.2f}] [{:.2f}]",
+			"Home location zone_short_name [{}] zone_id [{}] x [{:.2f}] y [{:.2f}] z [{:.2f}] heading [{:.2f}]",
 			ZoneName(pp.binds[4].zone_id),
 			pp.binds[4].zone_id,
 			pp.binds[4].x,
 			pp.binds[4].y,
-			pp.binds[4].z
+			pp.binds[4].z,
+			pp.binds[4].heading
 		);
 	}
 
-	/* Starting Items inventory */
 	content_db.SetStartingItems(&pp, &inv, pp.race, pp.class_, pp.deity, pp.zone_id, pp.name, GetAdmin());
 
-	// now we give the pp and the inv we made to StoreCharacter
-	// to see if we can store it
-	if (!StoreCharacter(GetAccountID(), &pp, &inv)) {
-		LogInfo("Character creation failed: [{}]", pp.name);
-		return false;
-	}
-	LogInfo("Character creation successful: [{}]", pp.name);
-	return true;
+	const bool success = StoreCharacter(GetAccountID(), &pp, &inv);
+
+	LogInfo("Character creation {} for [{}]", success ? "succeeded" : "failed", pp.name);
+	return success;
 }
 
 // returns true if the request is ok, false if there's an error
@@ -2014,10 +2076,10 @@ bool CheckCharCreateInfoTitanium(CharCreate_Struct *cc)
 	classtemp = cc->class_ - 1;
 	racetemp = cc->race - 1;
 	// these have non sequential race numbers so they need to be mapped
-	if (cc->race == FROGLOK) racetemp = 14;
-	if (cc->race == VAHSHIR) racetemp = 13;
-	if (cc->race == IKSAR) racetemp = 12;
-	if (cc->race == DRAKKIN) racetemp = 15;
+	if (cc->race == Race::Froglok2) racetemp = 14;
+	if (cc->race == Race::VahShir) racetemp = 13;
+	if (cc->race == Race::Iksar) racetemp = 12;
+	if (cc->race == Race::Drakkin) racetemp = 15;
 
 	// if out of range looking it up in the table would crash stuff
 	// so we return from these
@@ -2110,7 +2172,7 @@ void Client::SetClassStartingSkills(PlayerProfile_Struct *pp)
 				i == EQ::skills::SkillAlcoholTolerance || i == EQ::skills::SkillBindWound)
 				continue;
 
-			pp->skills[i] = content_db.GetSkillCap(pp->class_, (EQ::skills::SkillType)i, 1);
+			pp->skills[i] = SkillCaps::Instance()->GetSkillCap(pp->class_, (EQ::skills::SkillType)i, 1).cap;
 		}
 	}
 
@@ -2124,53 +2186,57 @@ void Client::SetRaceStartingSkills( PlayerProfile_Struct *pp )
 {
 	switch( pp->race )
 	{
-	case BARBARIAN:
-	case DWARF:
-	case ERUDITE:
-	case HALF_ELF:
-	case HIGH_ELF:
-	case HUMAN:
-	case OGRE:
-	case TROLL:
-	case DRAKKIN:	//Drakkin are supposed to get a starting AA Skill
+	case Race::Barbarian:
+	case Race::Dwarf:
+	case Race::Erudite:
+	case Race::HalfElf:
+	case Race::HighElf:
+	case Race::Human:
+	case Race::Ogre:
+	case Race::Troll:
+	case Race::Drakkin:	//Drakkin are supposed to get a starting AA Skill
 		{
 			// No Race Specific Skills
 			break;
 		}
-	case DARK_ELF:
+	case Race::DarkElf:
 		{
 			pp->skills[EQ::skills::SkillHide] = 50;
 			break;
 		}
-	case FROGLOK:
+	case Race::Froglok2:
 		{
-			pp->skills[EQ::skills::SkillSwimming] = 125;
+			if (RuleI(Skills, SwimmingStartValue) < 125) {
+				pp->skills[EQ::skills::SkillSwimming] = 125;
+			}
 			break;
 		}
-	case GNOME:
+	case Race::Gnome:
 		{
 			pp->skills[EQ::skills::SkillTinkering] = 50;
 			break;
 		}
-	case HALFLING:
+	case Race::Halfling:
 		{
 			pp->skills[EQ::skills::SkillHide] = 50;
 			pp->skills[EQ::skills::SkillSneak] = 50;
 			break;
 		}
-	case IKSAR:
+	case Race::Iksar:
 		{
 			pp->skills[EQ::skills::SkillForage] = 50;
-			pp->skills[EQ::skills::SkillSwimming] = 100;
+			if (RuleI(Skills, SwimmingStartValue) < 100) {
+				pp->skills[EQ::skills::SkillSwimming] = 100;
+			}
 			break;
 		}
-	case WOOD_ELF:
+	case Race::WoodElf:
 		{
 			pp->skills[EQ::skills::SkillForage] = 50;
 			pp->skills[EQ::skills::SkillHide] = 50;
 			break;
 		}
-	case VAHSHIR:
+	case Race::VahShir:
 		{
 			pp->skills[EQ::skills::SkillSafeFall] = 50;
 			pp->skills[EQ::skills::SkillSneak] = 50;
@@ -2181,115 +2247,101 @@ void Client::SetRaceStartingSkills( PlayerProfile_Struct *pp )
 
 void Client::SetRacialLanguages( PlayerProfile_Struct *pp )
 {
-	switch( pp->race )
-	{
-	case BARBARIAN:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_BARBARIAN] = 100;
+	switch (pp->race) {
+		case Race::Human: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
 			break;
 		}
-	case DARK_ELF:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_DARK_ELVISH] = 100;
-			pp->languages[LANG_DARK_SPEECH] = 100;
-			pp->languages[LANG_ELDER_ELVISH] = 100;
-			pp->languages[LANG_ELVISH] = 25;
+		case Race::Barbarian: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Barbarian]    = Language::MaxValue;
 			break;
 		}
-	case DWARF:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_DWARVISH] = 100;
-			pp->languages[LANG_GNOMISH] = 25;
+		case Race::Erudite: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Erudian]      = Language::MaxValue;
 			break;
 		}
-	case ERUDITE:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_ERUDIAN] = 100;
+		case Race::WoodElf: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Elvish]       = Language::MaxValue;
 			break;
 		}
-	case FROGLOK:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_FROGLOK] = 100;
-			pp->languages[LANG_TROLL] = 25;
+		case Race::HighElf: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::DarkElvish]   = 25;
+			pp->languages[Language::ElderElvish]  = 25;
+			pp->languages[Language::Elvish]       = Language::MaxValue;
 			break;
 		}
-	case GNOME:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_DWARVISH] = 25;
-			pp->languages[LANG_GNOMISH] = 100;
+		case Race::DarkElf: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::DarkElvish]   = Language::MaxValue;
+			pp->languages[Language::DarkSpeech]   = Language::MaxValue;
+			pp->languages[Language::ElderElvish]  = Language::MaxValue;
+			pp->languages[Language::Elvish]       = 25;
 			break;
 		}
-	case HALF_ELF:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_ELVISH] = 100;
+		case Race::HalfElf: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Elvish]       = Language::MaxValue;
 			break;
 		}
-	case HALFLING:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_HALFLING] = 100;
+		case Race::Dwarf: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Dwarvish]     = Language::MaxValue;
+			pp->languages[Language::Gnomish]      = 25;
 			break;
 		}
-	case HIGH_ELF:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_DARK_ELVISH] = 25;
-			pp->languages[LANG_ELDER_ELVISH] = 25;
-			pp->languages[LANG_ELVISH] = 100;
+		case Race::Troll: {
+			pp->languages[Language::CommonTongue] = RuleI(Character, TrollCommonTongue);
+			pp->languages[Language::DarkSpeech]   = Language::MaxValue;
+			pp->languages[Language::Troll]        = Language::MaxValue;
 			break;
 		}
-	case HUMAN:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
+		case Race::Ogre: {
+			pp->languages[Language::CommonTongue] = RuleI(Character, OgreCommonTongue);
+			pp->languages[Language::DarkSpeech]   = Language::MaxValue;
+			pp->languages[Language::Ogre]         = Language::MaxValue;
 			break;
 		}
-	case IKSAR:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = RuleI(Character, IksarCommonTongue);
-			pp->languages[LANG_DARK_SPEECH] = 100;
-			pp->languages[LANG_LIZARDMAN] = 100;
+		case Race::Halfling: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Halfling]     = Language::MaxValue;
 			break;
 		}
-	case OGRE:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = RuleI(Character, OgreCommonTongue);
-			pp->languages[LANG_DARK_SPEECH] = 100;
-			pp->languages[LANG_OGRE] = 100;
+		case Race::Gnome: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Dwarvish]     = 25;
+			pp->languages[Language::Gnomish]      = Language::MaxValue;
 			break;
 		}
-	case TROLL:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = RuleI(Character, TrollCommonTongue);
-			pp->languages[LANG_DARK_SPEECH] = 100;
-			pp->languages[LANG_TROLL] = 100;
+		case Race::Iksar: {
+			pp->languages[Language::CommonTongue] = RuleI(Character, IksarCommonTongue);
+			pp->languages[Language::DarkSpeech]   = Language::MaxValue;
+			pp->languages[Language::Lizardman]    = Language::MaxValue;
 			break;
 		}
-	case WOOD_ELF:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_ELVISH] = 100;
+		case Race::VahShir: {
+			pp->languages[Language::CommonTongue]  = Language::MaxValue;
+			pp->languages[Language::CombineTongue] = Language::MaxValue;
+			pp->languages[Language::Erudian]       = 25;
+			pp->languages[Language::VahShir]       = Language::MaxValue;
 			break;
 		}
-	case VAHSHIR:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_COMBINE_TONGUE] = 100;
-			pp->languages[LANG_ERUDIAN] = 25;
-			pp->languages[LANG_VAH_SHIR] = 100;
+		case Race::Froglok2: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::Froglok]      = Language::MaxValue;
+			pp->languages[Language::Troll]        = 25;
 			break;
 		}
-	case DRAKKIN:
-		{
-			pp->languages[LANG_COMMON_TONGUE] = 100;
-			pp->languages[LANG_ELDER_DRAGON] = 100;
-			pp->languages[LANG_DRAGON] = 100;
+		case Race::Drakkin: {
+			pp->languages[Language::CommonTongue] = Language::MaxValue;
+			pp->languages[Language::ElderDragon]  = Language::MaxValue;
+			pp->languages[Language::Dragon]       = Language::MaxValue;
+			break;
+		}
+		default: {
 			break;
 		}
 	}
@@ -2298,12 +2350,12 @@ void Client::SetRacialLanguages( PlayerProfile_Struct *pp )
 void Client::SetClassLanguages(PlayerProfile_Struct *pp)
 {
 	// we only need to handle one class, but custom server might want to do more
-	switch(pp->class_) {
-	case Class::Rogue:
-		pp->languages[LANG_THIEVES_CANT] = 100;
-		break;
-	default:
-		break;
+	switch (pp->class_) {
+		case Class::Rogue:
+			pp->languages[Language::ThievesCant] = Language::MaxValue;
+			break;
+		default:
+			break;
 	}
 }
 
@@ -2313,56 +2365,62 @@ bool Client::StoreCharacter(
 	EQ::InventoryProfile *p_inventory_profile
 )
 {
-	uint32 character_id = 0;
-	char   zone[50];
-	character_id = database.GetCharacterID(p_player_profile_struct->name);
-
+	const uint32 character_id = database.GetCharacterID(p_player_profile_struct->name);
 	if (!character_id) {
-		LogError("StoreCharacter: no character id");
 		return false;
 	}
 
-	const char *zone_name = ZoneName(p_player_profile_struct->zone_id);
-	if (zone_name == nullptr) {
-		/* Zone not in the DB, something to prevent crash... */
-		strn0cpy(zone, "qeynos", 49);
-		p_player_profile_struct->zone_id = 1;
-	}
-	else {
-		strn0cpy(zone, zone_name, 49);
+	const std::string& zone_name = ZoneStore::Instance()->GetZoneName(p_player_profile_struct->zone_id, true);
+	if (Strings::EqualFold(zone_name, "UNKNOWN")) {
+		p_player_profile_struct->zone_id = Zones::QEYNOS;
 	}
 
 	database.SaveCharacterCreate(character_id, account_id, p_player_profile_struct);
 
-	std::string invquery;
-	for (int16  i = EQ::invslot::EQUIPMENT_BEGIN; i <= EQ::invbag::BANK_BAGS_END;) {
-		const EQ::ItemInstance *new_inventory_item = p_inventory_profile->GetItem(i);
-		if (new_inventory_item) {
-			invquery = StringFormat(
-				"INSERT INTO `inventory` (charid, slotid, itemid, charges, color) VALUES (%u, %i, %u, %i, %u)",
-				character_id,
-				i,
-				new_inventory_item->GetItem()->ID,
-				new_inventory_item->GetCharges(),
-				new_inventory_item->GetColor()
-			);
+	std::vector<InventoryRepository::Inventory> v;
 
-			auto results = database.QueryDatabase(invquery);
+	auto e = InventoryRepository::NewEntity();
+
+	e.character_id = character_id;
+
+	for (int16 slot_id = EQ::invslot::EQUIPMENT_BEGIN; slot_id <= EQ::invbag::BANK_BAGS_END;) {
+		const auto inst = p_inventory_profile->GetItem(slot_id);
+		if (inst) {
+			e.slot_id             = slot_id;
+			e.item_id             = inst->GetItem()->ID;
+			e.charges             = inst->GetCharges();
+			e.color               = inst->GetColor();
+			e.augment_one         = inst->GetAugmentItemID(EQ::invaug::SOCKET_BEGIN);
+			e.augment_two         = inst->GetAugmentItemID(EQ::invaug::SOCKET_BEGIN + 1);
+			e.augment_three       = inst->GetAugmentItemID(EQ::invaug::SOCKET_BEGIN + 2);
+			e.augment_four        = inst->GetAugmentItemID(EQ::invaug::SOCKET_BEGIN + 3);
+			e.augment_five        = inst->GetAugmentItemID(EQ::invaug::SOCKET_BEGIN + 4);
+			e.augment_six         = inst->GetAugmentItemID(EQ::invaug::SOCKET_END);
+			e.instnodrop          = inst->IsAttuned() ? 1 : 0;
+			e.ornament_icon       = inst->GetOrnamentationIcon();
+			e.ornament_idfile     = inst->GetOrnamentationIDFile();
+			e.ornament_hero_model = inst->GetOrnamentHeroModel();
+			e.guid                = inst->GetSerialNumber();
+
+			v.emplace_back(e);
 		}
 
-		if (i == EQ::invslot::slotCursor) {
-			i = EQ::invbag::GENERAL_BAGS_BEGIN;
+		if (slot_id == EQ::invslot::slotCursor) {
+			slot_id = EQ::invbag::GENERAL_BAGS_BEGIN;
+			continue;
+		} else if (slot_id == EQ::invbag::CURSOR_BAG_END) {
+			slot_id = EQ::invslot::BANK_BEGIN;
+			continue;
+		} else if (slot_id == EQ::invslot::BANK_END) {
+			slot_id = EQ::invbag::BANK_BAGS_BEGIN;
 			continue;
 		}
-		else if (i == EQ::invbag::CURSOR_BAG_END) {
-			i = EQ::invslot::BANK_BEGIN;
-			continue;
-		}
-		else if (i == EQ::invslot::BANK_END) {
-			i = EQ::invbag::BANK_BAGS_BEGIN;
-			continue;
-		}
-		i++;
+
+		slot_id++;
+	}
+
+	if (!v.empty()) {
+		InventoryRepository::InsertMany(database, v);
 	}
 
 	return true;
@@ -2370,7 +2428,7 @@ bool Client::StoreCharacter(
 
 void Client::RecordPossibleHack(const std::string& message)
 {
-	if (player_event_logs.IsEventEnabled(PlayerEvent::POSSIBLE_HACK)) {
+	if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::POSSIBLE_HACK)) {
 		auto event = PlayerEvent::PossibleHackEvent{.message = message};
 		std::stringstream ss;
 		{
@@ -2386,5 +2444,94 @@ void Client::RecordPossibleHack(const std::string& message)
 		e.event_data      = ss.str();
 		e.created_at      = std::time(nullptr);
 		PlayerEventLogsRepository::InsertOne(database, e);
+	}
+}
+
+void Client::SendGuildTributeFavorAndTimer(uint32 favor, uint32 time_remaining)
+{
+	auto cle = GetCLE();
+	if (!cle) {
+		return;
+	}
+
+	auto guild = guild_mgr.GetGuildByGuildID(GetCLE()->GuildID());
+	if (guild) {
+		guild->tribute.favor = favor;
+		guild->tribute.time_remaining = time_remaining;
+
+		auto outapp = new EQApplicationPacket(OP_GuildTributeFavorAndTimer, sizeof(GuildTributeFavorTimer_Struct));
+		auto gtsa   = (GuildTributeFavorTimer_Struct *)outapp->pBuffer;
+
+		gtsa->guild_id      = GetCLE()->GuildID();
+		gtsa->guild_favor   = guild->tribute.favor;
+		gtsa->tribute_timer = guild->tribute.time_remaining;
+		gtsa->trophy_timer  = 0; //not yet implemented
+
+		QueuePacket(outapp);
+		safe_delete(outapp);
+	}
+}
+
+void Client::SendGuildTributeOptInToggle(const GuildTributeMemberToggle *in)
+{
+	auto outapp = new EQApplicationPacket(OP_GuildOptInOut, sizeof(GuildTributeOptInOutReply_Struct));
+	auto data   = (GuildTributeOptInOutReply_Struct *)outapp->pBuffer;
+
+	data->guild_id              = in->guild_id;
+	data->no_donations          = in->no_donations;
+	data->tribute_toggle        = in->tribute_toggle;
+	data->tribute_trophy_toggle = 0; //not yet implemented
+	data->time                  = time(nullptr);
+	data->command               = in->command;
+	strn0cpy(data->player_name, in->player_name, sizeof(data->player_name));
+
+	QueuePacket(outapp);
+	safe_delete(outapp);
+}
+
+void Client::SendUnsupportedClientPacket(const std::string& message)
+{
+	EQApplicationPacket packet(OP_SendCharInfo, sizeof(CharacterSelect_Struct) + sizeof(CharacterSelectEntry_Struct));
+
+	unsigned char* buff_ptr = packet.pBuffer;
+	auto cs = (CharacterSelect_Struct*) buff_ptr;
+
+	cs->CharCount  = 1;
+	cs->TotalChars = 1;
+
+	buff_ptr += sizeof(CharacterSelect_Struct);
+
+	auto e = (CharacterSelectEntry_Struct*) buff_ptr;
+
+	strcpy(e->Name, message.c_str());
+
+	e->Race        = Race::Human;
+	e->Class       = Class::Warrior;
+	e->Level       = 1;
+	e->ShroudClass = e->Class;
+	e->ShroudRace  = e->Race;
+	e->Zone        = std::numeric_limits<uint16>::max();
+	e->Instance    = 0;
+	e->Gender      = Gender::Male;
+	e->GoHome      = 0;
+	e->Tutorial    = 0;
+	e->Enabled     = 0;
+
+	QueuePacket(&packet);
+}
+
+void Client::LoadDataBucketsCache()
+{
+	DataBucket::BulkLoadEntitiesToCache(DataBucketLoadType::Account, {GetAccountID()});
+	const auto ids = CharacterDataRepository::GetCharacterIDsByAccountID(database, GetAccountID());
+	DataBucket::BulkLoadEntitiesToCache(DataBucketLoadType::Client, ids);
+}
+
+void Client::ClearDataBucketsCache()
+{
+	DataBucket::DeleteFromCache(GetAccountID(), DataBucketLoadType::Account);
+	auto ids = CharacterDataRepository::GetCharacterIDsByAccountID(database, GetAccountID());
+	for (const auto& id : ids) {
+		DataBucket::DeleteFromCache(id, DataBucketLoadType::Client);
 	}
 }

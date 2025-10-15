@@ -234,6 +234,15 @@ inline std::string GetMobAttributeByString(Mob *mob, const std::string &attribut
 		return std::to_string(mob->GetMitigationAC());
 	}
 
+	if (attribute == "haste") {
+		if (mob->IsClient()) {
+			return Strings::Commify(std::to_string(mob->CastToClient()->GetHaste()));
+		}
+		else {
+			return Strings::Commify(std::to_string(mob->GetHaste()));
+		}
+	}
+
 	if (mob->IsNPC()) {
 		NPC *npc = mob->CastToNPC();
 
@@ -617,6 +626,9 @@ inline void NPCCommandsMenu(Client* client, NPC* npc)
 
 	if (npc->GetLoottableID() > 0) {
 		menu_commands += "[" + Saylink::Silent("#npcloot show", "Loot") + "] ";
+		if (npc) {
+			menu_commands += fmt::format(" Item(s) ({}) ", npc->GetLootItems().size());
+		}
 	}
 
 	if (npc->IsProximitySet()) {
@@ -700,6 +712,7 @@ void Mob::DisplayInfo(Mob *mob)
 			"total_defense",
 			"offense",
 			"mitigation_ac",
+			"haste",
 		};
 		window_text += WriteDisplayInfoSection(mob, "Calculations", calculations, 1, true);
 

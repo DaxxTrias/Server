@@ -165,11 +165,11 @@ public:
 
 	void	RaidMessageString(Mob* sender, uint32 type, uint32 string_id, const char* message,const char* message2=0,const char* message3=0,const char* message4=0,const char* message5=0,const char* message6=0,const char* message7=0,const char* message8=0,const char* message9=0, uint32 distance = 0);
 	void	CastGroupSpell(Mob* caster,uint16 spellid, uint32 gid);
-	void	SplitExp(const uint64 exp, Mob* other);
+	void	SplitExp(ExpSource exp_source, const uint64 exp, Mob* other);
 	uint32	GetTotalRaidDamage(Mob* other);
-	void	BalanceHP(int32 penalty, uint32 gid, float range = 0, Mob* caster = nullptr, int32 limit = 0);
-	void	BalanceMana(int32 penalty, uint32 gid,  float range = 0, Mob* caster = nullptr, int32 limit = 0);
-	void	HealGroup(uint32 heal_amt, Mob* caster, uint32 gid, float range = 0);
+	void	BalanceHP(int32 penalty, uint32 group_id, float range = 0, Mob* caster = nullptr, int32 limit = 0);
+	void	BalanceMana(int32 penalty, uint32 group_id, float range = 0, Mob* caster = nullptr, int32 limit = 0);
+	void	HealGroup(uint32 heal_amount, Mob* caster, uint32 group_id, float range = 0);
 	void	SplitMoney(uint32 gid, uint32 copper, uint32 silver, uint32 gold, uint32 platinum, Client *splitter = nullptr);
 
 	void	TeleportGroup(Mob* sender, uint32 zoneID, uint16 instance_id, float x, float y, float z, float heading, uint32 gid);
@@ -271,7 +271,7 @@ public:
 
 	void	QueueClients(Mob *sender, const EQApplicationPacket *app, bool ack_required = true, bool ignore_sender = true, float distance = 0, bool group_only = true);
 
-	bool DoesAnyMemberHaveExpeditionLockout(const std::string& expedition_name, const std::string& event_name, int max_check_count = 0);
+	bool AnyMemberHasDzLockout(const std::string& expedition, const std::string& event);
 
 	std::vector<RaidMember> GetMembers() const;
 	std::vector<RaidMember> GetRaidGroupMembers(uint32 gid);
@@ -292,8 +292,8 @@ protected:
 	bool disbandCheck;
 	bool forceDisband;
 	std::string motd;
-	RaidLeadershipAA_Struct raid_aa;
-	GroupLeadershipAA_Struct group_aa[MAX_RAID_GROUPS];
+	RaidLeadershipAA_Struct raid_aa{};
+	GroupLeadershipAA_Struct group_aa[MAX_RAID_GROUPS]{};
 
 	GroupMentor group_mentor[MAX_RAID_GROUPS];
 

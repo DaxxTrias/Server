@@ -10,15 +10,15 @@ void ShowRecipe(Client *c, const Seperator *sep)
 		return;
 	}
 
-	const uint16 recipe_id = static_cast<uint16>(Strings::ToUnsignedInt(sep->arg[2]));
+	const uint32 recipe_id = Strings::ToUnsignedInt(sep->arg[2]);
 
 	const auto& re = TradeskillRecipeEntriesRepository::GetWhere(
-		database,
+		content_db,
 		fmt::format("recipe_id = {} ORDER BY id ASC", recipe_id)
 	);
 
 	const auto& r = TradeskillRecipeRepository::GetWhere(
-		database,
+		content_db,
 		fmt::format("id = {}", recipe_id)
 	);
 
@@ -54,8 +54,8 @@ void ShowRecipe(Client *c, const Seperator *sep)
 				e.iscontainer > 0 ? " (Container)" : "",
 				(
 					e.item_id > 1000 ?
-					database.CreateItemLink(e.item_id) :
-					EQ::constants::GetObjectTypeName(e.item_id)
+					database.CreateItemLink(static_cast<uint32>(e.item_id)) :
+					ObjectType::GetName(static_cast<uint32>(e.item_id))
 				),
 				(
 					can_summon_items && e.item_id > 1000 ?

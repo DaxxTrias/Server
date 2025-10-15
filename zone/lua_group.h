@@ -33,13 +33,13 @@ public:
 	void CastGroupSpell(Lua_Mob caster, int spell_id);
 	void SplitExp(uint64 exp, Lua_Mob other);
 	void GroupMessage(Lua_Mob sender, const char* message);
-	void GroupMessage(Lua_Mob sender, int language, const char* message);
+	void GroupMessage(Lua_Mob sender, uint8 language_id, const char* message);
 	uint32 GetTotalGroupDamage(Lua_Mob other);
 	void SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinum);
 	void SplitMoney(uint32 copper, uint32 silver, uint32 gold, uint32 platinum, Lua_Client splitter);
 	void SetLeader(Lua_Mob c);
 	Lua_Mob GetLeader();
-	const char *GetLeaderName();
+	std::string GetLeaderName();
 	bool IsLeader(const char* name);
 	bool IsLeader(Lua_Mob c);
 	int GroupCount();
@@ -49,6 +49,8 @@ public:
 	void TeleportGroup(Lua_Mob sender, uint32 zone_id, uint32 instance_id, float x, float y, float z, float h);
 	int GetID();
 	Lua_Mob GetMember(int member_index);
+	uint8 GetMemberRole(Lua_Mob member);
+	uint8 GetMemberRole(const char* name);
 	bool DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name);
 	bool DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name, int max_check_count);
 };

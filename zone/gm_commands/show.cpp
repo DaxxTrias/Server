@@ -2,9 +2,11 @@
 #include "show/aas.cpp"
 #include "show/aa_points.cpp"
 #include "show/aggro.cpp"
+#include "show/auto_login.cpp"
 #include "show/buffs.cpp"
 #include "show/buried_corpse_count.cpp"
 #include "show/client_version_summary.cpp"
+#include "show/content_flags.cpp"
 #include "show/currencies.cpp"
 #include "show/distance.cpp"
 #include "show/emotes.cpp"
@@ -13,6 +15,7 @@
 #include "show/group_info.cpp"
 #include "show/hatelist.cpp"
 #include "show/inventory.cpp"
+#include "show/keyring.cpp"
 #include "show/ip_lookup.cpp"
 #include "show/line_of_sight.cpp"
 #include "show/network.cpp"
@@ -30,6 +33,7 @@
 #include "show/server_info.cpp"
 #include "show/skills.cpp"
 #include "show/spawn_status.cpp"
+#include "show/special_abilities.cpp"
 #include "show/spells.cpp"
 #include "show/spells_list.cpp"
 #include "show/stats.cpp"
@@ -46,6 +50,7 @@
 #include "show/zone_loot.cpp"
 #include "show/zone_points.cpp"
 #include "show/zone_status.cpp"
+#include "show/zone_variables.cpp"
 
 void command_show(Client *c, const Seperator *sep)
 {
@@ -60,9 +65,11 @@ void command_show(Client *c, const Seperator *sep)
 		Cmd{.cmd = "aas", .u = "aas", .fn = ShowAAs, .a = {"#showaas"}},
 		Cmd{.cmd = "aa_points", .u = "aa_points", .fn = ShowAAPoints, .a = {"#showaapoints", "#showaapts"}},
 		Cmd{.cmd = "aggro", .u = "aggro [Distance] [-v] (-v is verbose Faction Information)", .fn = ShowAggro, .a = {"#aggro"}},
+		Cmd{.cmd = "auto_login", .u = "auto_login", .fn = ShowAutoLogin, .a = {"#showautologin"}},
 		Cmd{.cmd = "buffs", .u = "buffs", .fn = ShowBuffs, .a = {"#showbuffs"}},
 		Cmd{.cmd = "buried_corpse_count", .u = "buried_corpse_count", .fn = ShowBuriedCorpseCount, .a = {"#getplayerburiedcorpsecount"}},
 		Cmd{.cmd = "client_version_summary", .u = "client_version_summary", .fn = ShowClientVersionSummary, .a = {"#cvs"}},
+		Cmd{.cmd = "content_flags", .u = "content_flags", .fn = ShowContentFlags, .a = {"#showcontentflags"}},
 		Cmd{.cmd = "currencies", .u = "currencies", .fn = ShowCurrencies, .a = {"#viewcurrencies"}},
 		Cmd{.cmd = "distance", .u = "distance", .fn = ShowDistance, .a = {"#distance"}},
 		Cmd{.cmd = "emotes", .u = "emotes", .fn = ShowEmotes, .a = {"#emoteview"}},
@@ -72,6 +79,7 @@ void command_show(Client *c, const Seperator *sep)
 		Cmd{.cmd = "hatelist", .u = "hatelist", .fn = ShowHateList, .a = {"#hatelist"}},
 		Cmd{.cmd = "inventory", .u = "inventory", .fn = ShowInventory, .a = {"#peekinv"}},
 		Cmd{.cmd = "ip_lookup", .u = "ip_lookup", .fn = ShowIPLookup, .a = {"#iplookup"}},
+		Cmd{.cmd = "keyring", .u = "keyring", .fn = ShowKeyring, .a = {"#showkeyring"}},
 		Cmd{.cmd = "line_of_sight", .u = "line_of_sight", .fn = ShowLineOfSight, .a = {"#checklos"}},
 		Cmd{.cmd = "network", .u = "network", .fn = ShowNetwork, .a = {"#network"}},
 		Cmd{.cmd = "network_stats", .u = "network_stats", .fn = ShowNetworkStats, .a = {"#netstats"}},
@@ -88,6 +96,7 @@ void command_show(Client *c, const Seperator *sep)
 		Cmd{.cmd = "server_info", .u = "server_info", .fn = ShowServerInfo, .a = {"#serverinfo"}},
 		Cmd{.cmd = "skills", .u = "skills", .fn = ShowSkills, .a = {"#showskills"}},
 		Cmd{.cmd = "spawn_status", .u = "spawn_status [all|disabled|enabled|Spawn ID]", .fn = ShowSpawnStatus, .a = {"#spawnstatus"}},
+		Cmd{.cmd = "special_abilities", .u = "special_abilities", .fn = ShowSpecialAbilities, .a = {"#showspecialabilities"}},
 		Cmd{.cmd = "spells", .u = "spells [disciplines|spells]", .fn = ShowSpells, .a = {"#showspells"}},
 		Cmd{.cmd = "spells_list", .u = "spells_list", .fn = ShowSpellsList, .a = {"#showspellslist"}},
 		Cmd{.cmd = "stats", .u = "stats", .fn = ShowStats, .a = {"#showstats"}},
@@ -104,6 +113,7 @@ void command_show(Client *c, const Seperator *sep)
 		Cmd{.cmd = "zone_loot", .u = "zone_loot", .fn = ShowZoneLoot, .a = {"#viewzoneloot"}},
 		Cmd{.cmd = "zone_points", .u = "zone_points", .fn = ShowZonePoints, .a = {"#showzonepoints"}},
 		Cmd{.cmd = "zone_status", .u = "zone_status", .fn = ShowZoneStatus, .a = {"#zonestatus"}},
+		Cmd{.cmd = "zone_variables", .u = "zone_variables", .fn = ShowZoneVariables},
 	};
 
 	// Check for arguments

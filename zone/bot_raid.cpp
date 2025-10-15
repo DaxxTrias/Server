@@ -25,7 +25,7 @@
 #include "quest_parser_collection.h"
 #include "../common/data_verification.h"
 
-std::vector<RaidMember> Raid::GetRaidGroupMembers(uint32 gid) 
+std::vector<RaidMember> Raid::GetRaidGroupMembers(uint32 gid)
 {
 	std::vector<RaidMember> raid_group_members;
 	raid_group_members.clear();
@@ -96,19 +96,10 @@ void Raid::HandleBotGroupDisband(uint32 owner, uint32 gid)
 		// Remove the entire BOT group in this case
 		if (b && gid != RAID_GROUPLESS && IsRaidMember(b->GetName()) && IsGroupLeader(b->GetName())) {
 			auto r_group_members = GetRaidGroupMembers(GetGroup(b->GetName()));
-			auto g = new Group(b);
-			entity_list.AddGroup(g);
-			database.SetGroupID(b->GetCleanName(), g->GetID(), b->GetBotID());
-			database.SetGroupLeaderName(g->GetID(), b->GetName());
 
 			for (auto m: r_group_members) {
 				if (m.member->IsBot()) {
 					auto b_member = m.member->CastToBot();
-					if (strcmp(b_member->GetName(), b->GetName()) == 0) {
-						b->SetFollowID(owner);
-					} else {
-						Bot::AddBotToGroup(b_member, g);
-					}
 					Bot::RemoveBotFromRaid(b_member);
 				}
 			}
@@ -126,9 +117,9 @@ void Raid::HandleOfflineBots(uint32 owner) {
 	}
 
 	for (const auto& b: bots_list) {
-		if (IsRaidMember(b.Name)) {
+		if (IsRaidMember(b.bot_name)) {
 			for (const auto& m: members) {
-				if (m.is_bot && strcmp(m.member_name, b.Name) == 0) {
+				if (m.is_bot && strcmp(m.member_name, b.bot_name) == 0) {
 					uint32 gid = GetGroup(m.member_name);
 					SendRaidGroupRemove(m.member_name, gid);
 					RemoveMember(m.member_name);
@@ -140,26 +131,6 @@ void Raid::HandleOfflineBots(uint32 owner) {
 			}
 		}
 	}
-}
-
-uint8 Bot::GetNumberNeedingHealedInRaidGroup(uint8& need_healed, uint8 hpr, bool includePets, Raid* raid) {
-
-	if (raid) {
-		uint32 r_group = raid->GetGroup(GetName());
-
-		for (auto& m: raid->GetRaidGroupMembers(r_group)) {
-			if (m.member && !m.member->qglobal) {
-				if (m.member->GetHPRatio() <= hpr) {
-					need_healed++;
-				}
-
-				if (includePets && m.member->GetPet() && m.member->GetPet()->GetHPRatio() <= hpr) {
-					need_healed++;
-				}
-			}
-		}
-	}
-	return need_healed;
 }
 
 void Bot::ProcessRaidInvite(Mob* invitee, Client* invitor, bool group_invite) {
@@ -176,13 +147,7 @@ void Bot::ProcessRaidInvite(Mob* invitee, Client* invitor, bool group_invite) {
 		// If the Bot Owner is in our raid we need to be able to invite their Bots
 	}
 	else if (invitee->IsBot() && (invitee->CastToBot()->GetBotOwnerCharacterID() != invitor->CharacterID())) {
-		invitor->Message(
-			Chat::Red,
-			fmt::format(
-				"{} is not your Bot. You can only invite your own Bots, or Bots that belong to a Raid member.",
-				invitee->GetCleanName()
-			).c_str()
-		);
+		invitor->Message(Chat::Red, "%s's owner needs to be in your raid to be able to invite them.", invitee->GetCleanName());
 		return;
 	}
 
@@ -257,10 +222,6 @@ void Bot::CreateBotRaid(Mob* invitee, Client* invitor, bool group_invite, Raid* 
 		} else {
 			raid->AddBot(b);
 		}
-
-		if (new_raid) {
-			invitee->SetFollowID(invitor->GetID());
-		}
 	}
 }
 
@@ -312,16 +273,20 @@ void Client::SpawnRaidBotsOnConnect(Raid* raid) {
 	for (const auto& m: r_members) {
 		if (strlen(m.member_name) != 0) {
 
-			for (const auto& b: bots_list) {
-				if (strcmp(m.member_name, b.Name) == 0) {
+			for (const auto& b : bots_list) {
+				if (strcmp(m.member_name, b.bot_name) == 0) {
 					std::string buffer = "^spawn ";
 					buffer.append(m.member_name);
+					std::string silent = " silent";
+					buffer.append(silent);
 					bot_command_real_dispatch(this, buffer.c_str());
 					auto bot = entity_list.GetBotByBotName(m.member_name);
 
 					if (bot) {
 						bot->SetRaidGrouped(true);
+						bot->SetStoredRaid(raid);
 						bot->p_raid_instance = raid;
+						bot->SetVerifiedRaid(false);
 					}
 				}
 			}

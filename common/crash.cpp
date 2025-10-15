@@ -15,7 +15,7 @@
 #include <cstdio>
 #include <vector>
 
-#if WINDOWS
+#ifdef _WINDOWS
 #define popen _popen
 #endif
 
@@ -23,9 +23,11 @@ void SendCrashReport(const std::string &crash_report)
 {
 	// can configure multiple endpoints if need be
 	std::vector<std::string> endpoints = {
-		"http://spire.akkadius.com/api/v1/analytics/server-crash-report",
+		"https://spire.akkadius.com/api/v1/analytics/server-crash-report",
 //		"http://localhost:3010/api/v1/analytics/server-crash-report", // development
 	};
+
+	EQEmuLogSys* log = EQEmuLogSys::Instance();
 
 	auto      config = EQEmuConfig::get();
 	for (auto &e: endpoints) {
@@ -68,12 +70,12 @@ void SendCrashReport(const std::string &crash_report)
 		p["cpus"]              = cpus.size();
 		p["origination_info"]  = "";
 
-		if (!LogSys.origination_info.zone_short_name.empty()) {
+		if (!log->origination_info.zone_short_name.empty()) {
 			p["origination_info"] = fmt::format(
 				"{} ({}) instance_id [{}]",
-				LogSys.origination_info.zone_short_name,
-				LogSys.origination_info.zone_long_name,
-				LogSys.origination_info.instance_id
+				log->origination_info.zone_short_name,
+				log->origination_info.zone_long_name,
+				log->origination_info.instance_id
 			);
 		}
 
@@ -293,6 +295,8 @@ void print_trace()
 	if (RuleB(Analytics, CrashReporting)) {
 		SendCrashReport(crash_report);
 	}
+
+	EQEmuLogSys::Instance()->CloseFileLogs();
 
 	exit(1);
 }

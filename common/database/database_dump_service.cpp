@@ -50,7 +50,7 @@ bool DatabaseDumpService::IsMySQLInstalled()
 {
 	std::string version_output = GetMySQLVersion();
 
-	return version_output.find("mysql") != std::string::npos && version_output.find("Ver") != std::string::npos;
+	return version_output.find("mysql") != std::string::npos && (version_output.find("Ver") != std::string::npos || version_output.find("from") != std::string::npos);
 }
 
 /**
@@ -136,11 +136,6 @@ std::string DatabaseDumpService::GetLoginTableList()
 	return Strings::Join(DatabaseSchema::GetLoginTables(), " ");
 }
 
-std::string DatabaseDumpService::GetQueryServTables()
-{
-	return Strings::Join(DatabaseSchema::GetQueryServerTables(), " ");
-}
-
 std::string DatabaseDumpService::GetSystemTablesList()
 {
 	auto system_tables  = DatabaseSchema::GetServerTables();
@@ -209,7 +204,7 @@ void DatabaseDumpService::DatabaseDump()
 	}
 
 	if (IsDumpOutputToConsole()) {
-		LogSys.SilenceConsoleLogging();
+		EQEmuLogSys::Instance()->SilenceConsoleLogging();
 	}
 
 	LogInfo("MySQL installed [{}]", GetMySQLVersion());
@@ -272,11 +267,6 @@ void DatabaseDumpService::DatabaseDump()
 			tables_to_dump += GetLoginTableList() + " ";
 			dump_descriptor += "-login";
 		}
-
-		if (IsDumpQueryServerTables()) {
-			tables_to_dump += GetQueryServTables();
-			dump_descriptor += "-queryserv";
-		}
 	}
 
 	if (IsDumpStaticInstanceData()) {
@@ -322,6 +312,10 @@ void DatabaseDumpService::DatabaseDump()
 			pipe_file
 		);
 
+		LogInfo("Backing up database [{}]", execute_command);
+		LogInfo("This can take a few minutes depending on the size of your database");
+		LogInfo("LOADING... PLEASE WAIT...");
+
 		BuildCredentialsFile();
 		std::string execution_result = Process::execute(execute_command);
 		if (!execution_result.empty() && IsDumpOutputToConsole()) {
@@ -330,7 +324,7 @@ void DatabaseDumpService::DatabaseDump()
 	}
 
 	if (!IsDumpOutputToConsole()) {
-		LogSys.LoadLogSettingsDefaults();
+		EQEmuLogSys::Instance()->LoadLogSettingsDefaults();
 	}
 
 	if (!pipe_file.empty()) {
@@ -397,7 +391,6 @@ void DatabaseDumpService::DatabaseDump()
 //	LogDebug("[{}] dump-to-console", IsDumpOutputToConsole());
 //	LogDebug("[{}] dump-path", GetSetDumpPath());
 //	LogDebug("[{}] compression", (IsDumpWithCompression() ? "true" : "false"));
-//	LogDebug("[{}] query-serv", (IsDumpQueryServerTables() ? "true" : "false"));
 //	LogDebug("[{}] has-compression-binary", (HasCompressionBinary() ? "true" : "false"));
 //	LogDebug("[{}] content", (IsDumpContentTables() ? "true" : "false"));
 //	LogDebug("[{}] no-data", (IsDumpWithNoData() ? "true" : "false"));
@@ -507,16 +500,6 @@ const std::string &DatabaseDumpService::GetDumpFileName() const
 	return dump_file_name;
 }
 
-bool DatabaseDumpService::IsDumpQueryServerTables() const
-{
-	return dump_query_server_tables;
-}
-
-void DatabaseDumpService::SetDumpQueryServerTables(bool dump_query_server_tables)
-{
-	DatabaseDumpService::dump_query_server_tables = dump_query_server_tables;
-}
-
 bool DatabaseDumpService::IsDumpOutputToConsole() const
 {
 	return dump_output_to_console;
@@ -571,7 +554,12 @@ void DatabaseDumpService::RemoveSqlBackup()
 {
 	std::string file = fmt::format("{}.sql", GetDumpFileNameWithPath());
 	if (File::Exists(file)) {
-		std::filesystem::remove(file);
+		try {
+			std::filesystem::remove(file);
+		}
+		catch (std::exception &e) {
+			LogError("std::filesystem::remove err [{}]", e.what());
+		}
 	}
 
 	RemoveCredentialsFile();
@@ -608,7 +596,12 @@ void DatabaseDumpService::BuildCredentialsFile()
 void DatabaseDumpService::RemoveCredentialsFile()
 {
 	if (File::Exists(CREDENTIALS_FILE)) {
-		std::filesystem::remove(CREDENTIALS_FILE);
+		try {
+			std::filesystem::remove(CREDENTIALS_FILE);
+		}
+		catch (std::exception &e) {
+			LogError("std::filesystem::remove err [{}]", e.what());
+		}
 	}
 }
 

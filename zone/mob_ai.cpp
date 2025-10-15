@@ -33,6 +33,9 @@
 #include "../common/data_verification.h"
 
 #include "bot.h"
+#include "../common/repositories/npc_spells_repository.h"
+#include "../common/repositories/npc_spells_entries_repository.h"
+#include "../common/repositories/criteria/content_filter_criteria.h"
 
 #include <glm/gtx/projection.hpp>
 #include <algorithm>
@@ -136,7 +139,7 @@ bool NPC::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes, bool bInnates
 						if (
 							(spells[AIspells[i].spellid].target_type == ST_Target || tar == this)
 							&& tar->DontHealMeBefore() < Timer::GetCurrentTime()
-							&& !(tar->IsPet() && tar->GetOwner()->IsClient())	//no buffing PC's pets
+							&& !(tar->IsPet() && tar->GetOwner()->IsOfClientBot())	//no buffing PC's pets
 							) {
 
 							auto hp_ratio = tar->GetIntHPRatio();
@@ -177,7 +180,7 @@ bool NPC::AICastSpell(Mob* tar, uint8 iChance, uint32 iSpellTypes, bool bInnates
 							&& tar->DontBuffMeBefore() < Timer::GetCurrentTime()
 							&& !tar->IsImmuneToSpell(AIspells[i].spellid, this)
 							&& tar->CanBuffStack(AIspells[i].spellid, GetLevel(), true) >= 0
-							&& !(tar->IsPet() && tar->GetOwner()->IsClient() && this != tar)	//no buffing PC's pets, but they can buff themself
+							&& !(tar->IsPet() && tar->GetOwner()->IsOfClientBot() && this != tar)	//no buffing PC's pets, but they can buff themself
 							)
 						{
 							if(!checked_los) {
@@ -390,12 +393,12 @@ void Mob::AI_Init()
 	minLastFightingDelayMoving = RuleI(NPC, LastFightingDelayMovingMin);
 	maxLastFightingDelayMoving = RuleI(NPC, LastFightingDelayMovingMax);
 
-	pDontHealMeBefore = 0;
-	pDontBuffMeBefore = Timer::GetCurrentTime() + 400;
-	pDontDotMeBefore = 0;
-	pDontRootMeBefore = 0;
-	pDontSnareMeBefore = 0;
-	pDontCureMeBefore = 0;
+	m_dont_heal_me_before  = 0;
+	m_dont_buff_me_before  = Timer::GetCurrentTime() + 400;
+	m_dont_dot_me_before   = 0;
+	m_dont_root_me_before  = 0;
+	m_dont_snare_me_before = 0;
+	m_dont_cure_me_before  = 0;
 }
 
 void NPC::AI_Init()
@@ -440,7 +443,7 @@ void Mob::AI_Start(uint32 iMoveDelay) {
 	AI_feign_remember_timer = std::make_unique<Timer>(AIfeignremember_delay);
 	AI_scan_door_open_timer = std::make_unique<Timer>(AI_scan_door_open_interval);
 
-	if (GetBodyType() == BT_Animal && !RuleB(NPC, AnimalsOpenDoors)) {
+	if (GetBodyType() == BodyType::Animal && !RuleB(NPC, AnimalsOpenDoors)) {
 		SetCanOpenDoors(false);
 	}
 
@@ -448,7 +451,7 @@ void Mob::AI_Start(uint32 iMoveDelay) {
 		hate_list_cleanup_timer.Disable();
 	}
 
-	if (CastToNPC()->WillAggroNPCs())
+	if (CastToNPC()->GetNPCAggro())
 		AI_scan_area_timer = std::make_unique<Timer>(RandomTimer(RuleI(NPC, NPCToNPCAggroTimerMin), RuleI(NPC, NPCToNPCAggroTimerMax)));
 
 	AI_check_signal_timer = std::make_unique<Timer>(AI_check_signal_timer_delay);
@@ -472,8 +475,8 @@ void Client::AI_Start(uint32 iMoveDelay) {
 		return;
 
 	pClientSideTarget = GetTarget() ? GetTarget()->GetID() : 0;
-	SendAppearancePacket(AT_Anim, ANIM_FREEZE);	// this freezes the client
-	SendAppearancePacket(AT_Linkdead, 1); // Sending LD packet so *LD* appears by the player name when charmed/feared -Kasai
+	SendAppearancePacket(AppearanceType::Animation, Animation::Freeze);	// this freezes the client
+	SendAppearancePacket(AppearanceType::Linkdead, 1); // Sending LD packet so *LD* appears by the player name when charmed/feared -Kasai
 	SetAttackTimer();
 	SetFeigned(false);
 }
@@ -537,8 +540,8 @@ void Client::AI_Stop() {
 	safe_delete(app);
 
 	SetTarget(entity_list.GetMob(pClientSideTarget));
-	SendAppearancePacket(AT_Anim, GetAppearanceValue(GetAppearance()));
-	SendAppearancePacket(AT_Linkdead, 0); // Removing LD packet so *LD* no longer appears by the player name when charmed/feared -Kasai
+	SendAppearancePacket(AppearanceType::Animation, GetAppearanceValue(GetAppearance()));
+	SendAppearancePacket(AppearanceType::Linkdead, 0); // Removing LD packet so *LD* no longer appears by the player name when charmed/feared -Kasai
 	if (!auto_attack) {
 		attack_timer.Disable();
 		attack_dw_timer.Disable();
@@ -567,7 +570,7 @@ void Mob::AI_ShutDown() {
 	viral_timer.Disable();
 	flee_timer.Disable();
 
-	for (int sat = 0; sat < MAX_SPECIAL_ATTACK; ++sat) {
+	for (int sat = 0; sat < SpecialAbility::Max; ++sat) {
 		if (SpecialAbilities[sat].timer)
 			SpecialAbilities[sat].timer->Disable();
 	}
@@ -612,7 +615,7 @@ void Client::AI_SpellCast()
 			continue;
 		}
 
-		if(IsEffectInSpell(current_spell, SE_Charm))
+		if(IsEffectInSpell(current_spell, SpellEffect::Charm))
 		{
 			continue;
 		}
@@ -721,7 +724,7 @@ void Client::AI_Process()
 	{
 		if(!IsFeared() && !IsLD())
 		{
-			BuffFadeByEffect(SE_Charm);
+			BuffFadeByEffect(SpellEffect::Charm);
 			return;
 		}
 	}
@@ -769,7 +772,7 @@ void Client::AI_Process()
 		{
 			if(AI_target_check_timer->Check())
 			{
-				SetTarget(hate_list.GetEntWithMostHateOnList(this));
+				SetTarget(hate_list.GetMobWithMostHateOnList(this));
 			}
 		}
 
@@ -778,6 +781,7 @@ void Client::AI_Process()
 
 		if (GetTarget()->IsCorpse()) {
 			RemoveFromHateList(this);
+			RemoveFromRampageList(this);
 			return;
 		}
 
@@ -1058,7 +1062,7 @@ void Mob::AI_Process() {
 		}
 		// we are prevented from getting here if we are blind and don't have a target in range
 		// from above, so no extra blind checks needed
-		if ((IsRooted() && !GetSpecialAbility(IGNORE_ROOT_AGGRO_RULES)) || IsBlind())
+		if ((IsRooted() && !GetSpecialAbility(SpecialAbility::IgnoreRootAggroRules)) || IsBlind())
 			SetTarget(hate_list.GetClosestEntOnHateList(this));
 		else {
 			if (AI_target_check_timer->Check()) {
@@ -1066,19 +1070,19 @@ void Mob::AI_Process() {
 					IsNPC() &&
 					!CastToNPC()->GetSwarmInfo() &&
 					(!IsPet() || (HasOwner() && GetOwner()->IsNPC())) &&
-					!CastToNPC()->WillAggroNPCs()
+					!CastToNPC()->GetNPCAggro()
 				) {
 					WipeHateList(true); // wipe NPCs from hate list to prevent faction war
 				}
 
 				if (IsFocused()) {
 					if (!target) {
-						SetTarget(hate_list.GetEntWithMostHateOnList(this));
+						SetTarget(hate_list.GetMobWithMostHateOnList(this));
 					}
 				}
 				else {
 					if (!ImprovedTaunt())
-						SetTarget(hate_list.GetEntWithMostHateOnList(this));
+						SetTarget(hate_list.GetMobWithMostHateOnList(this));
 				}
 
 			}
@@ -1089,6 +1093,7 @@ void Mob::AI_Process() {
 
 		if (target->IsCorpse()) {
 			RemoveFromHateList(this);
+			RemoveFromRampageList(this);
 			return;
 		}
 
@@ -1120,21 +1125,21 @@ void Mob::AI_Process() {
 		}
 
 		auto npcSpawnPoint = CastToNPC()->GetSpawnPoint();
-		if (GetSpecialAbility(TETHER)) {
-			float tether_range = static_cast<float>(GetSpecialAbilityParam(TETHER, 0));
+		if (GetSpecialAbility(SpecialAbility::Tether)) {
+			float tether_range = static_cast<float>(GetSpecialAbilityParam(SpecialAbility::Tether, 0));
 			tether_range = tether_range > 0.0f ? tether_range * tether_range : pAggroRange * pAggroRange;
 
 			if (DistanceSquaredNoZ(m_Position, npcSpawnPoint) > tether_range) {
 				GMMove(npcSpawnPoint.x, npcSpawnPoint.y, npcSpawnPoint.z, npcSpawnPoint.w);
 			}
 		}
-		else if (GetSpecialAbility(LEASH)) {
-			float leash_range = static_cast<float>(GetSpecialAbilityParam(LEASH, 0));
+		else if (GetSpecialAbility(SpecialAbility::Leash)) {
+			float leash_range = static_cast<float>(GetSpecialAbilityParam(SpecialAbility::Leash, 0));
 			leash_range = leash_range > 0.0f ? leash_range * leash_range : pAggroRange * pAggroRange;
 
 			if (DistanceSquaredNoZ(m_Position, npcSpawnPoint) > leash_range) {
 				GMMove(npcSpawnPoint.x, npcSpawnPoint.y, npcSpawnPoint.z, npcSpawnPoint.w);
-				SetHP(GetMaxHP());
+				RestoreHealth();
 				BuffFadeAll();
 				WipeHateList();
 				return;
@@ -1164,33 +1169,33 @@ void Mob::AI_Process() {
 					TriggerDefensiveProcs(target, EQ::invslot::slotPrimary, false);
 
 					bool specialed = false; // NPCs can only do one of these a round
-					if (GetSpecialAbility(SPECATK_FLURRY)) {
-						int flurry_chance = GetSpecialAbilityParam(SPECATK_FLURRY, 0);
+					if (GetSpecialAbility(SpecialAbility::Flurry)) {
+						int flurry_chance = GetSpecialAbilityParam(SpecialAbility::Flurry, 0);
 						flurry_chance = flurry_chance > 0 ? flurry_chance : RuleI(Combat, NPCFlurryChance);
 
 						if (zone->random.Roll(flurry_chance)) {
 							ExtraAttackOptions opts;
-							int                cur = GetSpecialAbilityParam(SPECATK_FLURRY, 2);
+							int                cur = GetSpecialAbilityParam(SpecialAbility::Flurry, 2);
 							if (cur > 0)
 								opts.damage_percent = cur / 100.0f;
 
-							cur = GetSpecialAbilityParam(SPECATK_FLURRY, 3);
+							cur = GetSpecialAbilityParam(SpecialAbility::Flurry, 3);
 							if (cur > 0)
 								opts.damage_flat = cur;
 
-							cur = GetSpecialAbilityParam(SPECATK_FLURRY, 4);
+							cur = GetSpecialAbilityParam(SpecialAbility::Flurry, 4);
 							if (cur > 0)
 								opts.armor_pen_percent = cur / 100.0f;
 
-							cur = GetSpecialAbilityParam(SPECATK_FLURRY, 5);
+							cur = GetSpecialAbilityParam(SpecialAbility::Flurry, 5);
 							if (cur > 0)
 								opts.armor_pen_flat = cur;
 
-							cur = GetSpecialAbilityParam(SPECATK_FLURRY, 6);
+							cur = GetSpecialAbilityParam(SpecialAbility::Flurry, 6);
 							if (cur > 0)
 								opts.crit_percent = cur / 100.0f;
 
-							cur = GetSpecialAbilityParam(SPECATK_FLURRY, 7);
+							cur = GetSpecialAbilityParam(SpecialAbility::Flurry, 7);
 							if (cur > 0)
 								opts.crit_flat = cur;
 
@@ -1214,7 +1219,7 @@ void Mob::AI_Process() {
 
 
 					//SE_PC_Pet_Rampage SPA 464 on pet, chance modifier
-					if ((IsPet() || IsTempPet()) && IsPetOwnerClient()) {
+					if ((IsPet() || IsTempPet()) && IsPetOwnerOfClientBot()) {
 						int chance = spellbonuses.PC_Pet_Rampage[SBIndex::PET_RAMPAGE_CHANCE] + itembonuses.PC_Pet_Rampage[SBIndex::PET_RAMPAGE_CHANCE] + aabonuses.PC_Pet_Rampage[SBIndex::PET_RAMPAGE_CHANCE];
 						if (chance && zone->random.Roll(chance)) {
 							Rampage(nullptr);
@@ -1222,32 +1227,32 @@ void Mob::AI_Process() {
 					}
 
 
-					if (GetSpecialAbility(SPECATK_RAMPAGE) && !specialed) {
-						int rampage_chance = GetSpecialAbilityParam(SPECATK_RAMPAGE, 0);
+					if (GetSpecialAbility(SpecialAbility::Rampage) && !specialed) {
+						int rampage_chance = GetSpecialAbilityParam(SpecialAbility::Rampage, 0);
 						rampage_chance = rampage_chance > 0 ? rampage_chance : 20;
 						if (zone->random.Roll(rampage_chance)) {
 							ExtraAttackOptions opts;
-							int                cur = GetSpecialAbilityParam(SPECATK_RAMPAGE, 3);
+							int                cur = GetSpecialAbilityParam(SpecialAbility::Rampage, 3);
 							if (cur > 0) {
 								opts.damage_flat = cur;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_RAMPAGE, 4);
+							cur = GetSpecialAbilityParam(SpecialAbility::Rampage, 4);
 							if (cur > 0) {
 								opts.armor_pen_percent = cur / 100.0f;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_RAMPAGE, 5);
+							cur = GetSpecialAbilityParam(SpecialAbility::Rampage, 5);
 							if (cur > 0) {
 								opts.armor_pen_flat = cur;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_RAMPAGE, 6);
+							cur = GetSpecialAbilityParam(SpecialAbility::Rampage, 6);
 							if (cur > 0) {
 								opts.crit_percent = cur / 100.0f;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_RAMPAGE, 7);
+							cur = GetSpecialAbilityParam(SpecialAbility::Rampage, 7);
 							if (cur > 0) {
 								opts.crit_flat = cur;
 							}
@@ -1257,44 +1262,44 @@ void Mob::AI_Process() {
 					}
 
 					//SE_PC_Pet_Rampage SPA 465 on pet, chance modifier
-					if ((IsPet() || IsTempPet()) && IsPetOwnerClient()) {
+					if ((IsPet() || IsTempPet()) && IsPetOwnerOfClientBot()) {
 						int chance = spellbonuses.PC_Pet_AE_Rampage[SBIndex::PET_RAMPAGE_CHANCE] + itembonuses.PC_Pet_AE_Rampage[SBIndex::PET_RAMPAGE_CHANCE] + aabonuses.PC_Pet_AE_Rampage[SBIndex::PET_RAMPAGE_CHANCE];
 						if (chance && zone->random.Roll(chance)) {
 							Rampage(nullptr);
 						}
 					}
 
-					if (GetSpecialAbility(SPECATK_AREA_RAMPAGE) && !specialed) {
-						int rampage_chance = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 0);
+					if (GetSpecialAbility(SpecialAbility::AreaRampage) && !specialed) {
+						int rampage_chance = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 0);
 						rampage_chance = rampage_chance > 0 ? rampage_chance : 20;
 						if (zone->random.Roll(rampage_chance)) {
 							ExtraAttackOptions opts;
-							int                cur = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 3);
+							int                cur = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 3);
 							if (cur > 0) {
 								opts.damage_flat = cur;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 4);
+							cur = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 4);
 							if (cur > 0) {
 								opts.armor_pen_percent = cur / 100.0f;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 5);
+							cur = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 5);
 							if (cur > 0) {
 								opts.armor_pen_flat = cur;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 6);
+							cur = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 6);
 							if (cur > 0) {
 								opts.crit_percent = cur / 100.0f;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 7);
+							cur = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 7);
 							if (cur > 0) {
 								opts.crit_flat = cur;
 							}
 
-							cur = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 8);
+							cur = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 8);
 							if (cur > 0) {
 								opts.range_percent = cur;
 							}
@@ -1323,7 +1328,7 @@ void Mob::AI_Process() {
 			if (!HateSummon()) {
 
 				//could not summon them, check ranged...
-				if (GetSpecialAbility(SPECATK_RANGED_ATK) || HasBowAndArrowEquipped()) {
+				if (GetSpecialAbility(SpecialAbility::RangedAttack) || HasBowAndArrowEquipped()) {
 					doranged = true;
 				}
 
@@ -1386,35 +1391,14 @@ void Mob::AI_Process() {
 				StopNavigation();
 			}
 		}
-		else if (zone->CanDoCombat() && CastToNPC()->WillAggroNPCs() && AI_scan_area_timer->Check()) {
-
-			/**
-			 * NPC to NPC aggro (npc_aggro flag set)
-			 */
-			for (auto &close_mob : close_mobs) {
-				Mob *mob = close_mob.second;
-
-				if (mob->IsClient()) {
-					continue;
-				}
-
-				if (CheckWillAggro(mob)) {
-					AddToHateList(mob);
-				}
-			}
-
-			AI_scan_area_timer->Disable();
-			AI_scan_area_timer->Start(
-				RandomTimer(RuleI(NPC, NPCToNPCAggroTimerMin), RuleI(NPC, NPCToNPCAggroTimerMax)),
-				false
-			);
-
+		else if (zone->CanDoCombat() && IsNPC() && CastToNPC()->GetNPCAggro() && AI_scan_area_timer->Check()) {
+			CastToNPC()->DoNpcToNpcAggroScan();
 		}
 		else if (AI_movement_timer->Check() && !IsRooted()) {
 			if (IsPet()) {
 				// we're a pet, do as we're told
-				switch (pStandingPetOrder) {
-					case SPO_Follow: {
+				switch (m_pet_order) {
+					case PetOrder::Follow: {
 
 						Mob *owner = GetOwner();
 						if (owner == nullptr) {
@@ -1463,18 +1447,18 @@ void Mob::AI_Process() {
 
 						break;
 					}
-					case SPO_Sit: {
+					case PetOrder::Sit: {
 						SetAppearance(eaSitting, false);
 						break;
 					}
-					case SPO_Guard: {
+					case PetOrder::Guard: {
 						//only NPCs can guard stuff. (forced by where the guard movement code is in the AI)
 						if (IsNPC()) {
 							CastToNPC()->NextGuardPosition();
 						}
 						break;
 					}
-					case SPO_FeignDeath: {
+					case PetOrder::Feign: {
 						SetAppearance(eaDead, false);
 						break;
 					}
@@ -1771,6 +1755,8 @@ void Mob::AI_Event_Engaged(Mob *attacker, bool yell_for_help)
 
 	SetAppearance(eaStanding);
 
+	parse->EventBotMerc(EVENT_COMBAT, this, attacker, [&] { return "1"; });
+
 	if (IsNPC()) {
 		CastToNPC()->AIautocastspell_timer->Start(300, false);
 
@@ -1798,9 +1784,8 @@ void Mob::AI_Event_Engaged(Mob *attacker, bool yell_for_help)
 						parse->EventNPC(EVENT_COMBAT, CastToNPC(), attacker, "1", 0);
 					}
 
-					auto emote_id = GetEmoteID();
-					if (emote_id) {
-						CastToNPC()->DoNPCEmote(EQ::constants::EmoteEventTypes::EnterCombat, emoteid);
+					if (emoteid) {
+						CastToNPC()->DoNPCEmote(EQ::constants::EmoteEventTypes::EnterCombat, emoteid, attacker);
 					}
 
 					std::string mob_name = GetCleanName();
@@ -1808,12 +1793,6 @@ void Mob::AI_Event_Engaged(Mob *attacker, bool yell_for_help)
 					CastToNPC()->SetCombatEvent(true);
 				}
 			}
-		}
-	}
-
-	if (IsBot()) {
-		if (parse->BotHasQuestSub(EVENT_COMBAT)) {
-			parse->EventBot(EVENT_COMBAT, CastToBot(), attacker, "1", 0);
 		}
 	}
 }
@@ -1839,26 +1818,25 @@ void Mob::AI_Event_NoLongerEngaged() {
 	if (IsNPC()) {
 		SetPrimaryAggro(false);
 		SetAssistAggro(false);
-		if (CastToNPC()->GetCombatEvent() && GetHP() > 0) {
-			if (entity_list.GetNPCByID(GetID())) {
-				auto emote_id = CastToNPC()->GetEmoteID();
-
-				if (parse->HasQuestSub(GetNPCTypeID(), EVENT_COMBAT)) {
-					parse->EventNPC(EVENT_COMBAT, CastToNPC(), nullptr, "0", 0);
-				}
-
-				if (emote_id) {
-					CastToNPC()->DoNPCEmote(EQ::constants::EmoteEventTypes::LeaveCombat, emoteid);
-				}
-
-				m_combat_record.Stop();
-				CastToNPC()->SetCombatEvent(false);
+		if (
+			CastToNPC()->GetCombatEvent() &&
+			GetHP() > 0 &&
+			entity_list.GetNPCByID(GetID())
+		) {
+			if (parse->HasQuestSub(GetNPCTypeID(), EVENT_COMBAT)) {
+				parse->EventNPC(EVENT_COMBAT, CastToNPC(), nullptr, "0", 0);
 			}
+
+			const uint32 emote_id = CastToNPC()->GetEmoteID();
+			if (emote_id) {
+				CastToNPC()->DoNPCEmote(EQ::constants::EmoteEventTypes::LeaveCombat, emote_id);
+			}
+
+			m_combat_record.Stop();
+			CastToNPC()->SetCombatEvent(false);
 		}
-	} else if (IsBot()) {
-		if (parse->BotHasQuestSub(EVENT_COMBAT)) {
-			parse->EventBot(EVENT_COMBAT, CastToBot(), nullptr, "0", 0);
-		}
+	} else {
+		parse->EventBotMerc(EVENT_COMBAT, this, nullptr, [&]() { return "0"; });
 	}
 }
 
@@ -1958,27 +1936,27 @@ void Mob::StartEnrage()
 	if (bEnraged)
 		return;
 
-	if(!GetSpecialAbility(SPECATK_ENRAGE))
+	if(!GetSpecialAbility(SpecialAbility::Enrage))
 		return;
 
-	int hp_ratio = GetSpecialAbilityParam(SPECATK_ENRAGE, 0);
+	int hp_ratio = GetSpecialAbilityParam(SpecialAbility::Enrage, 0);
 	hp_ratio = hp_ratio > 0 ? hp_ratio : RuleI(NPC, StartEnrageValue);
 	if(GetHPRatio() > static_cast<float>(hp_ratio)) {
 		return;
 	}
 
-	if(RuleB(NPC, LiveLikeEnrage) && !((IsPet() && !IsCharmed() && GetOwner() && GetOwner()->IsClient()) ||
-		(CastToNPC()->GetSwarmOwner() && entity_list.GetMob(CastToNPC()->GetSwarmOwner())->IsClient()))) {
+	if(RuleB(NPC, LiveLikeEnrage) && !((IsPet() && !IsCharmed() && GetOwner() && GetOwner()->IsOfClientBot()) ||
+		(CastToNPC()->GetSwarmOwner() && entity_list.GetMob(CastToNPC()->GetSwarmOwner())->IsOfClientBot()))) {
 		return;
 	}
 
-	Timer *timer = GetSpecialAbilityTimer(SPECATK_ENRAGE);
+	Timer *timer = GetSpecialAbilityTimer(SpecialAbility::Enrage);
 	if (timer && !timer->Check())
 		return;
 
-	int enraged_duration = GetSpecialAbilityParam(SPECATK_ENRAGE, 1);
+	int enraged_duration = GetSpecialAbilityParam(SpecialAbility::Enrage, 1);
 	enraged_duration = enraged_duration > 0 ? enraged_duration : EnragedDurationTimer;
-	StartSpecialAbilityTimer(SPECATK_ENRAGE, enraged_duration);
+	StartSpecialAbilityTimer(SpecialAbility::Enrage, enraged_duration);
 
 	// start the timer. need to call IsEnraged frequently since we dont have callback timers :-/
 	bEnraged = true;
@@ -1987,13 +1965,13 @@ void Mob::StartEnrage()
 
 void Mob::ProcessEnrage(){
 	if(IsEnraged()){
-		Timer *timer = GetSpecialAbilityTimer(SPECATK_ENRAGE);
+		Timer *timer = GetSpecialAbilityTimer(SpecialAbility::Enrage);
 		if(timer && timer->Check()){
 			entity_list.MessageCloseString(this, true, 200, Chat::NPCEnrage, NPC_ENRAGE_END, GetCleanName());
 
-			int enraged_cooldown = GetSpecialAbilityParam(SPECATK_ENRAGE, 2);
+			int enraged_cooldown = GetSpecialAbilityParam(SpecialAbility::Enrage, 2);
 			enraged_cooldown = enraged_cooldown > 0 ? enraged_cooldown : EnragedTimer;
-			StartSpecialAbilityTimer(SPECATK_ENRAGE, enraged_cooldown);
+			StartSpecialAbilityTimer(SpecialAbility::Enrage, enraged_cooldown);
 			bEnraged = false;
 		}
 	}
@@ -2029,7 +2007,7 @@ bool Mob::Flurry(ExtraAttackOptions *opts)
 				target->GetCleanName());
 		}
 
-		int num_attacks = GetSpecialAbilityParam(SPECATK_FLURRY, 1);
+		int num_attacks = GetSpecialAbilityParam(SpecialAbility::Flurry, 1);
 		num_attacks = num_attacks > 0 ? num_attacks : RuleI(Combat, MaxFlurryHits);
 		for (int i = 0; i < num_attacks; i++)
 			Attack(target, EQ::invslot::slotPrimary, false, false, false, opts);
@@ -2043,7 +2021,7 @@ bool Mob::AddRampage(Mob *mob)
 		return false;
 	}
 
-	if (!GetSpecialAbility(SPECATK_RAMPAGE)) {
+	if (!GetSpecialAbility(SpecialAbility::Rampage)) {
 		return false;
 	}
 
@@ -2062,6 +2040,32 @@ void Mob::ClearRampage()
 	RampageArray.clear();
 }
 
+void Mob::RemoveFromRampageList(Mob* mob, bool remove_feigned)
+{
+	if (!mob) {
+		return;
+	}
+
+	if (
+		IsNPC() &&
+		GetSpecialAbility(SpecialAbility::Rampage) &&
+		(
+			remove_feigned  ||
+			mob->IsNPC() ||
+			(
+				mob->IsClient() &&
+				!mob->CastToClient()->GetFeigned()
+			)
+		)
+	) {
+		for (int i = 0; i < RampageArray.size(); i++) {
+			if (mob->GetID() == RampageArray[i]) {
+				RampageArray[i] = 0;
+			}
+		}
+	}
+}
+
 bool Mob::Rampage(ExtraAttackOptions *opts)
 {
 	int index_hit = 0;
@@ -2070,23 +2074,37 @@ bool Mob::Rampage(ExtraAttackOptions *opts)
 	} else {
 		entity_list.MessageCloseString(this, true, 200, Chat::NPCRampage, NPC_RAMPAGE, GetCleanName());
 	}
-	int rampage_targets = GetSpecialAbilityParam(SPECATK_RAMPAGE, 1);
-	if (rampage_targets == 0) // if set to 0 or not set in the DB
+
+	int rampage_targets = GetSpecialAbilityParam(SpecialAbility::Rampage, 1);
+
+	if (rampage_targets == 0) { // if set to 0 or not set in the DB
 		rampage_targets = RuleI(Combat, DefaultRampageTargets);
-	if (rampage_targets > RuleI(Combat, MaxRampageTargets))
+	}
+
+	if (rampage_targets > RuleI(Combat, MaxRampageTargets)) {
 		rampage_targets = RuleI(Combat, MaxRampageTargets);
+	}
 
 	m_specialattacks = eSpecialAttacks::Rampage;
 	for (int i = 0; i < RampageArray.size(); i++) {
-		if (index_hit >= rampage_targets)
+		if (index_hit >= rampage_targets) {
 			break;
+		}
 		// range is important
 		Mob *m_target = entity_list.GetMob(RampageArray[i]);
 		if (m_target) {
-			if (m_target == GetTarget())
+			if (m_target == GetTarget()) {
 				continue;
+			}
+
+			if (m_target->IsCorpse()) {
+				LogAggroDetail("[{}] is on [{}]'s rampage list", m_target->GetCleanName(), GetCleanName());
+				RemoveFromRampageList(m_target, true);
+				continue;
+			}
+
 			if (DistanceSquaredNoZ(GetPosition(), m_target->GetPosition()) <= NPC_RAMPAGE_RANGE2) {
-				ProcessAttackRounds(m_target, opts);
+				ProcessAttackRounds(m_target, opts, true);
 				index_hit++;
 			}
 		}
@@ -2094,20 +2112,22 @@ bool Mob::Rampage(ExtraAttackOptions *opts)
 
 	if (RuleB(Combat, RampageHitsTarget)) {
 		if (index_hit < rampage_targets)
-			ProcessAttackRounds(GetTarget(), opts);
+			ProcessAttackRounds(GetTarget(), opts, true);
 	} else { // let's do correct behavior here, if they set above rule we can assume they want non-live like behavior
 		if (index_hit < rampage_targets) {
 			// so we go over in reverse order and skip range check
 			// lets do it this way to still support non-live-like >1 rampage targets
 			// likely live is just a fall through of the last valid mob
 			for (auto i = RampageArray.crbegin(); i != RampageArray.crend(); ++i) {
-				if (index_hit >= rampage_targets)
+				if (index_hit >= rampage_targets) {
 					break;
+				}
 				auto m_target = entity_list.GetMob(*i);
 				if (m_target) {
-					if (m_target == GetTarget())
+					if (m_target == GetTarget()) {
 						continue;
-					ProcessAttackRounds(m_target, opts);
+					}
+					ProcessAttackRounds(m_target, opts, true);
 					index_hit++;
 				}
 			}
@@ -2128,7 +2148,7 @@ void Mob::AreaRampage(ExtraAttackOptions *opts)
 		entity_list.MessageCloseString(this, true, 200, Chat::NPCRampage, AE_RAMPAGE, GetCleanName());
 	}
 
-	int rampage_targets = GetSpecialAbilityParam(SPECATK_AREA_RAMPAGE, 1);
+	int rampage_targets = GetSpecialAbilityParam(SpecialAbility::AreaRampage, 1);
 	rampage_targets = rampage_targets > 0 ? rampage_targets : -1;
 	m_specialattacks = eSpecialAttacks::AERampage;
 	index_hit = hate_list.AreaRampage(this, GetTarget(), rampage_targets, opts);
@@ -2145,162 +2165,162 @@ uint32 Mob::GetLevelCon(uint8 mylevel, uint8 iOtherLevel) {
 		int16 diff = iOtherLevel - mylevel;
 
 		if (diff == 0)
-			return CON_WHITE;
+			return ConsiderColor::White;
 		else if (diff >= 1 && diff <= 2)
-			return CON_YELLOW;
+			return ConsiderColor::Yellow;
 		else if (diff >= 3)
-			return CON_RED;
+			return ConsiderColor::Red;
 
 		if (mylevel <= 8)
 		{
 			if (diff <= -4)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 9)
 		{
 			if (diff <= -6)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -4)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 13)
 		{
 			if (diff <= -7)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -5)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 15)
 		{
 			if (diff <= -7)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -5)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 17)
 		{
 			if (diff <= -8)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -6)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 21)
 		{
 			if (diff <= -9)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -7)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 25)
 		{
 			if (diff <= -10)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -8)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 29)
 		{
 			if (diff <= -11)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -9)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 31)
 		{
 			if (diff <= -12)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -9)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 33)
 		{
 			if (diff <= -13)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -10)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 37)
 		{
 			if (diff <= -14)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -11)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 41)
 		{
 			if (diff <= -16)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -12)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 45)
 		{
 			if (diff <= -17)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -13)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 49)
 		{
 			if (diff <= -18)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -14)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 53)
 		{
 			if (diff <= -19)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -15)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else if (mylevel <= 55)
 		{
 			if (diff <= -20)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -15)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else
 		{
 			if (diff <= -21)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else if (diff <= -16)
-				conlevel = CON_LIGHTBLUE;
+				conlevel = ConsiderColor::LightBlue;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 	}
 	else
@@ -2310,42 +2330,42 @@ uint32 Mob::GetLevelCon(uint8 mylevel, uint8 iOtherLevel) {
 		uint32 conGreenLvl = mylevel - (int32)((mylevel + 7) / 4);
 
 		if (diff == 0)
-			return CON_WHITE;
+			return ConsiderColor::White;
 		else if (diff >= 1 && diff <= 3)
-			return CON_YELLOW;
+			return ConsiderColor::Yellow;
 		else if (diff >= 4)
-			return CON_RED;
+			return ConsiderColor::Red;
 
 		if (mylevel <= 15)
 		{
 			if (diff <= -6)
-				conlevel = CON_GRAY;
+				conlevel = ConsiderColor::Gray;
 			else
-				conlevel = CON_BLUE;
+				conlevel = ConsiderColor::DarkBlue;
 		}
 		else
 			if (mylevel <= 20)
 			{
 				if (iOtherLevel <= conGrayLvl)
-					conlevel = CON_GRAY;
+					conlevel = ConsiderColor::Gray;
 				else
 					if (iOtherLevel <= conGreenLvl)
-						conlevel = CON_GREEN;
+						conlevel = ConsiderColor::Green;
 					else
-						conlevel = CON_BLUE;
+						conlevel = ConsiderColor::DarkBlue;
 			}
 			else
 			{
 				if (iOtherLevel <= conGrayLvl)
-					conlevel = CON_GRAY;
+					conlevel = ConsiderColor::Gray;
 				else
 					if (iOtherLevel <= conGreenLvl)
-						conlevel = CON_GREEN;
+						conlevel = ConsiderColor::Green;
 					else
 						if (diff <= -6)
-							conlevel = CON_LIGHTBLUE;
+							conlevel = ConsiderColor::LightBlue;
 						else
-							conlevel = CON_BLUE;
+							conlevel = ConsiderColor::DarkBlue;
 			}
 	}
 	return conlevel;
@@ -2742,10 +2762,11 @@ void NPC::AISpellsList(Client *c)
 			c->Message(
 				Chat::White,
 				fmt::format(
-					"Spell {} | Priority: {} Recast Delay: {}",
+					"Spell {} | Priority: {} Recast Delay: {} Resist Difficulty: {}",
 					spell_slot,
 					ai_spell.priority,
-					ai_spell.recast_delay
+					ai_spell.recast_delay,
+					ai_spell.resist_adjust
 				).c_str()
 			);
 
@@ -2799,123 +2820,90 @@ void NPC::AISpellsList(Client *c)
 	return;
 }
 
-DBnpcspells_Struct *ZoneDatabase::GetNPCSpells(uint32 iDBSpellsID)
+DBnpcspells_Struct *ZoneDatabase::GetNPCSpells(uint32 npc_spells_id)
 {
-	if (iDBSpellsID == 0)
+	if (npc_spells_id == 0) {
 		return nullptr;
+	}
 
-	auto it = npc_spells_cache.find(iDBSpellsID);
-
+	auto it = npc_spells_cache.find(npc_spells_id);
 	if (it != npc_spells_cache.end()) { // it's in the cache, easy =)
 		return &it->second;
 	}
 
-	if (!npc_spells_loadtried.count(iDBSpellsID)) { // no reason to ask the DB again if we have failed once already
-		npc_spells_loadtried.insert(iDBSpellsID);
+	if (!npc_spells_loadtried.count(npc_spells_id)) { // no reason to ask the DB again if we have failed once already
+		npc_spells_loadtried.insert(npc_spells_id);
 
-		std::string query = StringFormat("SELECT id, parent_list, attack_proc, proc_chance, "
-						 "range_proc, rproc_chance, defensive_proc, dproc_chance, "
-						 "fail_recast, engaged_no_sp_recast_min, engaged_no_sp_recast_max, "
-						 "engaged_b_self_chance, engaged_b_other_chance, engaged_d_chance, "
-						 "pursue_no_sp_recast_min, pursue_no_sp_recast_max, "
-						 "pursue_d_chance, idle_no_sp_recast_min, idle_no_sp_recast_max, "
-						 "idle_b_chance FROM npc_spells WHERE id=%d",
-						 iDBSpellsID);
-		auto results = QueryDatabase(query);
-		if (!results.Success()) {
+		auto ns = NpcSpellsRepository::FindOne(*this, npc_spells_id);
+		if (!ns.id) {
 			return nullptr;
 		}
 
-		if (results.RowCount() != 1)
-			return nullptr;
+		DBnpcspells_Struct ss;
 
-		auto row = results.begin();
-		DBnpcspells_Struct spell_set;
+		ss.parent_list                     = ns.parent_list;
+		ss.attack_proc                     = ns.attack_proc;
+		ss.proc_chance                     = ns.proc_chance;
+		ss.range_proc                      = ns.range_proc;
+		ss.rproc_chance                    = ns.rproc_chance;
+		ss.defensive_proc                  = ns.defensive_proc;
+		ss.dproc_chance                    = ns.dproc_chance;
+		ss.fail_recast                     = ns.fail_recast;
+		ss.engaged_no_sp_recast_min        = ns.engaged_no_sp_recast_min;
+		ss.engaged_no_sp_recast_max        = ns.engaged_no_sp_recast_max;
+		ss.engaged_beneficial_self_chance  = ns.engaged_b_self_chance;
+		ss.engaged_beneficial_other_chance = ns.engaged_b_other_chance;
+		ss.engaged_detrimental_chance      = ns.engaged_d_chance;
+		ss.pursue_no_sp_recast_min         = ns.pursue_no_sp_recast_min;
+		ss.pursue_no_sp_recast_max         = ns.pursue_no_sp_recast_max;
+		ss.pursue_detrimental_chance       = ns.pursue_d_chance;
+		ss.idle_no_sp_recast_min           = ns.idle_no_sp_recast_min;
+		ss.idle_no_sp_recast_max           = ns.idle_no_sp_recast_max;
+		ss.idle_beneficial_chance          = ns.idle_b_chance;
 
-		spell_set.parent_list = Strings::ToInt(row[1]);
-		spell_set.attack_proc = Strings::ToInt(row[2]);
-		spell_set.proc_chance = Strings::ToInt(row[3]);
-		spell_set.range_proc = Strings::ToInt(row[4]);
-		spell_set.rproc_chance = Strings::ToInt(row[5]);
-		spell_set.defensive_proc = Strings::ToInt(row[6]);
-		spell_set.dproc_chance = Strings::ToInt(row[7]);
-		spell_set.fail_recast = Strings::ToInt(row[8]);
-		spell_set.engaged_no_sp_recast_min = Strings::ToInt(row[9]);
-		spell_set.engaged_no_sp_recast_max = Strings::ToInt(row[10]);
-		spell_set.engaged_beneficial_self_chance = Strings::ToInt(row[11]);
-		spell_set.engaged_beneficial_other_chance = Strings::ToInt(row[12]);
-		spell_set.engaged_detrimental_chance = Strings::ToInt(row[13]);
-		spell_set.pursue_no_sp_recast_min = Strings::ToInt(row[14]);
-		spell_set.pursue_no_sp_recast_max = Strings::ToInt(row[15]);
-		spell_set.pursue_detrimental_chance = Strings::ToInt(row[16]);
-		spell_set.idle_no_sp_recast_min = Strings::ToInt(row[17]);
-		spell_set.idle_no_sp_recast_max = Strings::ToInt(row[18]);
-		spell_set.idle_beneficial_chance = Strings::ToInt(row[19]);
+		auto entries = NpcSpellsEntriesRepository::GetWhere(
+			*this,
+			fmt::format(
+				"npc_spells_id = {} {} ORDER BY minlevel",
+				npc_spells_id,
+				ContentFilterCriteria::apply()
+			)
+		);
 
-		// pulling fixed values from an auto-increment field is dangerous...
-		query = StringFormat(
-		    "SELECT spellid, type, minlevel, maxlevel, "
-		    "manacost, recast_delay, priority, min_hp, max_hp, resist_adjust "
-		    "FROM npc_spells_entries "
-		    "WHERE npc_spells_id=%d ORDER BY minlevel",
-		    iDBSpellsID);
-		results = QueryDatabase(query);
+		for (auto &e: entries) {
+			DBnpcspells_entries_Struct se{};
 
-		if (!results.Success()) {
-			return nullptr;
-		}
-
-		int entryIndex = 0;
-		for (row = results.begin(); row != results.end(); ++row, ++entryIndex) {
-			DBnpcspells_entries_Struct entry;
-			int spell_id = Strings::ToInt(row[0]);
-			entry.spellid = spell_id;
-			entry.type = Strings::ToUnsignedInt(row[1]);
-			entry.minlevel = Strings::ToInt(row[2]);
-			entry.maxlevel = Strings::ToInt(row[3]);
-			entry.manacost = Strings::ToInt(row[4]);
-			entry.recast_delay = Strings::ToInt(row[5]);
-			entry.priority = Strings::ToInt(row[6]);
-			entry.min_hp = Strings::ToInt(row[7]);
-			entry.max_hp = Strings::ToInt(row[8]);
+			se.spellid      = e.spellid;
+			se.type         = e.type;
+			se.minlevel     = e.minlevel;
+			se.maxlevel     = e.maxlevel;
+			se.manacost     = e.manacost;
+			se.recast_delay = e.recast_delay;
+			se.priority     = e.priority;
+			se.min_hp       = e.min_hp;
+			se.max_hp       = e.max_hp;
 
 			// some spell types don't make much since to be priority 0, so fix that
-			if (!(entry.type & SPELL_TYPES_INNATE) && entry.priority == 0)
-				entry.priority = 1;
+			if (!(se.type & SPELL_TYPES_INNATE) && se.priority == 0) {
+				se.priority = 1;
+			}
 
-			if (row[9])
-				entry.resist_adjust = Strings::ToInt(row[9]);
-			else if (IsValidSpell(spell_id))
-				entry.resist_adjust = spells[spell_id].resist_difficulty;
+			if (e.resist_adjust) {
+				se.resist_adjust = e.resist_adjust;
+			}
+			else if (IsValidSpell(e.spellid)) {
+				se.resist_adjust = spells[e.spellid].resist_difficulty;
+			}
 
-			spell_set.entries.push_back(entry);
+			ss.entries.push_back(se);
 		}
 
-		npc_spells_cache.emplace(std::make_pair(iDBSpellsID, spell_set));
+		npc_spells_cache.emplace(std::make_pair(npc_spells_id, ss));
 
-		return &npc_spells_cache[iDBSpellsID];
-    }
-
-	return nullptr;
-}
-
-uint32 ZoneDatabase::GetMaxNPCSpellsID() {
-
-	std::string query = "SELECT max(id) from npc_spells";
-	auto results = QueryDatabase(query);
-	if (!results.Success()) {
-		return 0;
+		return &npc_spells_cache[npc_spells_id];
 	}
 
-    if (results.RowCount() != 1)
-        return 0;
-
-    auto row = results.begin();
-
-    if (!row[0])
-        return 0;
-
-    return Strings::ToInt(row[0]);
+	return nullptr;
 }
 
 DBnpcspellseffects_Struct *ZoneDatabase::GetNPCSpellsEffects(uint32 iDBSpellsEffectsID)
