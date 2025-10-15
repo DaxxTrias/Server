@@ -1074,6 +1074,7 @@ void bot_command_inventory(Client *c, const Seperator *sep);
 void bot_command_item_use(Client *c, const Seperator *sep);
 void bot_command_max_melee_range(Client* c, const Seperator* sep);
 void bot_command_owner_option(Client *c, const Seperator *sep);
+void bot_command_pet_assist(Client *c, const Seperator *sep);
 void bot_command_pet(Client *c, const Seperator *sep);
 void bot_command_pick_lock(Client *c, const Seperator *sep);
 void bot_command_pickpocket(Client* c, const Seperator* sep);

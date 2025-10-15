@@ -166,6 +166,7 @@ int bot_command_init(void)
 		bot_command_add("itemuse", "Elicits a report from spawned bots that can use the item on your cursor (option 'empty' yields only empty slots)", AccountStatus::Player, bot_command_item_use) ||
 		bot_command_add("maxmeleerange", "Toggles whether your bot is at max melee range or not. This will disable all special abilities, including taunt.", AccountStatus::Player, bot_command_max_melee_range) ||
 		bot_command_add("owneroption", "Sets options available to bot owners", AccountStatus::Player, bot_command_owner_option) ||
+		bot_command_add("petassist", "Orders a bot's controllable pet to attack your target (assist)", AccountStatus::Player, bot_command_pet_assist) ||
 		bot_command_add("pet", "Lists the available bot pet [subcommands]", AccountStatus::Player, bot_command_pet) ||
 		bot_command_add("petgetlost", "Orders a bot to remove its summoned pet", AccountStatus::Player, bot_command_pet_get_lost) ||
 		bot_command_add("petremove", "Orders a bot to remove its charmed pet", AccountStatus::Player, bot_command_pet_remove) ||

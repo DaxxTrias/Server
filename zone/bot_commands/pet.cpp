@@ -15,6 +15,60 @@ void bot_command_pet(Client *c, const Seperator *sep)
 	helper_send_available_subcommands(c, "bot pet", subcommand_list);
 }
 
+void bot_command_pet_assist(Client *c, const Seperator *sep)
+{
+	if (helper_command_alias_fail(c, "bot_command_pet_assist", sep->arg[0], "petassist"))
+		return;
+
+	if (helper_is_help_or_usage(sep->arg[1])) {
+		c->Message(Chat::White, "usage: %s ([actionable: target | byname | ownergroup | ownerraid | targetgroup | namesgroup | healrotationmembers | mmr | byclass | byrace | spawned] ([actionable_name]))", sep->arg[0]);
+		c->Message(Chat::White, "note: Orders controllable pets to attack your current target. Enchanter animation requires appropriate Animation Empathy ranks.");
+		return;
+	}
+
+	Mob* assist_target = c->GetTarget();
+	if (!assist_target) {
+		c->Message(Chat::Yellow, "You must have a target for pet assist.");
+		return;
+	}
+
+	if (!c->IsAttackAllowed(assist_target)) {
+		c->Message(Chat::Yellow, "You cannot attack that target.");
+		return;
+	}
+
+	const int ab_mask = ActionableBots::ABM_Type1;
+	std::vector<Bot*> sbl;
+	if (ActionableBots::PopulateSBL(c, sep->arg[1], sbl, ab_mask, sep->arg[2]) == ActionableBots::ABT_None)
+		return;
+
+	uint32 success = 0;
+	for (auto bot_iter : sbl) {
+		if (!bot_iter || !bot_iter->GetPet())
+			continue;
+
+		if (!bot_iter->HasControllablePet(BotAnimEmpathy::Attack))
+			continue;
+
+		// ensure pet is allowed to engage
+		if (!bot_iter->IsAttackAllowed(assist_target))
+			continue;
+
+		bot_iter->GetPet()->WipeHateList();
+		bot_iter->GetPet()->AddToHateList(assist_target, 1);
+		bot_iter->GetPet()->SetTarget(assist_target);
+		++success;
+	}
+
+	if (success == 0) {
+		c->Message(Chat::Yellow, "No controllable pets acted on this command.");
+	} else if (success == 1) {
+		c->Message(Chat::White, "One pet is assisting on %s.", assist_target->GetCleanName());
+	} else {
+		c->Message(Chat::White, "%u pets are assisting on %s.", success, assist_target->GetCleanName());
+	}
+}
+
 void bot_command_pet_get_lost(Client *c, const Seperator *sep)
 {
 	if (helper_command_alias_fail(c, "bot_command_pet_get_lost", sep->arg[0], "petgetlost"))
