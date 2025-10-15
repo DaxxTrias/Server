@@ -68,7 +68,8 @@ my $database_schema = $json->decode($output);
 # database
 #############################################
 my $content;
-open(my $fh, '<', $config_path) or die "cannot open file $config_path"; {
+open(my $fh, '<', $config_path) or die "cannot open file $config_path";
+{
     local $/;
     $content = <$fh>;
 }
@@ -113,7 +114,8 @@ if ($requested_table_to_generate ne "all") {
 
 my @cereal_enabled_tables = (
     "data_buckets",
-    "player_event_logs"
+    "player_event_logs",
+    "player_event_log_settings"
 );
 
 my $generated_base_repository_files = "";
@@ -141,7 +143,6 @@ foreach my $table_to_generate (@tables) {
         "guild_bank",
         "inventory_versions",
         "raid_leaders",
-        "sharedbank",
         "trader_audit",
         "eqtime",
         "db_version",
@@ -259,6 +260,9 @@ foreach my $table_to_generate (@tables) {
         elsif ((trim($column_default) eq "" || $column_default eq "NULL") && $column_type =~ /text|varchar/i) {
             $default_value = '""';
         }
+        elsif ((trim($column_default) eq "" || $column_default eq "NULL") && $column_type =~ /blob/i) {
+            $default_value = '""';
+        }
 
         # for datetime values that set default value all zeroed out
         if ($default_value =~ /0000-00-00 00:00:00/i) {
@@ -279,7 +283,7 @@ foreach my $table_to_generate (@tables) {
 
         # column names (string)
         $column_names_quoted .= sprintf("\t\t\t\"%s\",\n", format_column_name_for_mysql($column_name));
-        if ($data_type =~ /datetime/) {
+        if ($data_type =~ /datetime|timestamp/) {
             $select_column_names_quoted .= sprintf("\t\t\t\"UNIX_TIMESTAMP(%s)\",\n", format_column_name_for_mysql($column_name));
         }
         else {
@@ -292,8 +296,11 @@ foreach my $table_to_generate (@tables) {
             if ($data_type =~ /int|float|double|decimal/) {
                 $query_value = sprintf('" + std::to_string(e.%s));', $column_name_formatted);
             }
-            elsif ($data_type =~ /datetime/) {
+            elsif ($data_type =~ /datetime|timestamp/) {
                 $query_value = sprintf('FROM_UNIXTIME(" + (e.%s > 0 ? std::to_string(e.%s) : "null") + ")");', $column_name_formatted, $column_name_formatted);
+            }
+            elsif ($data_type =~ /blob/) {
+                $query_value = sprintf('\'" + e.%s + "\'");', $column_name_formatted);
             }
 
             $update_one_entries .= sprintf(
@@ -308,8 +315,11 @@ foreach my $table_to_generate (@tables) {
         if ($data_type =~ /int|float|double|decimal/) {
             $value = sprintf('std::to_string(e.%s)', $column_name_formatted);
         }
-        elsif ($data_type =~ /datetime/) {
+        elsif ($data_type =~ /datetime|timestamp/) {
             $value = sprintf('"FROM_UNIXTIME(" + (e.%s > 0 ? std::to_string(e.%s) : "null") + ")"', $column_name_formatted, $column_name_formatted);
+        }
+        elsif ($data_type =~ /blob/) {
+            $value = sprintf("\"'\" + e.%s + \"'\"", $column_name_formatted);
         }
 
         $insert_one_entries  .= sprintf("\t\tv.push_back(%s);\n", $value);
@@ -319,37 +329,41 @@ foreach my $table_to_generate (@tables) {
 
         if ($column_type =~ /unsigned/) {
             if ($data_type =~ /bigint/) {
-                $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = strtoull(row[%s], nullptr, 10);\n", $column_name_formatted, $index);
-                $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = strtoull(row[%s], nullptr, 10);\n", $column_name_formatted, $index);
+                $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtoull(row[%s], nullptr, 10) : %s;\n", $column_name_formatted, $index, $index, $default_value);
+                $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtoull(row[%s], nullptr, 10) : %s;\n", $column_name_formatted, $index, $index, $default_value);
             }
             elsif ($data_type =~ /int/) {
-                $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = static_cast<%s>(strtoul(row[%s], nullptr, 10));\n", $column_name_formatted, $struct_data_type, $index);
-                $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = static_cast<%s>(strtoul(row[%s], nullptr, 10));\n", $column_name_formatted, $struct_data_type, $index);
+                $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? static_cast<%s>(strtoul(row[%s], nullptr, 10)) : %s;\n", $column_name_formatted, $index, $struct_data_type, $index, $default_value);
+                $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? static_cast<%s>(strtoul(row[%s], nullptr, 10)) : %s;\n", $column_name_formatted, $index, $struct_data_type, $index, $default_value);
+            }
+            elsif ($data_type =~ /float|decimal/) {
+                $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? (strtof(row[%s], nullptr) > 0.0f ? strtof(row[%s], nullptr) : %s) : %s;\n", $column_name_formatted, $index, $index, $index, $default_value, $default_value);
+                $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? (strtof(row[%s], nullptr) > 0.0f ? strtof(row[%s], nullptr) : %s) : %s;\n", $column_name_formatted, $index, $index, $index, $default_value, $default_value);
             }
         }
         elsif ($data_type =~ /bigint/) {
-            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = strtoll(row[%s], nullptr, 10);\n", $column_name_formatted, $index);
-            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = strtoll(row[%s], nullptr, 10);\n", $column_name_formatted, $index);
+            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtoll(row[%s], nullptr, 10) : %s;\n", $column_name_formatted, $index, $index, $default_value);
+            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtoll(row[%s], nullptr, 10) : %s;\n", $column_name_formatted, $index, $index, $default_value);
         }
-        elsif ($data_type =~ /datetime/) {
+        elsif ($data_type =~ /datetime|timestamp/) {
             $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = strtoll(row[%s] ? row[%s] : \"-1\", nullptr, 10);\n", $column_name_formatted, $index, $index);
             $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = strtoll(row[%s] ? row[%s] : \"-1\", nullptr, 10);\n", $column_name_formatted, $index, $index);
         }
         elsif ($data_type =~ /int/) {
-            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = static_cast<%s>(atoi(row[%s]));\n", $column_name_formatted, $struct_data_type, $index);
-            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = static_cast<%s>(atoi(row[%s]));\n", $column_name_formatted, $struct_data_type, $index);
+            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? static_cast<%s>(atoi(row[%s])) : %s;\n", $column_name_formatted, $index, $struct_data_type, $index, $default_value);
+            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? static_cast<%s>(atoi(row[%s])) : %s;\n", $column_name_formatted, $index, $struct_data_type, $index, $default_value);
         }
         elsif ($data_type =~ /float|decimal/) {
-            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = strtof(row[%s], nullptr);\n", $column_name_formatted, $index);
-            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = strtof(row[%s], nullptr);\n", $column_name_formatted, $index);
+            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtof(row[%s], nullptr) : %s;\n", $column_name_formatted, $index, $index, $default_value);
+            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtof(row[%s], nullptr) : %s;\n", $column_name_formatted, $index, $index, $default_value);
         }
         elsif ($data_type =~ /double/) {
-            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = strtod(row[%s], nullptr);\n", $column_name_formatted, $index);
-            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = strtod(row[%s], nullptr);\n", $column_name_formatted, $index);
+            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtod(row[%s], nullptr) : %s;\n", $column_name_formatted, $index, $index, $default_value);
+            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? strtod(row[%s], nullptr) : %s;\n", $column_name_formatted, $index, $index, $default_value);
         }
         else {
-            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? row[%s] : \"\";\n", $column_name_formatted, $index, $index);
-            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? row[%s] : \"\";\n", $column_name_formatted, $index, $index);
+            $all_entries      .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? row[%s] : %s;\n", $column_name_formatted, $index, $index, $default_value);
+            $find_one_entries .= sprintf("\t\t\te.%-${longest_column_length}s = row[%s] ? row[%s] : %s;\n", $column_name_formatted, $index, $index, $default_value);
         }
 
         # print $column_name . "\n";
@@ -466,7 +480,7 @@ foreach my $table_to_generate (@tables) {
     $new_base_repository =~ s/\{\{INSERT_MANY_ENTRIES}}/$insert_many_entries/g;
     $new_base_repository =~ s/\{\{ALL_ENTRIES}}/$all_entries/g;
     $new_base_repository =~ s/\{\{GENERATED_DATE}}/$generated_date/g;
-    $new_base_repository =~ s/\{\{ADDITIONAL_INCLUDES}}/$additional_includes/g;
+    $new_base_repository =~ s/\{\{ADDITIONAL_INCLUDES}}\n/$additional_includes/g;
 
     # Extended repository
     my $new_repository = $repository_template;
@@ -512,7 +526,14 @@ foreach my $table_to_generate (@tables) {
     # write extended repository
     #############################################
     if ($repository_generation_option eq "all" || $repository_generation_option eq "extended") {
-        my $generated_repository      = './common/repositories/' . $table_to_generate . '_repository.h';
+        my $generated_repository = './common/repositories/' . $table_to_generate . '_repository.h';
+
+        # check if file exists firsts
+        if (-e $generated_repository) {
+            print "File [$generated_repository] already exists! Can't overwrite extended once created!\n";
+            next;
+        }
+
         my $cmake_generated_reference = $generated_repository;
         $cmake_generated_reference =~ s/.\/common\///g;
         $generated_repository_files .= $cmake_generated_reference . "\n";
@@ -531,15 +552,17 @@ print $generated_base_repository_files . "\n";
 print "\n#Extended Repositories\n";
 print $generated_repository_files . "\n";
 
-sub trim {
+sub trim
+{
     my $string = $_[0];
     $string =~ s/^\s+//;
     $string =~ s/\s+$//;
     return $string;
 }
 
-sub translate_mysql_data_type_to_c {
-    my $mysql_data_type = $_[0];
+sub translate_mysql_data_type_to_c
+{
+    my $mysql_data_type   = $_[0];
     my $mysql_column_type = $_[1];
 
     my $struct_data_type = "std::string";
@@ -555,6 +578,12 @@ sub translate_mysql_data_type_to_c {
         }
         elsif ($mysql_data_type =~ /int/) {
             $struct_data_type = 'uint32_t';
+        }
+        elsif ($mysql_data_type =~ /float|decimal/i) {
+            $struct_data_type = 'float';
+        }
+        elsif ($mysql_data_type =~ /double/i) {
+            $struct_data_type = 'double';
         }
     }
     elsif ($mysql_data_type =~ /bigint/) {
@@ -575,7 +604,7 @@ sub translate_mysql_data_type_to_c {
     elsif ($mysql_data_type =~ /double/) {
         $struct_data_type = 'double';
     }
-    elsif ($mysql_data_type =~ /datetime/) {
+    elsif ($mysql_data_type =~ /datetime|timestamp/) {
         $struct_data_type = 'time_t';
     }
 
@@ -583,16 +612,21 @@ sub translate_mysql_data_type_to_c {
 }
 
 # This is so we can change reserved words on the cpp side to something that will continue be functional in the compilers
-sub get_reserved_cpp_variable_names {
+sub get_reserved_cpp_variable_names
+{
     return (
         "class",
         "int",
         "key",
-        "range"
+        "rank",
+        "range",
+        "interval",
+        "group"
     );
 }
 
-sub format_column_name_for_cpp_var {
+sub format_column_name_for_cpp_var
+{
     my $column_name = $_[0];
 
     for my $word (get_reserved_cpp_variable_names()) {
@@ -604,7 +638,8 @@ sub format_column_name_for_cpp_var {
     return $column_name;
 }
 
-sub format_column_name_for_mysql {
+sub format_column_name_for_mysql
+{
     my $column_name = $_[0];
     for my $word (get_reserved_cpp_variable_names()) {
         if ($word eq $column_name) {

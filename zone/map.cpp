@@ -2,10 +2,12 @@
 #include "../common/misc_functions.h"
 #include "../common/compression.h"
 
+#include "client.h"
 #include "map.h"
 #include "raycast_mesh.h"
 #include "zone.h"
 #include "../common/file.h"
+#include "../common/memory/ksm.hpp"
 
 #include <algorithm>
 #include <map>
@@ -30,12 +32,14 @@ Map::~Map() {
 }
 
 float Map::FindBestZ(glm::vec3 &start, glm::vec3 *result) const {
-	if (!imp)
+	if (!imp) {
 		return BEST_Z_INVALID;
+	}
 
 	glm::vec3 tmp;
-	if(!result)
+	if (!result) {
 		result = &tmp;
+	}
 
 	start.z += RuleI(Map, FindBestZHeightAdjust);
 	glm::vec3 from(start.x, start.y, start.z);
@@ -44,16 +48,22 @@ float Map::FindBestZ(glm::vec3 &start, glm::vec3 *result) const {
 	bool hit = false;
 
 	hit = imp->rm->raycast((const RmReal*)&from, (const RmReal*)&to, (RmReal*)result, nullptr, &hit_distance);
-	if(hit) {
+	if (hit && zone->newzone_data.underworld != 0.0f && result->z < zone->newzone_data.underworld) {
+		hit = false;
+	}
+
+	if (hit) {
 		return result->z;
 	}
 
 	// Find nearest Z above us
-
 	to.z = -BEST_Z_INVALID;
 	hit = imp->rm->raycast((const RmReal*)&from, (const RmReal*)&to, (RmReal*)result, nullptr, &hit_distance);
-	if (hit)
-	{
+	if (zone->newzone_data.max_z != 0.0f && result->z > zone->newzone_data.max_z) {
+		hit = false;
+	}
+
+	if (hit) {
 		return result->z;
 	}
 
@@ -93,6 +103,64 @@ float Map::FindClosestZ(glm::vec3 &start, glm::vec3 *result) const {
 	}
 
 	return ClosestZ;
+}
+
+float Map::FindCeiling(glm::vec3 &start, glm::vec3 *result) const {
+	// Unlike FindBestZ, this method finds the closest Z above point.
+
+	if (!imp) {
+		return false;
+	}
+
+	glm::vec3 tmp;
+	if (!result) {
+		result = &tmp;
+	}
+
+	glm::vec3 from(start.x, start.y, start.z);
+	glm::vec3 to(start.x, start.y, -BEST_Z_INVALID);
+	float hit_distance;
+	bool hit = false;
+
+	// Find nearest Z above us
+	hit = imp->rm->raycast((const RmReal*)&from, (const RmReal*)&to, (RmReal*)result, nullptr, &hit_distance);
+	if (hit) {
+		return result->z;
+	}
+
+	return BEST_Z_INVALID;
+}
+
+float Map::FindGround(glm::vec3 &start, glm::vec3 *result) const {
+	// Unlike FindBestZ, this method finds the closest Z below point.
+
+	if (!imp) {
+		return false;
+	}
+
+	glm::vec3 tmp;
+
+	if (!result) {
+		result = &tmp;
+	}
+
+	glm::vec3 from(start.x, start.y, start.z);
+	glm::vec3 to(start.x, start.y, BEST_Z_INVALID);
+	float hit_distance;
+	bool hit = false;
+
+	// Find nearest Z below us
+	hit = imp->rm->raycast((const RmReal*)&from, (const RmReal*)&to, (RmReal*)result, nullptr, &hit_distance);
+
+	if (hit && zone->newzone_data.underworld != 0.0f && result->z < zone->newzone_data.underworld) {
+		hit = false;
+	}
+
+	if (hit) {
+		return result->z;
+	}
+
+	return BEST_Z_INVALID;
 }
 
 bool Map::LineIntersectsZone(glm::vec3 start, glm::vec3 end, float step, glm::vec3 *result) const {
@@ -203,7 +271,7 @@ bool Map::DoCollisionCheck(glm::vec3 myloc, glm::vec3 oloc, glm::vec3 &outnorm, 
 
 Map *Map::LoadMapFile(std::string file) {
 	std::transform(file.begin(), file.end(), file.begin(), ::tolower);
-	std::string filename = fmt::format("{}/base/{}.map", path.GetMapsPath(), file);
+	std::string filename = fmt::format("{}/base/{}.map", PathManager::Instance()->GetMapsPath(), file);
 
 	LogInfo("Attempting to load Map File [{}]", filename.c_str());
 
@@ -253,7 +321,7 @@ bool Map::Load(const std::string &filename)
 			}
 
 #ifdef USE_MAP_MMFS
-			if (v)
+			if (loaded_map_file)
 				return SaveMMF(filename, force_mmf_overwrite);
 #endif /*USE_MAP_MMFS*/
 
@@ -271,7 +339,7 @@ bool Map::Load(const std::string &filename)
 			}
 
 #ifdef USE_MAP_MMFS
-			if (v)
+			if (loaded_map_file)
 				return SaveMMF(filename, force_mmf_overwrite);
 #endif /*USE_MAP_MMFS*/
 
@@ -886,6 +954,7 @@ bool Map::LoadV2(FILE *f) {
 	return true;
 }
 
+
 void Map::RotateVertex(glm::vec3 &v, float rx, float ry, float rz) {
 	glm::vec3 nv = v;
 
@@ -997,7 +1066,7 @@ bool Map::LoadMMF(const std::string& map_file_name, bool force_mmf_overwrite)
 	fclose(f);
 
 	std::vector<char> rm_buffer(rm_buffer_size);
-	uint32 v = InflateData(mmf_buffer.data(), mmf_buffer_size, rm_buffer.data(), rm_buffer_size);
+	uint32 v = EQ::InflateData(mmf_buffer.data(), mmf_buffer_size, rm_buffer.data(), rm_buffer_size);
 
 	if (imp) {
 		imp->rm->release();
@@ -1053,11 +1122,11 @@ bool Map::SaveMMF(const std::string& map_file_name, bool force_mmf_overwrite)
 	}
 
 	uint32 rm_buffer_size = rm_buffer.size();
-	uint32 mmf_buffer_size = EstimateDeflateBuffer(rm_buffer.size());
+	uint32 mmf_buffer_size = EQ::EstimateDeflateBuffer(rm_buffer.size());
 
 	std::vector<char> mmf_buffer(mmf_buffer_size);
 
-	mmf_buffer_size = DeflateData(rm_buffer.data(), rm_buffer.size(), mmf_buffer.data(), mmf_buffer.size());
+	mmf_buffer_size = EQ::DeflateData(rm_buffer.data(), rm_buffer.size(), mmf_buffer.data(), mmf_buffer.size());
 	if (!mmf_buffer_size) {
 		LogInfo("Failed to save Map MMF file: [{}] - null MMF buffer size", mmf_file_name.c_str());
 		return false;

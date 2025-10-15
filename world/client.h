@@ -51,6 +51,8 @@ public:
 	void	SendLogServer();
 	void	SendApproveWorld();
 	void	SendPostEnterWorld();
+	void    SendGuildTributeFavorAndTimer(uint32 favor, uint32 time_remaining);
+	void    SendGuildTributeOptInToggle(const GuildTributeMemberToggle* in);
 
 	inline uint32		GetIP()				{ return ip; }
 	inline uint16		GetPort()			{ return port; }
@@ -118,6 +120,10 @@ private:
 	EQStreamInterface* eqs;
 	bool CanTradeFVNoDropItem();
 	void RecordPossibleHack(const std::string& message);
+	void SendUnsupportedClientPacket(const std::string& message);
+
+	void LoadDataBucketsCache();
+	void ClearDataBucketsCache();
 };
 
 bool CheckCharCreateInfoSoF(CharCreate_Struct *cc);

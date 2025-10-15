@@ -48,7 +48,7 @@ int Lua_Raid::GetGroup(Lua_Client c) {
 
 void Lua_Raid::SplitExp(uint64 exp, Lua_Mob other) {
 	Lua_Safe_Call_Void();
-	self->SplitExp(exp, other);
+	self->SplitExp(ExpSource::Quest, exp, other);
 }
 
 uint32 Lua_Raid::GetTotalRaidDamage(Lua_Mob other) {
@@ -157,13 +157,13 @@ int Lua_Raid::GetGroupNumber(int member_index) {
 bool Lua_Raid::DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name)
 {
 	Lua_Safe_Call_Bool();
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name);
 }
 
 bool Lua_Raid::DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name, int max_check_count)
 {
 	Lua_Safe_Call_Bool();
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name, max_check_count);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name); // max_check_count deprecated
 }
 
 luabind::scope lua_register_raid() {

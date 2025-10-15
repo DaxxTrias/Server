@@ -9,6 +9,8 @@ class Lua_Mob;
 class Lua_NPC;
 class Lua_Client;
 struct Lua_NPC_Loot_List;
+class Lua_Inventory;
+class Lua_Spawn;
 
 namespace luabind {
 	struct scope;
@@ -44,9 +46,9 @@ public:
 	void RemoveItem(int item_id);
 	void RemoveItem(int item_id, int quantity);
 	void RemoveItem(int item_id, int quantity, int slot);
-	void ClearItemList();
-	void AddCash(int copper, int silver, int gold, int platinum);
-	void RemoveCash();
+	void ClearLootItems();
+	void AddLootCash(uint32 copper, uint32 silver, uint32 gold, uint32 platinum);
+	void RemoveLootCash();
 	int CountLoot();
 	int GetLoottableID();
 	uint32 GetCopper();
@@ -102,7 +104,7 @@ public:
 	int GetFollowID();
 	int GetFollowDistance();
 	bool GetFollowCanRun();
-	int GetNPCSpellsID();
+	uint32 GetNPCSpellsID();
 	int GetSpawnPointID();
 	float GetSpawnPointX();
 	float GetSpawnPointY();
@@ -146,9 +148,9 @@ public:
 	void ChangeLastName(std::string last_name);
 	void ClearLastName();
 	bool HasItem(uint32 item_id);
-	uint16 CountItem(uint32 item_id);
-	uint32 GetItemIDBySlot(uint16 slot_id);
-	uint16 GetFirstSlotByItemID(uint32 item_id);
+	uint32 CountItem(uint32 item_id);
+	uint32 GetLootItemIDBySlot(uint16 loot_slot);
+	uint16 GetFirstLootSlotByItemID(uint32 item_id);
 	float GetHealScale();
 	float GetSpellScale();
 	Lua_NPC_Loot_List GetLootList(lua_State* L);
@@ -182,6 +184,24 @@ public:
 	std::string GetBucketRemaining(std::string bucket_name);
 	void SetBucket(std::string bucket_name, std::string bucket_value);
 	void SetBucket(std::string bucket_name, std::string bucket_value, std::string expiration);
+	bool GetNPCAggro();
+	void SetNPCAggro(bool in_npc_aggro);
+	uint32 GetNPCSpellsEffectsID();
+	void DescribeSpecialAbilities(Lua_Client c);
+	bool IsMultiQuestEnabled();
+	void MultiQuestEnable();
+	bool LuaCheckHandin(
+		Lua_Client c,
+		luabind::adl::object handin_table,
+		luabind::adl::object required_table,
+		luabind::adl::object items_table
+	);
+	void ReturnHandinItems(Lua_Client c);
+	Lua_Spawn GetSpawn(lua_State* L);
+	bool IsResumedFromZoneSuspend();
+	void SetNPCTintIndex(uint32 id);
+	uint32 GetNPCTintIndex();
+
 };
 
 #endif

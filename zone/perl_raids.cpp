@@ -45,7 +45,7 @@ uint32_t Perl_Raid_GetGroup(Raid* self, Client* client) // @categories Group, Ra
 
 void Perl_Raid_SplitExp(Raid* self, uint32 experience, Mob* other) // @categories Experience and Level, Raid
 {
-	self->SplitExp(experience, other);
+	self->SplitExp(ExpSource::Quest, experience, other);
 }
 
 uint32_t Perl_Raid_GetTotalRaidDamage(Raid* self, Mob* other) // @categories Raid
@@ -139,12 +139,12 @@ Client* Perl_Raid_GetMember(Raid* self, int member_index) // @categories Raid
 
 bool Perl_Raid_DoesAnyMemberHaveExpeditionLockout(Raid* self, std::string expedition_name, std::string event_name)
 {
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name);
 }
 
 bool Perl_Raid_DoesAnyMemberHaveExpeditionLockout(Raid* self, std::string expedition_name, std::string event_name, int max_check_count)
 {
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name, max_check_count);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name); // max_check_count deprecated
 }
 
 int Perl_Raid_GetGroupNumber(Raid* self, int member_index) {

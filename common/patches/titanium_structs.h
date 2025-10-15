@@ -1,5 +1,5 @@
 /*	EQEMu: Everquest Server Emulator
-	
+
 	Copyright (C) 2001-2016 EQEMu Development Team (http://eqemulator.net)
 
 	This program is free software; you can redistribute it and/or modify
@@ -1423,6 +1423,23 @@ struct GuildUpdate_Struct {
 	GuildsListEntry_Struct entry;
 };
 
+struct GuildTributeDonateItemRequest_Struct {
+	/*000*/ uint32 	slot;
+	/*004*/ uint32 	quantity;
+	/*008*/ uint32	tribute_master_id;
+	/*012*/ uint32 	unknown12;
+	/*016*/ uint32	guild_id;
+	/*020*/ uint32 	unknown20;
+	/*024*/ uint32	unknown24;
+};
+
+struct GuildTributeDonateItemReply_Struct {
+	/*000*/ uint32	slot;
+	/*004*/ uint32	quantity;
+	/*008*/ uint32	unknown8;
+	/*012*/	uint32	favor;
+};
+
 /*
 ** Money Loot
 ** Length: 22 Bytes
@@ -1652,9 +1669,9 @@ struct TimeOfDay_Struct {
 };
 
 // Darvik: shopkeeper structs
-struct Merchant_Click_Struct {
-/*000*/ uint32	npcid;			// Merchant NPC's entity id
-/*004*/ uint32	playerid;
+struct MerchantClick_Struct {
+/*000*/ uint32	npc_id;			// Merchant NPC's entity id
+/*004*/ uint32	player_id;
 /*008*/ uint32	command;		//1=open, 0=cancel/close
 /*012*/ float	rate;			//cost multiplier, dosent work anymore
 };
@@ -2256,24 +2273,29 @@ struct BazaarWelcome_Struct {
 };
 
 struct BazaarSearch_Struct {
-	BazaarWindowStart_Struct beginning;
-	uint32	traderid;
-	uint32  class_;
-	uint32  race;
-	uint32  stat;
-	uint32  slot;
-	uint32  type;
-	char   name[64];
-	uint32	minprice;
-	uint32	maxprice;
-	uint32	minlevel;
-	uint32	maxlevel;
+	BazaarWindowStart_Struct Beginning;
+	uint32	TraderID;
+	uint32	Class_;
+	uint32	Race;
+	uint32	ItemStat;
+	uint32	Slot;
+	uint32	Type;
+	char	Name[64];
+	uint32	MinPrice;
+	uint32	MaxPrice;
+	uint32	Minlevel;
+	uint32	MaxLlevel;
 };
-struct BazaarInspect_Struct{
+
+struct BazaarInspect_Struct {
+	uint32 action;
+	char   player_name[64];
+	uint32 unknown_068;
+	uint32 serial_number;
+	uint32 unknown_076;
 	uint32 item_id;
-	uint32 unknown;
-	char name[64];
 };
+
 struct BazaarReturnDone_Struct{
 	uint32 type;
 	uint32 traderid;
@@ -2281,16 +2303,17 @@ struct BazaarReturnDone_Struct{
 	uint32 unknown12;
 	uint32 unknown16;
 };
+
 struct BazaarSearchResults_Struct {
 	BazaarWindowStart_Struct Beginning;
-	uint32	SellerID;
-	uint32   NumItems; // Don't know. Don't know the significance of this field.
-	uint32   SerialNumber;
-	uint32   Unknown016;
-	uint32   Unknown020; // Something to do with stats as well
-	char	ItemName[64];
-	uint32	Cost;
-	uint32	ItemStat;
+	uint32                   entity_id;
+	uint32                   unknown_008;
+	uint32                   item_id;
+	uint32                   serial_number;
+	uint32                   unknown_020;
+	char                     item_name[64];
+	uint32                   item_cost;
+	uint32                   item_stat;
 };
 
 struct ServerSideFilters_Struct {
@@ -2437,44 +2460,52 @@ struct WhoAllReturnStruct {
 	struct WhoAllPlayer player[0];
 };
 
+struct BeginTrader_Struct {
+	uint32 action;
+	uint32 unknown04;
+	uint64 serial_number[EQ::invtype::BAZAAR_SIZE];
+	uint32 cost[EQ::invtype::BAZAAR_SIZE];
+};
+
 struct Trader_Struct {
-	uint32	code;
-	uint32	itemid[160];
-	uint32	unknown;
-	uint32	itemcost[80];
+	uint32 action;
+	uint32 unknown004;
+	uint64 item_id[EQ::invtype::BAZAAR_SIZE];
+	uint32 item_cost[EQ::invtype::BAZAAR_SIZE];
 };
 
 struct ClickTrader_Struct {
 	uint32	code;
 	uint32	unknown[161];//damn soe this is totally pointless :/ but at least your finally using memset! Good job :) -LE
-	uint32	itemcost[80];
+	uint32	itemcost[EQ::invtype::BAZAAR_SIZE];
 };
 
 struct GetItems_Struct{
-	uint32	items[80];
+	uint32	items[EQ::invtype::BAZAAR_SIZE];
 };
 
-struct BecomeTrader_Struct{
-	uint32 ID;
-	uint32 Code;
+struct BecomeTrader_Struct {
+	uint32 entity_id;
+	uint32 action;
+	char   trader_name[64];
 };
 
 struct Trader_ShowItems_Struct{
-	uint32 code;
-	uint32 traderid;
+	uint32 action;
+	uint32 entity_id;
 	uint32 unknown08[3];
 };
 
 struct TraderBuy_Struct {
-/*000*/ uint32   Action;
-/*004*/ uint32   Price;
-/*008*/ uint32   TraderID;
-/*012*/ char    ItemName[64];
-/*076*/ uint32   Unknown076;
-/*080*/ uint32   ItemID;
-/*084*/ uint32   AlreadySold;
-/*088*/ uint32   Quantity;
-/*092*/ uint32   Unknown092;
+/*000*/ uint32  action;
+/*004*/ uint32  price;
+/*008*/ uint32  trader_id;
+/*012*/ char    item_name[64];
+/*076*/ uint32  unknown_076;
+/*080*/ uint32  item_id;
+/*084*/ uint32  already_sold;
+/*088*/ uint32  quantity;
+/*092*/ uint32  unknown_092;
 };
 
 
@@ -2500,8 +2531,9 @@ struct TraderDelItem_Struct{
 };
 
 struct TraderClick_Struct{
-	uint32 traderid;
-	uint32 unknown4[2];
+	uint32 trader_id;
+	uint32 action;
+	uint32 unknown_004;
 	uint32 approval;
 };
 
@@ -2604,7 +2636,7 @@ struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint32 min_dmg;
 	uint32 max_dmg;
 };
-struct Ground_Spawn{
+struct GroundSpawn{
 	float max_x;
 	float max_y;
 	float min_x;
@@ -2616,8 +2648,8 @@ struct Ground_Spawn{
 	uint32 max_allowed;
 	uint32 respawntimer;
 };
-struct Ground_Spawns {
-	struct Ground_Spawn spawn[50]; //Assigned max number to allow
+struct GroundSpawns {
+	struct GroundSpawn spawn[50]; //Assigned max number to allow
 };
 
 //struct PetitionBug_Struct{
@@ -3508,7 +3540,7 @@ struct LFGuild_GuildToggle_Struct
 /*540*/ uint32	TimeZone;
 /*544*/ uint8	Toggle;
 /*545*/ uint8	Unknown545[3];
-/*548*/ uint32	Expires;
+/*548*/ uint32	TimePosted;
 /*552*/ char	Name[64];
 /*616*/
 };
@@ -3697,6 +3729,49 @@ struct SayLinkBodyFrame_Struct {
 /*036*/	char EvolveLevel[1];
 /*037*/	char Hash[8];
 /*045*/
+};
+
+struct GuildSetRank_Struct
+{
+	/*00*/	uint32	unknown00;
+	/*04*/	uint32	unknown04;
+	/*08*/	uint32	rank;
+	/*72*/	char	member_name[64];
+	/*76*/	uint32	banker;
+};
+
+struct GuildMemberAdd_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ uint32 unknown04;
+	/*008*/ uint32 level;
+	/*012*/ uint32 class_;
+	/*016*/ uint32 rank_;
+	/*020*/ uint32 zone_id;
+	/*024*/ uint32 last_on;
+	/*028*/ char   player_name[64];
+};
+
+struct GuildMemberRank_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ uint32 unknown_004;
+	/*008*/ uint32 rank_;
+	/*012*/ char   player_name[64];
+	/*076*/ uint32 alt_banker; //Banker/Alt bit 00 - none 10 - Alt 11 - Alt and Banker 01 - Banker.  Banker not functional for RoF2+
+};
+
+enum TiBazaarTraderBuyerActions {
+	Zero            = 0,
+	BeginTraderMode = 1,
+	EndTraderMode   = 2,
+	PriceUpdate     = 3,
+	EndTransaction  = 4,
+	BazaarSearch    = 7,
+	WelcomeMessage  = 9,
+	BuyTraderItem   = 10,
+	ListTraderItems = 11,
+	BazaarInspect   = 18,
+	ItemMove        = 19,
+	ReconcileItems  = 20
 };
 
 	}; /*structs*/

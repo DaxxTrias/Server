@@ -1946,38 +1946,38 @@ struct GuildBankItemUpdate_Struct
 	void Init(uint32 inAction, uint32 inUnknown004, uint16 inSlotID, uint16 inArea, uint16 inUnknown012, uint32 inItemID, uint32 inIcon, uint32 inQuantity,
 			uint32 inPermissions, uint32 inAllowMerge, bool inUseable)
 	{
-		Action = inAction;
-		Unknown004 = inUnknown004;
-		SlotID = inSlotID;
-		Area = inArea;
-		Unknown012 = inUnknown012;
-		ItemID = inItemID;
-		Icon = inIcon;
-		Quantity = inQuantity;
-		Permissions = inPermissions;
-		AllowMerge = inAllowMerge;
-		Useable = inUseable;
-		ItemName[0] = '\0';
-		Donator[0] = '\0';
-		WhoFor[0] = '\0';
+		action       = inAction;
+		unknown004   = inUnknown004;
+		slot_id      = inSlotID;
+		area         = inArea;
+		display      = inUnknown012;
+		item_id      = inItemID;
+		icon_id      = inIcon;
+		quantity     = inQuantity;
+		permissions  = inPermissions;
+		allow_merge  = inAllowMerge;
+		is_useable   = inUseable;
+		item_name[0] = '\0';
+		donator[0]   = '\0';
+		who_for[0]   = '\0';
 	};
 
-/*000*/	uint32	Action;
-/*004*/	uint32	Unknown004;
-/*008*/	uint32	Unknown08;
-/*012*/	uint16	SlotID;
-/*014*/	uint16	Area;
-/*016*/	uint32	Unknown012;
-/*020*/	uint32	ItemID;
-/*024*/	uint32	Icon;
-/*028*/	uint32	Quantity;
-/*032*/	uint32	Permissions;
-/*036*/	uint8	AllowMerge;
-/*037*/	uint8	Useable;	// Used in conjunction with the Public-if-useable permission.
-/*038*/	char	ItemName[64];
-/*102*/	char	Donator[64];
-/*166*/ char	WhoFor[64];
-/*230*/	uint16	Unknown226;
+/*000*/	uint32	action;
+/*004*/	uint32	unknown004;
+/*008*/	uint32	unknown008;
+/*012*/	uint16	slot_id;
+/*014*/	uint16	area;
+/*016*/	uint32	display;
+/*020*/	uint32	item_id;
+/*024*/	uint32	icon_id;
+/*028*/	uint32	quantity;
+/*032*/	uint32	permissions;
+/*036*/	uint8	allow_merge;
+/*037*/	uint8	is_useable;	// Used in conjunction with the Public-if-useable permission.
+/*038*/	char	item_name[64];
+/*102*/	char	donator[64];
+/*166*/ char	who_for[64];
+/*230*/	uint16	unknown226;
 };
 
 struct GuildBankClear_Struct
@@ -2200,15 +2200,17 @@ struct TimeOfDay_Struct {
 };
 
 // Darvik: shopkeeper structs
-struct Merchant_Click_Struct {
-/*000*/ uint32	npcid;			// Merchant NPC's entity id
-/*004*/ uint32	playerid;
-/*008*/ uint32	command;		// 1=open, 0=cancel/close
-/*012*/ float	rate;			// cost multiplier, dosent work anymore
-/*016*/ int32	unknown01;		// Seen 3 from Server or -1 from Client
-/*020*/ int32	unknown02;		// Seen 2592000 from Server or -1 from Client
-/*024*/
+struct MerchantClick_Struct
+{
+    /*000*/ uint32 npc_id;      // Merchant NPC's entity id
+    /*004*/ uint32 player_id;
+    /*008*/ uint32 command;     // 1=open, 0=cancel/close
+    /*012*/ float  rate;        // cost multiplier, dosent work anymore
+    /*016*/ int32  tab_display; // bitmask b000 none, b001 Purchase/Sell, b010 Recover, b100 Parcels
+    /*020*/ int32  unknown020;  // Seen 2592000 from Server or -1 from Client
+    /*024*/
 };
+
 /*
 Unknowns:
 0 is e7 from 01 to // MAYBE SLOT IN PURCHASE
@@ -3374,17 +3376,17 @@ struct TraderStatus_Struct {
 };
 
 struct TraderBuy_Struct {
-/*000*/ uint32   Action;
-/*004*/	uint32	Unknown004;
-/*008*/ uint32   Price;
-/*012*/	uint32	Unknown008;	// Probably high order bits of a 64 bit price.
-/*016*/ uint32   TraderID;
-/*020*/ char    ItemName[64];
-/*084*/ uint32   Unknown076;
-/*088*/ uint32   ItemID;
-/*092*/ uint32   AlreadySold;
-/*096*/ uint32   Quantity;
-/*100*/ uint32   Unknown092;
+/*000*/ uint32  action;
+/*004*/	uint32	unknown_004;
+/*008*/ uint32  price;
+/*012*/	uint32	unknown_008;	// Probably high order bits of a 64 bit price.
+/*016*/ uint32  trader_id;
+/*020*/ char    item_name[64];
+/*084*/ uint32  unknown_076;
+/*088*/ uint32  item_id;
+/*092*/ uint32  already_sold;
+/*096*/ uint32  quantity;
+/*100*/ uint32  unknown_092;
 /*104*/
 };
 
@@ -3537,11 +3539,11 @@ struct GuildMakeLeader {
 // Update a guild members rank and banker status
 struct GuildSetRank_Struct
 {
-/*00*/	uint32	GuildID;	// Was Unknown00
-/*04*/	uint32	Rank;
-/*08*/	char	MemberName[64];
-/*72*/	uint32	Banker;
-/*76*/	uint32	Unknown76;	// Seen 1 - Maybe Banker?
+/*00*/	uint32	guild_id;	// Was Unknown00
+/*04*/	uint32	rank;
+/*08*/	char	member_name[64];
+/*72*/	uint32	banker;
+/*76*/	uint32	unknown76;	// Seen 1 - Maybe Banker?
 /*80*/
 };
 
@@ -3556,7 +3558,7 @@ struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint32 min_dmg;
 	uint32 max_dmg;
 };
-struct Ground_Spawn{
+struct GroundSpawn{
 	float max_x;
 	float max_y;
 	float min_x;
@@ -3568,8 +3570,8 @@ struct Ground_Spawn{
 	uint32 max_allowed;
 	uint32 respawntimer;
 };
-struct Ground_Spawns {
-	struct Ground_Spawn spawn[50]; //Assigned max number to allow
+struct GroundSpawns {
+	struct GroundSpawn spawn[50]; //Assigned max number to allow
 };
 
 //struct PetitionBug_Struct{

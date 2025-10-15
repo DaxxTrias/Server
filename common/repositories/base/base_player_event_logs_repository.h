@@ -6,7 +6,7 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_PLAYER_EVENT_LOGS_REPOSITORY_H
@@ -16,7 +16,6 @@
 #include "../../strings.h"
 #include <ctime>
 #include <cereal/cereal.hpp>
-
 class BasePlayerEventLogsRepository {
 public:
 	struct PlayerEventLogs {
@@ -32,6 +31,7 @@ public:
 		int32_t     event_type_id;
 		std::string event_type_name;
 		std::string event_data;
+		int64_t     etl_table_id;
 		time_t      created_at;
 
 		// cereal
@@ -51,6 +51,7 @@ public:
 				CEREAL_NVP(event_type_id),
 				CEREAL_NVP(event_type_name),
 				CEREAL_NVP(event_data),
+				CEREAL_NVP(etl_table_id),
 				CEREAL_NVP(created_at)
 			);
 		}
@@ -76,6 +77,7 @@ public:
 			"event_type_id",
 			"event_type_name",
 			"event_data",
+			"etl_table_id",
 			"created_at",
 		};
 	}
@@ -95,6 +97,7 @@ public:
 			"event_type_id",
 			"event_type_name",
 			"event_data",
+			"etl_table_id",
 			"UNIX_TIMESTAMP(created_at)",
 		};
 	}
@@ -148,6 +151,7 @@ public:
 		e.event_type_id   = 0;
 		e.event_type_name = "";
 		e.event_data      = "";
+		e.etl_table_id    = 0;
 		e.created_at      = 0;
 
 		return e;
@@ -185,19 +189,20 @@ public:
 		if (results.RowCount() == 1) {
 			PlayerEventLogs e{};
 
-			e.id              = strtoll(row[0], nullptr, 10);
-			e.account_id      = strtoll(row[1], nullptr, 10);
-			e.character_id    = strtoll(row[2], nullptr, 10);
-			e.zone_id         = static_cast<int32_t>(atoi(row[3]));
-			e.instance_id     = static_cast<int32_t>(atoi(row[4]));
-			e.x               = strtof(row[5], nullptr);
-			e.y               = strtof(row[6], nullptr);
-			e.z               = strtof(row[7], nullptr);
-			e.heading         = strtof(row[8], nullptr);
-			e.event_type_id   = static_cast<int32_t>(atoi(row[9]));
+			e.id              = row[0] ? strtoll(row[0], nullptr, 10) : 0;
+			e.account_id      = row[1] ? strtoll(row[1], nullptr, 10) : 0;
+			e.character_id    = row[2] ? strtoll(row[2], nullptr, 10) : 0;
+			e.zone_id         = row[3] ? static_cast<int32_t>(atoi(row[3])) : 0;
+			e.instance_id     = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
+			e.x               = row[5] ? strtof(row[5], nullptr) : 0;
+			e.y               = row[6] ? strtof(row[6], nullptr) : 0;
+			e.z               = row[7] ? strtof(row[7], nullptr) : 0;
+			e.heading         = row[8] ? strtof(row[8], nullptr) : 0;
+			e.event_type_id   = row[9] ? static_cast<int32_t>(atoi(row[9])) : 0;
 			e.event_type_name = row[10] ? row[10] : "";
 			e.event_data      = row[11] ? row[11] : "";
-			e.created_at      = strtoll(row[12] ? row[12] : "-1", nullptr, 10);
+			e.etl_table_id    = row[12] ? strtoll(row[12], nullptr, 10) : 0;
+			e.created_at      = strtoll(row[13] ? row[13] : "-1", nullptr, 10);
 
 			return e;
 		}
@@ -240,9 +245,10 @@ public:
 		v.push_back(columns[7] + " = " + std::to_string(e.z));
 		v.push_back(columns[8] + " = " + std::to_string(e.heading));
 		v.push_back(columns[9] + " = " + std::to_string(e.event_type_id));
-		v.push_back(columns[10] + " = '" + db.Escape(e.event_type_name) + "'");
-		v.push_back(columns[11] + " = '" + db.Escape(e.event_data) + "'");
-		v.push_back(columns[12] + " = FROM_UNIXTIME(" + (e.created_at > 0 ? std::to_string(e.created_at) : "null") + ")");
+		v.push_back(columns[10] + " = '" + Strings::Escape(e.event_type_name) + "'");
+		v.push_back(columns[11] + " = '" + Strings::Escape(e.event_data) + "'");
+		v.push_back(columns[12] + " = " + std::to_string(e.etl_table_id));
+		v.push_back(columns[13] + " = FROM_UNIXTIME(" + (e.created_at > 0 ? std::to_string(e.created_at) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -274,8 +280,9 @@ public:
 		v.push_back(std::to_string(e.z));
 		v.push_back(std::to_string(e.heading));
 		v.push_back(std::to_string(e.event_type_id));
-		v.push_back("'" + db.Escape(e.event_type_name) + "'");
-		v.push_back("'" + db.Escape(e.event_data) + "'");
+		v.push_back("'" + Strings::Escape(e.event_type_name) + "'");
+		v.push_back("'" + Strings::Escape(e.event_data) + "'");
+		v.push_back(std::to_string(e.etl_table_id));
 		v.push_back("FROM_UNIXTIME(" + (e.created_at > 0 ? std::to_string(e.created_at) : "null") + ")");
 
 		auto results = db.QueryDatabase(
@@ -316,8 +323,9 @@ public:
 			v.push_back(std::to_string(e.z));
 			v.push_back(std::to_string(e.heading));
 			v.push_back(std::to_string(e.event_type_id));
-			v.push_back("'" + db.Escape(e.event_type_name) + "'");
-			v.push_back("'" + db.Escape(e.event_data) + "'");
+			v.push_back("'" + Strings::Escape(e.event_type_name) + "'");
+			v.push_back("'" + Strings::Escape(e.event_data) + "'");
+			v.push_back(std::to_string(e.etl_table_id));
 			v.push_back("FROM_UNIXTIME(" + (e.created_at > 0 ? std::to_string(e.created_at) : "null") + ")");
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
@@ -352,19 +360,20 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			PlayerEventLogs e{};
 
-			e.id              = strtoll(row[0], nullptr, 10);
-			e.account_id      = strtoll(row[1], nullptr, 10);
-			e.character_id    = strtoll(row[2], nullptr, 10);
-			e.zone_id         = static_cast<int32_t>(atoi(row[3]));
-			e.instance_id     = static_cast<int32_t>(atoi(row[4]));
-			e.x               = strtof(row[5], nullptr);
-			e.y               = strtof(row[6], nullptr);
-			e.z               = strtof(row[7], nullptr);
-			e.heading         = strtof(row[8], nullptr);
-			e.event_type_id   = static_cast<int32_t>(atoi(row[9]));
+			e.id              = row[0] ? strtoll(row[0], nullptr, 10) : 0;
+			e.account_id      = row[1] ? strtoll(row[1], nullptr, 10) : 0;
+			e.character_id    = row[2] ? strtoll(row[2], nullptr, 10) : 0;
+			e.zone_id         = row[3] ? static_cast<int32_t>(atoi(row[3])) : 0;
+			e.instance_id     = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
+			e.x               = row[5] ? strtof(row[5], nullptr) : 0;
+			e.y               = row[6] ? strtof(row[6], nullptr) : 0;
+			e.z               = row[7] ? strtof(row[7], nullptr) : 0;
+			e.heading         = row[8] ? strtof(row[8], nullptr) : 0;
+			e.event_type_id   = row[9] ? static_cast<int32_t>(atoi(row[9])) : 0;
 			e.event_type_name = row[10] ? row[10] : "";
 			e.event_data      = row[11] ? row[11] : "";
-			e.created_at      = strtoll(row[12] ? row[12] : "-1", nullptr, 10);
+			e.etl_table_id    = row[12] ? strtoll(row[12], nullptr, 10) : 0;
+			e.created_at      = strtoll(row[13] ? row[13] : "-1", nullptr, 10);
 
 			all_entries.push_back(e);
 		}
@@ -389,19 +398,20 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			PlayerEventLogs e{};
 
-			e.id              = strtoll(row[0], nullptr, 10);
-			e.account_id      = strtoll(row[1], nullptr, 10);
-			e.character_id    = strtoll(row[2], nullptr, 10);
-			e.zone_id         = static_cast<int32_t>(atoi(row[3]));
-			e.instance_id     = static_cast<int32_t>(atoi(row[4]));
-			e.x               = strtof(row[5], nullptr);
-			e.y               = strtof(row[6], nullptr);
-			e.z               = strtof(row[7], nullptr);
-			e.heading         = strtof(row[8], nullptr);
-			e.event_type_id   = static_cast<int32_t>(atoi(row[9]));
+			e.id              = row[0] ? strtoll(row[0], nullptr, 10) : 0;
+			e.account_id      = row[1] ? strtoll(row[1], nullptr, 10) : 0;
+			e.character_id    = row[2] ? strtoll(row[2], nullptr, 10) : 0;
+			e.zone_id         = row[3] ? static_cast<int32_t>(atoi(row[3])) : 0;
+			e.instance_id     = row[4] ? static_cast<int32_t>(atoi(row[4])) : 0;
+			e.x               = row[5] ? strtof(row[5], nullptr) : 0;
+			e.y               = row[6] ? strtof(row[6], nullptr) : 0;
+			e.z               = row[7] ? strtof(row[7], nullptr) : 0;
+			e.heading         = row[8] ? strtof(row[8], nullptr) : 0;
+			e.event_type_id   = row[9] ? static_cast<int32_t>(atoi(row[9])) : 0;
 			e.event_type_name = row[10] ? row[10] : "";
 			e.event_data      = row[11] ? row[11] : "";
-			e.created_at      = strtoll(row[12] ? row[12] : "-1", nullptr, 10);
+			e.etl_table_id    = row[12] ? strtoll(row[12], nullptr, 10) : 0;
+			e.created_at      = strtoll(row[13] ? row[13] : "-1", nullptr, 10);
 
 			all_entries.push_back(e);
 		}
@@ -460,6 +470,88 @@ public:
 		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
 	}
 
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const PlayerEventLogs &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.id));
+		v.push_back(std::to_string(e.account_id));
+		v.push_back(std::to_string(e.character_id));
+		v.push_back(std::to_string(e.zone_id));
+		v.push_back(std::to_string(e.instance_id));
+		v.push_back(std::to_string(e.x));
+		v.push_back(std::to_string(e.y));
+		v.push_back(std::to_string(e.z));
+		v.push_back(std::to_string(e.heading));
+		v.push_back(std::to_string(e.event_type_id));
+		v.push_back("'" + Strings::Escape(e.event_type_name) + "'");
+		v.push_back("'" + Strings::Escape(e.event_data) + "'");
+		v.push_back(std::to_string(e.etl_table_id));
+		v.push_back("FROM_UNIXTIME(" + (e.created_at > 0 ? std::to_string(e.created_at) : "null") + ")");
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<PlayerEventLogs> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.id));
+			v.push_back(std::to_string(e.account_id));
+			v.push_back(std::to_string(e.character_id));
+			v.push_back(std::to_string(e.zone_id));
+			v.push_back(std::to_string(e.instance_id));
+			v.push_back(std::to_string(e.x));
+			v.push_back(std::to_string(e.y));
+			v.push_back(std::to_string(e.z));
+			v.push_back(std::to_string(e.heading));
+			v.push_back(std::to_string(e.event_type_id));
+			v.push_back("'" + Strings::Escape(e.event_type_name) + "'");
+			v.push_back("'" + Strings::Escape(e.event_data) + "'");
+			v.push_back(std::to_string(e.etl_table_id));
+			v.push_back("FROM_UNIXTIME(" + (e.created_at > 0 ? std::to_string(e.created_at) : "null") + ")");
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_PLAYER_EVENT_LOGS_REPOSITORY_H

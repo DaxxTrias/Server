@@ -52,7 +52,7 @@ public:
 	virtual ~Merc();
 
 	//abstract virtual function implementations requird by base abstract class
-	virtual bool Death(Mob* killerMob, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill);
+	virtual bool Death(Mob* killer_mob, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, uint8 killed_by = 0, bool is_buff_tic = false);
 	virtual void Damage(Mob* from, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, bool avoidable = true, int8 buffslot = -1, bool iBuffTic = false, eSpecialAttacks special = eSpecialAttacks::None);
 	virtual bool Attack(Mob* other, int Hand = EQ::invslot::slotPrimary, bool FromRiposte = false, bool IsStrikethrough = false,
 	bool IsFromSpell = false, ExtraAttackOptions *opts = nullptr);
@@ -126,7 +126,7 @@ public:
 	bool IsOfClientBotMerc() const override { return true; }
 
 	virtual void FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho);
-	static Merc* LoadMerc(Client *c, MercTemplate* merc_template, uint32 merchant_id, bool updateFromDB = false);
+	static Merc* LoadMercenary(Client *c, MercTemplate* merc_template, uint32 merchant_id, bool updateFromDB = false);
 	void UpdateMercInfo(Client *c);
 	void UpdateMercStats(Client *c, bool setmax = false);
 	void UpdateMercAppearance();
@@ -146,23 +146,26 @@ public:
 	bool IsMedding() { return _medding; };
 	bool IsSuspended() { return _suspended; };
 
+	void Signal(int signal_id);
+	void SendPayload(int payload_id, std::string payload_value);
+
 	static uint32 CalcPurchaseCost( uint32 templateID , uint8 level, uint8 currency_type = 0);
 	static uint32 CalcUpkeepCost( uint32 templateID , uint8 level, uint8 currency_type = 0);
 
 	// "GET" Class Methods
 	virtual Mob* GetOwner();
-	Client* GetMercOwner();
+	Client* GetMercenaryOwner();
 	virtual Mob* GetOwnerOrSelf();
-	uint32 GetMercID() { return _MercID; }
-	uint32 GetMercCharacterID( ) { return owner_char_id; }
-	uint32 GetMercTemplateID() { return _MercTemplateID; }
-	uint32 GetMercType() { return _MercType; }
-	uint32 GetMercSubType() { return _MercSubType; }
+	uint32 GetMercenaryID() { return _MercID; }
+	uint32 GetMercenaryCharacterID( ) { return owner_char_id; }
+	uint32 GetMercenaryTemplateID() { return _MercTemplateID; }
+	uint32 GetMercenaryType() { return _MercType; }
+	uint32 GetMercenarySubType() { return _MercSubType; }
 	uint8 GetProficiencyID() { return _ProficiencyID; }
 	uint8 GetTierID() { return _TierID; }
 	uint32 GetCostFormula() { return _CostFormula; }
 	uint32 GetMercNameType() { return _NameType; }
-	EQ::constants::StanceType GetStance() { return _currentStance; }
+	uint8 GetStance() { return _currentStance; }
 	int GetHatedCount() { return _hatedCount; }
 
 	inline const uint8 GetClientVersion() const { return _OwnerClientVersion; }
@@ -252,7 +255,7 @@ public:
 	void SetMercNameType( uint8 nametype ) { _NameType = nametype; }
 	void SetClientVersion(uint8 clientVersion) { _OwnerClientVersion = clientVersion; }
 	void SetSuspended(bool suspended) { _suspended = suspended; }
-	void SetStance( EQ::constants::StanceType stance ) { _currentStance = stance; }
+	void SetStance(uint8 stance_id) { _currentStance = stance_id; }
 	void SetHatedCount( int count ) { _hatedCount = count; }
 
 	void Sit();
@@ -327,7 +330,7 @@ private:
 
 	float GetDefaultSize();
 
-	bool LoadMercSpells();
+	bool LoadMercenarySpells();
 	bool CheckStance(int16 stance);
 	std::vector<MercSpell> GetMercSpells() { return merc_spells; }
 
@@ -364,7 +367,7 @@ private:
 	uint8 _CostFormula;
 	uint8 _NameType;
 	uint8 _OwnerClientVersion;
-	EQ::constants::StanceType _currentStance;
+	uint8 _currentStance;
 
 	EQ::InventoryProfile m_inv;
 	int64 max_end;

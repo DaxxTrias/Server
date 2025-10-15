@@ -145,7 +145,7 @@ EQ::ItemInstance* Perl_Bot_GetAugmentAt(Bot* self, int16 slot_id, uint8 augment_
 	return nullptr;
 }
 
-int Perl_Bot_CountAugmentEquippedByID(Bot* self, uint32 item_id)
+uint32 Perl_Bot_CountAugmentEquippedByID(Bot* self, uint32 item_id)
 {
 	return self->GetInv().CountAugmentEquippedByID(item_id);
 }
@@ -155,7 +155,7 @@ bool Perl_Bot_HasAugmentEquippedByID(Bot* self, uint32 item_id)
 	return self->GetInv().HasAugmentEquippedByID(item_id);
 }
 
-int Perl_Bot_CountItemEquippedByID(Bot* self, uint32 item_id)
+uint32 Perl_Bot_CountItemEquippedByID(Bot* self, uint32 item_id)
 {
 	return self->GetInv().CountItemEquippedByID(item_id);
 }
@@ -255,9 +255,99 @@ void Perl_Bot_Stand(Bot* self) // @categories Script Utility
 	self->Stand();
 }
 
+uint32 Perl_Bot_GetSpellRecastTimer(Bot* self)
+{
+	return self->GetSpellRecastRemainingTime();
+}
+
+uint32 Perl_Bot_GetSpellRecastTimer(Bot* self, uint16 spell_id)
+{
+	return self->GetSpellRecastRemainingTime(spell_id);
+}
+
+void Perl_Bot_ClearSpellRecastTimer(Bot* self)
+{
+	return self->ClearSpellRecastTimer();
+}
+
+void Perl_Bot_ClearSpellRecastTimer(Bot* self, uint16 spell_id)
+{
+	return self->ClearSpellRecastTimer(spell_id);
+}
+
+uint32 Perl_Bot_GetDisciplineReuseTimer(Bot* self)
+{
+	return self->GetDisciplineReuseRemainingTime();
+}
+
+uint32 Perl_Bot_GetDisciplineReuseTimer(Bot* self, uint16 spell_id)
+{
+	return self->GetDisciplineReuseRemainingTime(spell_id);
+}
+
+void Perl_Bot_ClearDisciplineReuseTimer(Bot* self)
+{
+	return self->ClearDisciplineReuseTimer();
+}
+
+void Perl_Bot_ClearDisciplineReuseTimer(Bot* self, uint16 spell_id)
+{
+	return self->ClearDisciplineReuseTimer(spell_id);
+}
+
+void Perl_Bot_SetDisciplineReuseTimer(Bot* self, uint16 spell_id)
+{
+	return self->SetDisciplineReuseTimer(spell_id);
+}
+
+void Perl_Bot_SetDisciplineReuseTimer(Bot* self, uint16 spell_id, uint32 recast_delay)
+{
+	return self->SetDisciplineReuseTimer(spell_id);
+}
+
+void Perl_Bot_SetItemReuseTimer(Bot* self, uint32 item_id)
+{
+	return self->SetItemReuseTimer(item_id);
+}
+
+void Perl_Bot_SetItemReuseTimer(Bot* self, uint32 item_id, uint32 reuse_timer)
+{
+	return self->SetItemReuseTimer(item_id, reuse_timer);
+}
+
+void Perl_Bot_SetSpellRecastTimer(Bot* self, uint16 spell_id)
+{
+	return self->SetSpellRecastTimer(spell_id);
+}
+
+void Perl_Bot_SetSpellRecastTimer(Bot* self, uint16 spell_id, uint32 recast_delay)
+{
+	return self->SetSpellRecastTimer(spell_id, recast_delay);
+}
+
 int Perl_Bot_GetItemIDAt(Bot* self, int16 slot_id) // @categories Inventory and Items
 {
 	return self->GetItemIDAt(slot_id);
+}
+
+uint32 Perl_Bot_GetItemReuseTimer(Bot* self)
+{
+	return self->GetItemReuseRemainingTime();
+}
+
+uint32 Perl_Bot_GetItemReuseTimer(Bot* self, uint32 item_id)
+{
+	return self->GetItemReuseRemainingTime(item_id);
+}
+
+void Perl_Bot_ClearItemReuseTimer(Bot* self)
+{
+	return self->ClearItemReuseTimer();
+}
+
+void Perl_Bot_ClearItemReuseTimer(Bot* self, uint32 item_id)
+{
+	return self->ClearItemReuseTimer(item_id);
 }
 
 int Perl_Bot_GetAugmentIDAt(Bot* self, int16 slot_id, uint8 aug_slot) // @categories Inventory and Items
@@ -335,11 +425,6 @@ void Perl_Bot_SetExpansionBitmask(Bot* self, int expansion_bitmask)
 	self->SetExpansionBitmask(expansion_bitmask);
 }
 
-void Perl_Bot_SetExpansionBitmask(Bot* self, int expansion_bitmask, bool save)
-{
-	self->SetExpansionBitmask(expansion_bitmask, save);
-}
-
 void Perl_Bot_SetSpellDuration(Bot* self, int spell_id)
 {
 	self->SetSpellDuration(spell_id);
@@ -407,12 +492,12 @@ void Perl_Bot_SetSpellDurationRaid(Bot* self, int spell_id, int duration, int le
 
 bool Perl_Bot_ReloadBotDataBuckets(Bot* self)
 {
-	return DataBucket::GetDataBuckets(self);
+	return self->LoadDataBucketsCache();
 }
 
 bool Perl_Bot_ReloadBotOwnerDataBuckets(Bot* self)
 {
-	return self->HasOwner() && DataBucket::GetDataBuckets(self->GetBotOwner());
+	return self->HasOwner() && self->LoadDataBucketsCache();
 }
 
 bool Perl_Bot_ReloadBotSpells(Bot* self)
@@ -525,6 +610,16 @@ std::string Perl_Bot_GetRaceAbbreviation(Bot* self)
 	return GetPlayerRaceAbbreviation(self->GetBaseRace());
 }
 
+void Perl_Bot_DeleteBot(Bot* self) // @categories Script Utility
+{
+	self->DeleteBot();
+}
+
+void Perl_Bot_RaidGroupSay(Bot* self, const char* message) // @categories Script Utility
+{
+	self->RaidGroupSay(message);
+}
+
 void perl_register_bot()
 {
 	perl::interpreter state(PERL_GET_THX);
@@ -554,11 +649,19 @@ void perl_register_bot()
 	package.add("ApplySpellRaid", (void(*)(Bot*, int, int, int))&Perl_Bot_ApplySpellRaid);
 	package.add("ApplySpellRaid", (void(*)(Bot*, int, int, int, bool))&Perl_Bot_ApplySpellRaid);
 	package.add("ApplySpellRaid", (void(*)(Bot*, int, int, int, bool, bool))&Perl_Bot_ApplySpellRaid);
+	package.add("RaidGroupSay", &Perl_Bot_RaidGroupSay);
 	package.add("Camp", (void(*)(Bot*))&Perl_Bot_Camp);
 	package.add("Camp", (void(*)(Bot*, bool))&Perl_Bot_Camp);
+	package.add("ClearDisciplineReuseTimer", (void(*)(Bot*))&Perl_Bot_ClearDisciplineReuseTimer);
+	package.add("ClearDisciplineReuseTimer", (void(*)(Bot*, uint16))&Perl_Bot_ClearDisciplineReuseTimer);
+	package.add("ClearItemReuseTimer", (void(*)(Bot*))&Perl_Bot_ClearItemReuseTimer);
+	package.add("ClearItemReuseTimer", (void(*)(Bot*, uint32))&Perl_Bot_ClearItemReuseTimer);
+	package.add("ClearSpellRecastTimer", (void(*)(Bot*))&Perl_Bot_ClearSpellRecastTimer);
+	package.add("ClearSpellRecastTimer", (void(*)(Bot*, uint16))&Perl_Bot_ClearSpellRecastTimer);
 	package.add("CountAugmentEquippedByID", &Perl_Bot_CountAugmentEquippedByID);
 	package.add("CountBotItem", &Perl_Bot_CountBotItem);
 	package.add("CountItemEquippedByID", &Perl_Bot_CountItemEquippedByID);
+	package.add("DeleteBot", (void(*)(Bot*)) &Perl_Bot_DeleteBot);
 	package.add("Escape", &Perl_Bot_Escape);
 	package.add("Fling", (void(*)(Bot*, float, float, float))&Perl_Bot_Fling);
 	package.add("Fling", (void(*)(Bot*, float, float, float, bool))&Perl_Bot_Fling);
@@ -594,6 +697,13 @@ void perl_register_bot()
 	package.add("HasBotItem", &Perl_Bot_HasBotItem);
 	package.add("HasBotSpellEntry", &Perl_Bot_HasBotSpellEntry);
 	package.add("HasItemEquippedByID", &Perl_Bot_HasItemEquippedByID);
+	package.add("GetDisciplineReuseTimer", (uint32(*)(Bot*))&Perl_Bot_GetDisciplineReuseTimer);
+	package.add("GetDisciplineReuseTimer", (uint32(*)(Bot*, uint16))&Perl_Bot_GetDisciplineReuseTimer);
+	package.add("GetItemEquippedByID", &Perl_Bot_HasItemEquippedByID);
+	package.add("GetItemReuseTimer", (uint32(*)(Bot*))&Perl_Bot_GetItemReuseTimer);
+	package.add("GetItemReuseTimer", (uint32(*)(Bot*, uint32))&Perl_Bot_GetItemReuseTimer);
+	package.add("GetSpellRecastTimer", (uint32(*)(Bot*))&Perl_Bot_GetSpellRecastTimer);
+	package.add("GetSpellRecastTimer", (uint32(*)(Bot*, uint16))&Perl_Bot_GetSpellRecastTimer);
 	package.add("IsGrouped", &Perl_Bot_IsGrouped);
 	package.add("IsSitting", &Perl_Bot_IsSitting);
 	package.add("IsStanding", &Perl_Bot_IsStanding);
@@ -607,7 +717,10 @@ void perl_register_bot()
 	package.add("SendPayload", (void(*)(Bot*, int, std::string))&Perl_Bot_SendPayload);
 	package.add("SendSpellAnim", &Perl_Bot_SendSpellAnim);
 	package.add("SetExpansionBitmask", (void(*)(Bot*, int))&Perl_Bot_SetExpansionBitmask);
-	package.add("SetExpansionBitmask", (void(*)(Bot*, int, bool))&Perl_Bot_SetExpansionBitmask);
+	package.add("SetDisciplineReuseTimer", (void(*)(Bot*, uint16))&Perl_Bot_SetDisciplineReuseTimer);
+	package.add("SetDisciplineReuseTimer", (void(*)(Bot*, uint16, uint32))&Perl_Bot_SetDisciplineReuseTimer);
+	package.add("SetItemReuseTimer", (void(*)(Bot*, uint32))&Perl_Bot_SetItemReuseTimer);
+	package.add("SetItemReuseTimer", (void(*)(Bot*, uint32, uint32))&Perl_Bot_SetItemReuseTimer);
 	package.add("SetSpellDuration", (void(*)(Bot*, int))&Perl_Bot_SetSpellDuration);
 	package.add("SetSpellDuration", (void(*)(Bot*, int, int))&Perl_Bot_SetSpellDuration);
 	package.add("SetSpellDuration", (void(*)(Bot*, int, int, int))&Perl_Bot_SetSpellDuration);
@@ -621,6 +734,8 @@ void perl_register_bot()
 	package.add("SetSpellDurationRaid", (void(*)(Bot*, int, int, int))&Perl_Bot_SetSpellDurationRaid);
 	package.add("SetSpellDurationRaid", (void(*)(Bot*, int, int, int, bool))&Perl_Bot_SetSpellDurationRaid);
 	package.add("SetSpellDurationRaid", (void(*)(Bot*, int, int, int, bool, bool))&Perl_Bot_SetSpellDurationRaid);
+	package.add("SetSpellRecastTimer", (void(*)(Bot*, uint16))&Perl_Bot_SetSpellRecastTimer);
+	package.add("SetSpellRecastTimer", (void(*)(Bot*, uint16, uint32))&Perl_Bot_SetSpellRecastTimer);
 	package.add("Signal", &Perl_Bot_Signal);
 	package.add("Sit", &Perl_Bot_Sit);
 	package.add("Stand", &Perl_Bot_Stand);

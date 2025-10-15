@@ -7,6 +7,9 @@
 #include "npc.h"
 #include "lua_npc.h"
 #include "lua_client.h"
+#include "lua_item.h"
+#include "lua_iteminst.h"
+#include "lua_spawn.h"
 
 struct Lua_NPC_Loot_List {
 	std::vector<uint32> entries;
@@ -87,19 +90,19 @@ void Lua_NPC::RemoveItem(int item_id, int quantity, int slot) {
 	self->RemoveItem(item_id, quantity, slot);
 }
 
-void Lua_NPC::ClearItemList() {
+void Lua_NPC::ClearLootItems() {
 	Lua_Safe_Call_Void();
-	self->ClearItemList();
+	self->ClearLootItems();
 }
 
-void Lua_NPC::AddCash(int copper, int silver, int gold, int platinum) {
+void Lua_NPC::AddLootCash(uint32 copper, uint32 silver, uint32 gold, uint32 platinum) {
 	Lua_Safe_Call_Void();
-	self->AddCash(copper, silver, gold, platinum);
+	self->AddLootCash(copper, silver, gold, platinum);
 }
 
-void Lua_NPC::RemoveCash() {
+void Lua_NPC::RemoveLootCash() {
 	Lua_Safe_Call_Void();
-	self->RemoveCash();
+	self->RemoveLootCash();
 }
 
 int Lua_NPC::CountLoot() {
@@ -378,7 +381,7 @@ bool Lua_NPC::GetFollowCanRun() {
 	return self->GetFollowCanRun();
 }
 
-int Lua_NPC::GetNPCSpellsID() {
+uint32 Lua_NPC::GetNPCSpellsID() {
 	Lua_Safe_Call_Int();
 	return self->GetNPCSpellsID();
 }
@@ -597,22 +600,22 @@ bool Lua_NPC::HasItem(uint32 item_id)
 	return self->HasItem(item_id);
 }
 
-uint16 Lua_NPC::CountItem(uint32 item_id)
+uint32 Lua_NPC::CountItem(uint32 item_id)
 {
 	Lua_Safe_Call_Int();
 	return self->CountItem(item_id);
 }
 
-uint32 Lua_NPC::GetItemIDBySlot(uint16 loot_slot)
+uint32 Lua_NPC::GetLootItemIDBySlot(uint16 loot_slot)
 {
 	Lua_Safe_Call_Int();
-	return self->GetItemIDBySlot(loot_slot);
+	return self->GetLootItemIDBySlot(loot_slot);
 }
 
-uint16 Lua_NPC::GetFirstSlotByItemID(uint32 item_id)
+uint16 Lua_NPC::GetFirstLootSlotByItemID(uint32 item_id)
 {
 	Lua_Safe_Call_Int();
-	return self->GetFirstSlotByItemID(item_id);
+	return self->GetFirstLootSlotByItemID(item_id);
 }
 
 float Lua_NPC::GetHealScale()
@@ -758,7 +761,7 @@ void Lua_NPC::SetLDoNTrapDetected(bool is_detected) {
 void Lua_NPC::ScaleNPC(uint8 npc_level)
 {
 	Lua_Safe_Call_Void();
-	self->ScaleNPC(npc_level);
+	self->ScaleNPC(npc_level, true);
 }
 
 void Lua_NPC::ScaleNPC(uint8 npc_level, bool override_special_abilities)
@@ -813,6 +816,147 @@ void Lua_NPC::SetBucket(std::string bucket_name, std::string bucket_value, std::
 	self->SetBucket(bucket_name, bucket_value, expiration);
 }
 
+bool Lua_NPC::GetNPCAggro()
+{
+	Lua_Safe_Call_Bool();
+	return self->GetNPCAggro();
+}
+
+void Lua_NPC::SetNPCAggro(bool in_npc_aggro)
+{
+	Lua_Safe_Call_Void();
+	self->SetNPCAggro(in_npc_aggro);
+}
+
+uint32 Lua_NPC::GetNPCSpellsEffectsID()
+{
+	Lua_Safe_Call_Int();
+	return self->GetNPCSpellsEffectsID();
+}
+
+void Lua_NPC::DescribeSpecialAbilities(Lua_Client c)
+{
+	Lua_Safe_Call_Void();
+	self->DescribeSpecialAbilities(c);
+}
+
+bool Lua_NPC::IsMultiQuestEnabled()
+{
+	Lua_Safe_Call_Bool();
+	return self->IsMultiQuestEnabled();
+}
+
+void Lua_NPC::MultiQuestEnable()
+{
+	Lua_Safe_Call_Void();
+	self->MultiQuestEnable();
+}
+
+bool Lua_NPC::LuaCheckHandin(
+	Lua_Client c,
+	luabind::adl::object handin_table,
+	luabind::adl::object required_table,
+	luabind::adl::object items_table
+)
+{
+	Lua_Safe_Call_Bool();
+
+	if (
+		luabind::type(handin_table) != LUA_TTABLE ||
+		luabind::type(required_table) != LUA_TTABLE ||
+		luabind::type(items_table) != LUA_TTABLE
+		) {
+		return false;
+	}
+
+	std::map<std::string, uint32>   handin_map;
+	std::map<std::string, uint32>   required_map;
+	std::vector<EQ::ItemInstance *> items;
+
+	for (luabind::iterator i(handin_table), end; i != end; i++) {
+		std::string key;
+		if (luabind::type(i.key()) == LUA_TSTRING) {
+			key = luabind::object_cast<std::string>(i.key());
+		}
+		else if (luabind::type(i.key()) == LUA_TNUMBER) {
+			key = fmt::format("{}", luabind::object_cast<int>(i.key()));
+		}
+		else {
+			LogError("Handin key type [{}] not supported", luabind::type(i.key()));
+		}
+
+		if (!key.empty()) {
+			handin_map[key] = luabind::object_cast<uint32>(handin_table[i.key()]);
+			LogNpcHandinDetail("Handin key [{}] value [{}]", key, handin_map[key]);
+		}
+	}
+
+	for (luabind::iterator i(required_table), end; i != end; i++) {
+		std::string key;
+		if (luabind::type(i.key()) == LUA_TSTRING) {
+			key = luabind::object_cast<std::string>(i.key());
+		}
+		else if (luabind::type(i.key()) == LUA_TNUMBER) {
+			key = fmt::format("{}", luabind::object_cast<int>(i.key()));
+		}
+		else {
+			LogError("Required key type [{}] not supported", luabind::type(i.key()));
+		}
+
+		if (!key.empty()) {
+			required_map[key] = luabind::object_cast<uint32>(required_table[i.key()]);
+			LogNpcHandinDetail("Required key [{}] value [{}]", key, required_map[key]);
+		}
+	}
+
+	for (luabind::iterator i(items_table), end; i != end; i++) {
+		auto item = luabind::object_cast<Lua_ItemInst>(items_table[i.key()]);
+
+		if (item && item.GetItem()) {
+			LogNpcHandinDetail(
+				"Item instance [{}] ({}) UUID ({}) added to handin list",
+				item.GetName(),
+				item.GetID(),
+				item.GetSerialNumber()
+			);
+
+			items.emplace_back(item);
+		}
+	}
+
+	return self->CheckHandin(c, handin_map, required_map, items);
+}
+
+void Lua_NPC::ReturnHandinItems(Lua_Client c)
+{
+	Lua_Safe_Call_Void();
+	self->ReturnHandinItems(c);
+}
+
+Lua_Spawn Lua_NPC::GetSpawn(lua_State* L)
+{
+	Lua_Safe_Call_Class(Lua_Spawn);
+	return Lua_Spawn(self->GetSpawn());
+}
+
+bool Lua_NPC::IsResumedFromZoneSuspend()
+{
+	Lua_Safe_Call_Bool();
+	return self->IsResumedFromZoneSuspend();
+}
+
+void Lua_NPC::SetNPCTintIndex(uint32 index)
+{
+	Lua_Safe_Call_Void();
+	self->SetNPCTintIndex(index);
+}
+
+uint32 Lua_NPC::GetNPCTintIndex()
+{
+	Lua_Safe_Call_Int();
+	return self->GetNPCTintIndex();
+}
+
 luabind::scope lua_register_npc() {
 	return luabind::class_<Lua_NPC, Lua_Mob>("NPC")
 	.def(luabind::constructor<>())
@@ -821,7 +965,7 @@ luabind::scope lua_register_npc() {
 	.def("AddAISpell", (void(Lua_NPC::*)(int,int,int,int,int,int))&Lua_NPC::AddAISpell)
 	.def("AddAISpell", (void(Lua_NPC::*)(int,int,int,int,int,int,int,int))&Lua_NPC::AddAISpell)
 	.def("AddAISpellEffect", (void(Lua_NPC::*)(int,int,int,int))&Lua_NPC::AddAISpellEffect)
-	.def("AddCash", (void(Lua_NPC::*)(int,int,int,int))&Lua_NPC::AddCash)
+	.def("AddCash", (void(Lua_NPC::*)(uint32,uint32,uint32,uint32))&Lua_NPC::AddLootCash)
 	.def("AddItem", (void(Lua_NPC::*)(int,int))&Lua_NPC::AddItem)
 	.def("AddItem", (void(Lua_NPC::*)(int,int,bool))&Lua_NPC::AddItem)
 	.def("AddItem", (void(Lua_NPC::*)(int,int,bool,int))&Lua_NPC::AddItem)
@@ -835,12 +979,14 @@ luabind::scope lua_register_npc() {
 	.def("AssignWaypoints", (void(Lua_NPC::*)(int))&Lua_NPC::AssignWaypoints)
 	.def("CalculateNewWaypoint", (void(Lua_NPC::*)(void))&Lua_NPC::CalculateNewWaypoint)
 	.def("ChangeLastName", (void(Lua_NPC::*)(std::string))&Lua_NPC::ChangeLastName)
+	.def("CheckHandin", (bool(Lua_NPC::*)(Lua_Client,luabind::adl::object,luabind::adl::object,luabind::adl::object))&Lua_NPC::LuaCheckHandin)
 	.def("CheckNPCFactionAlly", (int(Lua_NPC::*)(int))&Lua_NPC::CheckNPCFactionAlly)
-	.def("ClearItemList", (void(Lua_NPC::*)(void))&Lua_NPC::ClearItemList)
+	.def("ClearItemList", (void(Lua_NPC::*)(void))&Lua_NPC::ClearLootItems)
 	.def("ClearLastName", (void(Lua_NPC::*)(void))&Lua_NPC::ClearLastName)
-	.def("CountItem", (uint16(Lua_NPC::*)(uint32))&Lua_NPC::CountItem)
+	.def("CountItem", (uint32(Lua_NPC::*)(uint32))&Lua_NPC::CountItem)
 	.def("CountLoot", (int(Lua_NPC::*)(void))&Lua_NPC::CountLoot)
 	.def("DeleteBucket", (void(Lua_NPC::*)(std::string))&Lua_NPC::DeleteBucket)
+	.def("DescribeSpecialAbilities", (void(Lua_NPC::*)(Lua_Client))&Lua_NPC::DescribeSpecialAbilities)
 	.def("DisplayWaypointInfo", (void(Lua_NPC::*)(Lua_Client))&Lua_NPC::DisplayWaypointInfo)
 	.def("DoClassAttacks", (void(Lua_NPC::*)(Lua_Mob))&Lua_NPC::DoClassAttacks)
 	.def("GetAccuracyRating", (int(Lua_NPC::*)(void))&Lua_NPC::GetAccuracyRating)
@@ -851,7 +997,7 @@ luabind::scope lua_register_npc() {
 	.def("GetBucketExpires", (std::string(Lua_NPC::*)(std::string))&Lua_NPC::GetBucketExpires)
 	.def("GetBucketRemaining", (std::string(Lua_NPC::*)(std::string))&Lua_NPC::GetBucketRemaining)
 	.def("GetCopper", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetCopper)
-	.def("GetFirstSlotByItemID", (uint16(Lua_NPC::*)(uint32))&Lua_NPC::GetFirstSlotByItemID)
+	.def("GetFirstSlotByItemID", (uint16(Lua_NPC::*)(uint32))&Lua_NPC::GetFirstLootSlotByItemID)
 	.def("GetFollowCanRun", (bool(Lua_NPC::*)(void))&Lua_NPC::GetFollowCanRun)
 	.def("GetFollowDistance", (int(Lua_NPC::*)(void))&Lua_NPC::GetFollowDistance)
 	.def("GetFollowID", (int(Lua_NPC::*)(void))&Lua_NPC::GetFollowID)
@@ -861,7 +1007,7 @@ luabind::scope lua_register_npc() {
 	.def("GetGuardPointY", (float(Lua_NPC::*)(void))&Lua_NPC::GetGuardPointY)
 	.def("GetGuardPointZ", (float(Lua_NPC::*)(void))&Lua_NPC::GetGuardPointZ)
 	.def("GetHealScale", (float(Lua_NPC::*)(void))&Lua_NPC::GetHealScale)
-	.def("GetItemIDBySlot", (uint32(Lua_NPC::*)(uint16))&Lua_NPC::GetItemIDBySlot)
+	.def("GetItemIDBySlot", (uint32(Lua_NPC::*)(uint16)) &Lua_NPC::GetLootItemIDBySlot)
 	.def("GetKeepsSoldItems", (bool(Lua_NPC::*)(void))&Lua_NPC::GetKeepsSoldItems)
 	.def("GetLootList", (Lua_NPC_Loot_List(Lua_NPC::*)(lua_State* L))&Lua_NPC::GetLootList)
 	.def("GetLoottableID", (int(Lua_NPC::*)(void))&Lua_NPC::GetLoottableID)
@@ -872,11 +1018,13 @@ luabind::scope lua_register_npc() {
 	.def("GetLDoNLockedSkill", (uint16(Lua_NPC::*)(void))&Lua_NPC::GetLDoNLockedSkill)
 	.def("GetLDoNTrapType", (uint8(Lua_NPC::*)(void))&Lua_NPC::GetLDoNTrapType)
 	.def("GetLDoNTrapSpellID", (uint16(Lua_NPC::*)(void))&Lua_NPC::GetLDoNTrapSpellID)
+	.def("GetNPCAggro", (bool(Lua_NPC::*)(void))&Lua_NPC::GetNPCAggro)
 	.def("GetNPCFactionID", (int(Lua_NPC::*)(void))&Lua_NPC::GetNPCFactionID)
 	.def("GetNPCHate", (int64(Lua_NPC::*)(Lua_Mob))&Lua_NPC::GetNPCHate)
-	.def("GetNPCSpellsID", (int(Lua_NPC::*)(void))&Lua_NPC::GetNPCSpellsID)
-	.def("GetNPCSpellsID", (int(Lua_NPC::*)(void))&Lua_NPC::GetNPCSpellsID)
+	.def("GetNPCSpellsEffectsID", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetNPCSpellsEffectsID)
+	.def("GetNPCSpellsID", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetNPCSpellsID)
 	.def("GetNPCStat", (float(Lua_NPC::*)(std::string))&Lua_NPC::GetNPCStat)
+	.def("GetNPCTintIndex", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetNPCTintIndex)
 	.def("GetPetSpellID", (int(Lua_NPC::*)(void))&Lua_NPC::GetPetSpellID)
 	.def("GetPlatinum", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetPlatinum)
 	.def("GetPrimSkill", (int(Lua_NPC::*)(void))&Lua_NPC::GetPrimSkill)
@@ -887,6 +1035,7 @@ luabind::scope lua_register_npc() {
 	.def("GetSilver", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetSilver)
 	.def("GetSlowMitigation", (int(Lua_NPC::*)(void))&Lua_NPC::GetSlowMitigation)
 	.def("GetSp2", (uint32(Lua_NPC::*)(void))&Lua_NPC::GetSp2)
+	.def("GetSpawn", (Lua_Spawn(Lua_NPC::*)(void))&Lua_NPC::GetSpawn)
 	.def("GetSpawnKillCount", (int(Lua_NPC::*)(void))&Lua_NPC::GetSpawnKillCount)
 	.def("GetSpawnPointH", (float(Lua_NPC::*)(void))&Lua_NPC::GetSpawnPointH)
 	.def("GetSpawnPointID", (int(Lua_NPC::*)(void))&Lua_NPC::GetSpawnPointID)
@@ -906,15 +1055,18 @@ luabind::scope lua_register_npc() {
 	.def("IsLDoNLocked", (bool(Lua_NPC::*)(void))&Lua_NPC::IsLDoNLocked)
 	.def("IsLDoNTrapped", (bool(Lua_NPC::*)(void))&Lua_NPC::IsLDoNTrapped)
 	.def("IsLDoNTrapDetected", (bool(Lua_NPC::*)(void))&Lua_NPC::IsLDoNTrapDetected)
+	.def("IsMultiQuestEnabled", (bool(Lua_NPC::*)(void))&Lua_NPC::IsMultiQuestEnabled)
 	.def("IsOnHatelist", (bool(Lua_NPC::*)(Lua_Mob))&Lua_NPC::IsOnHatelist)
 	.def("IsRaidTarget", (bool(Lua_NPC::*)(void))&Lua_NPC::IsRaidTarget)
 	.def("IsRareSpawn", (bool(Lua_NPC::*)(void))&Lua_NPC::IsRareSpawn)
+	.def("IsResumedFromZoneSuspend",(bool(Lua_NPC::*)(void))&Lua_NPC::IsResumedFromZoneSuspend)
 	.def("IsTaunting", (bool(Lua_NPC::*)(void))&Lua_NPC::IsTaunting)
 	.def("IsUnderwaterOnly", (bool(Lua_NPC::*)(void))&Lua_NPC::IsUnderwaterOnly)
 	.def("MerchantCloseShop", (void(Lua_NPC::*)(void))&Lua_NPC::MerchantCloseShop)
 	.def("MerchantOpenShop", (void(Lua_NPC::*)(void))&Lua_NPC::MerchantOpenShop)
 	.def("ModifyNPCStat", (void(Lua_NPC::*)(std::string,std::string))&Lua_NPC::ModifyNPCStat)
 	.def("MoveTo", (void(Lua_NPC::*)(float,float,float,float,bool))&Lua_NPC::MoveTo)
+	.def("MultiQuestEnable", &Lua_NPC::MultiQuestEnable)
 	.def("NextGuardPosition", (void(Lua_NPC::*)(void))&Lua_NPC::NextGuardPosition)
 	.def("PauseWandering", (void(Lua_NPC::*)(int))&Lua_NPC::PauseWandering)
 	.def("PickPocket", (void(Lua_NPC::*)(Lua_Client))&Lua_NPC::PickPocket)
@@ -922,11 +1074,12 @@ luabind::scope lua_register_npc() {
 	.def("ReloadSpells", (void(Lua_NPC::*)(void))&Lua_NPC::ReloadSpells)
 	.def("RemoveAISpell", (void(Lua_NPC::*)(int))&Lua_NPC::RemoveAISpell)
 	.def("RemoveAISpellEffect", (void(Lua_NPC::*)(int))&Lua_NPC::RemoveAISpellEffect)
-	.def("RemoveCash", (void(Lua_NPC::*)(void))&Lua_NPC::RemoveCash)
+	.def("RemoveCash", (void(Lua_NPC::*)(void))&Lua_NPC::RemoveLootCash)
 	.def("RemoveItem", (void(Lua_NPC::*)(int))&Lua_NPC::RemoveItem)
 	.def("RemoveItem", (void(Lua_NPC::*)(int,int))&Lua_NPC::RemoveItem)
 	.def("RemoveItem", (void(Lua_NPC::*)(int,int,int))&Lua_NPC::RemoveItem)
 	.def("ResumeWandering", (void(Lua_NPC::*)(void))&Lua_NPC::ResumeWandering)
+	.def("ReturnHandinItems", (void(Lua_NPC::*)(Lua_Client))&Lua_NPC::ReturnHandinItems)
 	.def("SaveGuardSpot", (void(Lua_NPC::*)(void))&Lua_NPC::SaveGuardSpot)
 	.def("SaveGuardSpot", (void(Lua_NPC::*)(bool))&Lua_NPC::SaveGuardSpot)
 	.def("SaveGuardSpot", (void(Lua_NPC::*)(float,float,float,float))&Lua_NPC::SaveGuardSpot)
@@ -949,7 +1102,9 @@ luabind::scope lua_register_npc() {
 	.def("SetLDoNTrapDetected", (void(Lua_NPC::*)(bool))&Lua_NPC::SetLDoNTrapDetected)
 	.def("SetLDoNTrapSpellID", (void(Lua_NPC::*)(uint16))&Lua_NPC::SetLDoNTrapSpellID)
 	.def("SetLDoNTrapType", (void(Lua_NPC::*)(uint8))&Lua_NPC::SetLDoNTrapType)
+	.def("SetNPCAggro", (void(Lua_NPC::*)(bool))&Lua_NPC::SetNPCAggro)
 	.def("SetNPCFactionID", (void(Lua_NPC::*)(int))&Lua_NPC::SetNPCFactionID)
+	.def("SetNPCTintIndex", &Lua_NPC::SetNPCTintIndex)
 	.def("SetPetSpellID", (void(Lua_NPC::*)(int))&Lua_NPC::SetPetSpellID)
 	.def("SetPlatinum", (void(Lua_NPC::*)(uint32))&Lua_NPC::SetPlatinum)
 	.def("SetPrimSkill", (void(Lua_NPC::*)(int))&Lua_NPC::SetPrimSkill)

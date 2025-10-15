@@ -1670,6 +1670,15 @@ struct Surname_Struct
 /*0100*/
 };
 
+struct GuildSetRank_Struct
+{
+	/*00*/	uint32	unknown00;
+	/*04*/	uint32	unknown04;
+	/*08*/	uint32	rank;
+	/*72*/	char	member_name[64];
+	/*76*/	uint32	banker;
+};
+
 struct GuildsListEntry_Struct {
 	char name[64];
 };
@@ -1683,6 +1692,27 @@ struct GuildsList_Struct {
 struct GuildUpdate_Struct {
 	uint32	guildID;
 	GuildsListEntry_Struct entry;
+};
+
+struct GuildMemberAdd_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ uint32 unknown04;
+	/*008*/ uint32 unknown08;
+	/*012*/ uint32 unknown12;
+	/*016*/ uint32 level;
+	/*020*/ uint32 class_;
+	/*024*/ uint32 rank_;
+	/*028*/ uint32 zone_id;
+	/*032*/ uint32 last_on;
+	/*036*/ char   player_name[64];
+};
+
+struct GuildMemberRank_Struct {
+	/*000*/ uint32 guild_id;
+	/*004*/ uint32 unknown_004;
+	/*008*/ uint32 rank_;
+	/*012*/ char   player_name[64];
+	/*076*/ uint32 alt_banker; //Banker/Alt bit 00 - none 10 - Alt 11 - Alt and Banker 01 - Banker.  Banker not functional for RoF2+
 };
 
 /*
@@ -1886,9 +1916,9 @@ struct TimeOfDay_Struct {
 };
 
 // Darvik: shopkeeper structs
-struct Merchant_Click_Struct {
-/*000*/ uint32	npcid;			// Merchant NPC's entity id
-/*004*/ uint32	playerid;
+struct MerchantClick_Struct {
+/*000*/ uint32	npc_id;			// Merchant NPC's entity id
+/*004*/ uint32	player_id;
 /*008*/ uint32	command;		//1=open, 0=cancel/close
 /*012*/ float	rate;			//cost multiplier, dosent work anymore
 };
@@ -2610,23 +2640,23 @@ struct EnvDamage2_Struct {
 //Bazaar Stuff
 
 enum {
-	BazaarTrader_StartTraderMode = 1,
-	BazaarTrader_EndTraderMode = 2,
-	BazaarTrader_UpdatePrice = 3,
-	BazaarTrader_EndTransaction = 4,
-	BazaarSearchResults = 7,
-	BazaarWelcome = 9,
-	BazaarBuyItem = 10,
-	BazaarTrader_ShowItems = 11,
-	BazaarSearchDone = 12,
+	BazaarTrader_StartTraderMode  = 1,
+	BazaarTrader_EndTraderMode    = 2,
+	BazaarTrader_UpdatePrice      = 3,
+	BazaarTrader_EndTransaction   = 4,
+	BazaarSearchResults           = 7,
+	BazaarWelcome                 = 9,
+	BazaarBuyItem                 = 10,
+	BazaarTrader_ShowItems        = 11,
+	BazaarSearchDone              = 12,
 	BazaarTrader_CustomerBrowsing = 13
 };
 
 enum {
-	BazaarPriceChange_Fail = 0,
+	BazaarPriceChange_Fail        = 0,
 	BazaarPriceChange_UpdatePrice = 1,
-	BazaarPriceChange_RemoveItem = 2,
-	BazaarPriceChange_AddItem = 3
+	BazaarPriceChange_RemoveItem  = 2,
+	BazaarPriceChange_AddItem     = 3
 };
 
 struct BazaarWindowStart_Struct {
@@ -2657,10 +2687,14 @@ struct BazaarSearch_Struct {
 	uint32	Minlevel;
 	uint32	MaxLlevel;
 };
-struct BazaarInspect_Struct{
-	uint32 ItemID;
-	uint32 Unknown004;
-	char Name[64];
+
+struct BazaarInspect_Struct {
+	uint32 action;
+	char   player_name[64];
+	uint32 unknown_068;
+	uint32 serial_number;
+	uint32 unknown_076;
+	uint32 item_id;
 };
 
 struct NewBazaarInspect_Struct {
@@ -2899,10 +2933,17 @@ struct	WhoAllPlayerPart4 {
 };
 
 struct Trader_Struct {
-	uint32	code;
-	uint32	itemid[160];
-	uint32	unknown;
-	uint32	itemcost[80];
+	uint32 action;
+	uint32 unknown004;
+	uint64 item_id[80];
+	uint32 item_cost[80];
+};
+
+struct BeginTrader_Struct {
+	uint32 action;
+	uint32 unknown04;
+	uint64 serial_number[80];
+	uint32 cost[80];
 };
 
 struct ClickTrader_Struct {
@@ -2915,30 +2956,30 @@ struct GetItems_Struct{
 	uint32	items[80];
 };
 
-struct BecomeTrader_Struct{
-	uint32 id;
-	uint32 code;
+struct BecomeTrader_Struct {
+	uint32 entity_id;
+	uint32 action;
+	char   trader_name[64];
 };
 
 struct Trader_ShowItems_Struct{
-	uint32 code;
-	uint32 traderid;
+	uint32 action;
+	uint32 entity_id;
 	uint32 unknown08[3];
 };
 
 struct TraderBuy_Struct {
-/*000*/ uint32   Action;
-/*004*/	uint32	Unknown004;
-/*008*/ uint32   Price;
-/*012*/	uint32	Unknown008;	// Probably high order bits of a 64 bit price.
-/*016*/ uint32   TraderID;
-/*020*/ char    ItemName[64];
-/*084*/ uint32   Unknown076;
-/*088*/ uint32   ItemID;
-/*092*/ uint32   AlreadySold;
-/*096*/ uint32   Quantity;
-/*100*/ uint32   Unknown092;
-/*104*/
+	uint32 action;
+	uint32 unknown_004;
+	uint32 price;
+	uint32 unknown_008;    // Probably high order bits of a 64 bit price.
+	uint32 trader_id;
+	char   item_name[64];
+	uint32 unknown_076;
+	uint32 item_id;
+	uint32 already_sold;
+	uint32 quantity;
+	uint32 unknown_092;
 };
 
 struct TraderItemUpdate_Struct{
@@ -2972,8 +3013,9 @@ struct TraderDelItem_Struct{
 };
 
 struct TraderClick_Struct{
-	uint32 traderid;
-	uint32 unknown4[2];
+	uint32 trader_id;
+	uint32 action;
+	uint32 unknown_004;
 	uint32 approval;
 };
 
@@ -3067,6 +3109,23 @@ struct GuildMakeLeader{
 	char	target[64];
 };
 
+struct GuildTributeDonateItemRequest_Struct {
+/*000*/ uint32 	slot;
+/*004*/ uint32 	quantity;
+/*008*/ uint32	tribute_master_id;
+/*012*/ uint32 	unknown12;
+/*016*/ uint32	guild_id;
+/*020*/ uint32 	unknown20;
+/*024*/ uint32	unknown24;
+};
+
+struct GuildTributeDonateItemReply_Struct {
+/*000*/ uint32	slot;
+/*004*/ uint32	quantity;
+/*008*/ uint32	unknown8;
+/*012*/	uint32	favor;
+};
+
 struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint8 level;
 	uint8 class_;
@@ -3078,7 +3137,7 @@ struct Make_Pet_Struct { //Simple struct for getting pet info
 	uint32 min_dmg;
 	uint32 max_dmg;
 };
-struct Ground_Spawn{
+struct GroundSpawn{
 	float max_x;
 	float max_y;
 	float min_x;
@@ -3090,8 +3149,8 @@ struct Ground_Spawn{
 	uint32 max_allowed;
 	uint32 respawntimer;
 };
-struct Ground_Spawns {
-	struct Ground_Spawn spawn[50]; //Assigned max number to allow
+struct GroundSpawns {
+	struct GroundSpawn spawn[50]; //Assigned max number to allow
 };
 
 //struct PetitionBug_Struct{
@@ -4625,6 +4684,30 @@ struct SayLinkBodyFrame_Struct {
 /*037*/	char OrnamentIcon[5];
 /*042*/	char Hash[8];
 /*050*/
+};
+
+struct TraderPriceUpdate_Struct {
+/*000*/    uint32 action;
+/*004*/    uint32 sub_action;
+/*008*/    int32  serial_number;
+/*012*/    uint32 unknown_012;
+/*016*/    uint32 new_price;
+/*020*/    uint32 unknown_016;
+};
+
+enum UFBazaarTraderBuyerActions {
+	Zero            = 0,
+	BeginTraderMode = 1,
+	EndTraderMode   = 2,
+	PriceUpdate     = 3,
+	EndTransaction  = 4,
+	BazaarSearch    = 7,
+	WelcomeMessage  = 9,
+	BuyTraderItem   = 10,
+	ListTraderItems = 11,
+	BazaarInspect   = 18,
+	ItemMove        = 19,
+	ReconcileItems  = 20
 };
 
 	}; /*structs*/

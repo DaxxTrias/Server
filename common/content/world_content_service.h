@@ -1,32 +1,20 @@
-/**
- * EQEmulator: Everquest Server Emulator
- * Copyright (C) 2001-2019 EQEmulator Development Team (https://github.com/EQEmu/Server)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY except by those people which sell it, which
- * are required to give you total support for your newly bought product;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- */
-
 #ifndef EQEMU_WORLD_CONTENT_SERVICE_H
 #define EQEMU_WORLD_CONTENT_SERVICE_H
 
 #include <string>
 #include <vector>
-#include "../loottable.h"
 #include "../repositories/content_flags_repository.h"
+#include "../repositories/zone_repository.h"
+#include "../repositories/instance_list_repository.h"
 
 class Database;
+
+struct ContentFlags {
+	int16       min_expansion;
+	int16       max_expansion;
+	std::string content_flags;
+	std::string content_flags_disabled;
+};
 
 namespace Expansion {
 	static const int EXPANSION_ALL        = -1;
@@ -172,11 +160,32 @@ public:
 	WorldContentService * SetExpansionContext();
 
 	bool DoesPassContentFiltering(const ContentFlags& f);
+	bool DoesZonePassContentFiltering(const ZoneRepository::Zone& z);
 
 	WorldContentService * SetDatabase(Database *database);
 	Database *GetDatabase() const;
 
+	WorldContentService * SetContentDatabase(Database *database);
+	Database *GetContentDatabase() const;
+
 	void SetContentFlag(const std::string &content_flag_name, bool enabled);
+
+	void HandleZoneRoutingMiddleware(ZoneChange_Struct *zc);
+
+	struct FindZoneResult {
+		uint32                               zone_id = 0;
+		InstanceListRepository::InstanceList instance;
+		ZoneRepository::Zone                 zone;
+	};
+
+	FindZoneResult FindZone(uint32 zone_id, uint32 instance_id);
+	bool IsInPublicStaticInstance(uint32 instance_id);
+
+	static WorldContentService* Instance()
+	{
+		static WorldContentService instance;
+		return &instance;
+	}
 
 private:
 	int current_expansion{};
@@ -184,8 +193,11 @@ private:
 
 	// reference to database
 	Database *m_database;
-};
+	Database *m_content_database;
 
-extern WorldContentService content_service;
+	// holds a record of the zone table from the database
+	WorldContentService *LoadStaticGlobalZoneInstances();
+	std::vector<InstanceListRepository::InstanceList> m_zone_static_instances;
+};
 
 #endif //EQEMU_WORLD_CONTENT_SERVICE_H

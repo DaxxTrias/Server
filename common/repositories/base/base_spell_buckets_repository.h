@@ -6,7 +6,7 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_SPELL_BUCKETS_REPOSITORY_H
@@ -19,31 +19,34 @@
 class BaseSpellBucketsRepository {
 public:
 	struct SpellBuckets {
-		uint64_t    spellid;
-		std::string key;
-		std::string value;
+		uint32_t    spell_id;
+		std::string bucket_name;
+		std::string bucket_value;
+		uint8_t     bucket_comparison;
 	};
 
 	static std::string PrimaryKey()
 	{
-		return std::string("spellid");
+		return std::string("spell_id");
 	}
 
 	static std::vector<std::string> Columns()
 	{
 		return {
-			"spellid",
-			"key",
-			"value",
+			"spell_id",
+			"bucket_name",
+			"bucket_value",
+			"bucket_comparison",
 		};
 	}
 
 	static std::vector<std::string> SelectColumns()
 	{
 		return {
-			"spellid",
-			"key",
-			"value",
+			"spell_id",
+			"bucket_name",
+			"bucket_value",
+			"bucket_comparison",
 		};
 	}
 
@@ -84,9 +87,10 @@ public:
 	{
 		SpellBuckets e{};
 
-		e.spellid = 0;
-		e.key     = "";
-		e.value   = "";
+		e.spell_id          = 0;
+		e.bucket_name       = "";
+		e.bucket_value      = "";
+		e.bucket_comparison = 0;
 
 		return e;
 	}
@@ -97,7 +101,7 @@ public:
 	)
 	{
 		for (auto &spell_buckets : spell_bucketss) {
-			if (spell_buckets.spellid == spell_buckets_id) {
+			if (spell_buckets.spell_id == spell_buckets_id) {
 				return spell_buckets;
 			}
 		}
@@ -112,8 +116,9 @@ public:
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
-				"{} WHERE id = {} LIMIT 1",
+				"{} WHERE {} = {} LIMIT 1",
 				BaseSelect(),
+				PrimaryKey(),
 				spell_buckets_id
 			)
 		);
@@ -122,9 +127,10 @@ public:
 		if (results.RowCount() == 1) {
 			SpellBuckets e{};
 
-			e.spellid = strtoull(row[0], nullptr, 10);
-			e.key     = row[1] ? row[1] : "";
-			e.value   = row[2] ? row[2] : "";
+			e.spell_id          = row[0] ? static_cast<uint32_t>(strtoul(row[0], nullptr, 10)) : 0;
+			e.bucket_name       = row[1] ? row[1] : "";
+			e.bucket_value      = row[2] ? row[2] : "";
+			e.bucket_comparison = row[3] ? static_cast<uint8_t>(strtoul(row[3], nullptr, 10)) : 0;
 
 			return e;
 		}
@@ -158,9 +164,10 @@ public:
 
 		auto columns = Columns();
 
-		v.push_back(columns[0] + " = " + std::to_string(e.spellid));
-		v.push_back(columns[1] + " = '" + Strings::Escape(e.key) + "'");
-		v.push_back(columns[2] + " = '" + Strings::Escape(e.value) + "'");
+		v.push_back(columns[0] + " = " + std::to_string(e.spell_id));
+		v.push_back(columns[1] + " = '" + Strings::Escape(e.bucket_name) + "'");
+		v.push_back(columns[2] + " = '" + Strings::Escape(e.bucket_value) + "'");
+		v.push_back(columns[3] + " = " + std::to_string(e.bucket_comparison));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -168,7 +175,7 @@ public:
 				TableName(),
 				Strings::Implode(", ", v),
 				PrimaryKey(),
-				e.spellid
+				e.spell_id
 			)
 		);
 
@@ -182,9 +189,10 @@ public:
 	{
 		std::vector<std::string> v;
 
-		v.push_back(std::to_string(e.spellid));
-		v.push_back("'" + Strings::Escape(e.key) + "'");
-		v.push_back("'" + Strings::Escape(e.value) + "'");
+		v.push_back(std::to_string(e.spell_id));
+		v.push_back("'" + Strings::Escape(e.bucket_name) + "'");
+		v.push_back("'" + Strings::Escape(e.bucket_value) + "'");
+		v.push_back(std::to_string(e.bucket_comparison));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -195,7 +203,7 @@ public:
 		);
 
 		if (results.Success()) {
-			e.spellid = results.LastInsertedID();
+			e.spell_id = results.LastInsertedID();
 			return e;
 		}
 
@@ -214,9 +222,10 @@ public:
 		for (auto &e: entries) {
 			std::vector<std::string> v;
 
-			v.push_back(std::to_string(e.spellid));
-			v.push_back("'" + Strings::Escape(e.key) + "'");
-			v.push_back("'" + Strings::Escape(e.value) + "'");
+			v.push_back(std::to_string(e.spell_id));
+			v.push_back("'" + Strings::Escape(e.bucket_name) + "'");
+			v.push_back("'" + Strings::Escape(e.bucket_value) + "'");
+			v.push_back(std::to_string(e.bucket_comparison));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -250,9 +259,10 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			SpellBuckets e{};
 
-			e.spellid = strtoull(row[0], nullptr, 10);
-			e.key     = row[1] ? row[1] : "";
-			e.value   = row[2] ? row[2] : "";
+			e.spell_id          = row[0] ? static_cast<uint32_t>(strtoul(row[0], nullptr, 10)) : 0;
+			e.bucket_name       = row[1] ? row[1] : "";
+			e.bucket_value      = row[2] ? row[2] : "";
+			e.bucket_comparison = row[3] ? static_cast<uint8_t>(strtoul(row[3], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -277,9 +287,10 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			SpellBuckets e{};
 
-			e.spellid = strtoull(row[0], nullptr, 10);
-			e.key     = row[1] ? row[1] : "";
-			e.value   = row[2] ? row[2] : "";
+			e.spell_id          = row[0] ? static_cast<uint32_t>(strtoul(row[0], nullptr, 10)) : 0;
+			e.bucket_name       = row[1] ? row[1] : "";
+			e.bucket_value      = row[2] ? row[2] : "";
+			e.bucket_comparison = row[3] ? static_cast<uint8_t>(strtoul(row[3], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -338,6 +349,68 @@ public:
 		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
 	}
 
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const SpellBuckets &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.spell_id));
+		v.push_back("'" + Strings::Escape(e.bucket_name) + "'");
+		v.push_back("'" + Strings::Escape(e.bucket_value) + "'");
+		v.push_back(std::to_string(e.bucket_comparison));
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<SpellBuckets> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.spell_id));
+			v.push_back("'" + Strings::Escape(e.bucket_name) + "'");
+			v.push_back("'" + Strings::Escape(e.bucket_value) + "'");
+			v.push_back(std::to_string(e.bucket_comparison));
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_SPELL_BUCKETS_REPOSITORY_H

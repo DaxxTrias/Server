@@ -1,3 +1,2710 @@
+## [23.10.3] 9/16/2025
+
+### Hotfix
+
+* Hotfix crashes occurring in #4987. @Akkadius 2025-09-17
+
+## [23.10.2] 9/16/2025
+
+### Hotfix
+
+* Revert #4996 as it was causing critical issues with spells that needs to be further investigated. @Akkadius 2025-09-17
+
+## [23.10.1] 9/16/2025
+
+### Hotfix
+* Fixed Mail Key Bug ([#5015](https://github.com/EQEmu/Server/pull/5015)) @Kinglykrab 2025-09-16
+
+## [23.10.0] 9/15/2025
+
+### Build
+
+* Fix Linking with GCC ([#4969](https://github.com/EQEmu/Server/pull/4969)) @solar984 2025-08-03
+
+### Code
+
+* Add #npcedit npc_tint_id Help Message ([#4982](https://github.com/EQEmu/Server/pull/4982)) @Kinglykrab 2025-08-17
+* Cleanup #show ip_lookup Message ([#5005](https://github.com/EQEmu/Server/pull/5005)) @Kinglykrab 2025-08-30
+* Fix #set race 0 Message ([#5004](https://github.com/EQEmu/Server/pull/5004)) @Kinglykrab 2025-08-30
+* Fix Issues with Strings::Commify and Mob::SendStatsWindow ([#4984](https://github.com/EQEmu/Server/pull/4984)) @Kinglykrab 2025-08-17
+* Remove Attributions ([#4988](https://github.com/EQEmu/Server/pull/4988)) @KimLS 2025-08-16
+* Remove Unused errorname Variable ([#5001](https://github.com/EQEmu/Server/pull/5001)) @Kinglykrab 2025-08-29
+
+### Commands
+
+* Add #find account Subcommand ([#4981](https://github.com/EQEmu/Server/pull/4981)) @Kinglykrab 2025-08-17
+* Add #show keyring Subcommand ([#4973](https://github.com/EQEmu/Server/pull/4973)) @Kinglykrab 2025-08-03
+* Add #task complete Saylink to #task show ([#4985](https://github.com/EQEmu/Server/pull/4985)) @Kinglykrab 2025-08-17
+
+### Constants
+
+* Change Race Changes to Race Namespace ([#5000](https://github.com/EQEmu/Server/pull/5000)) @Kinglykrab 2025-08-30
+* Convert SE Defines to SpellEffect Namespace ([#4999](https://github.com/EQEmu/Server/pull/4999)) @Kinglykrab 2025-08-30
+
+### Database
+
+* Add `heal_amount` to `character_stats_record` ([#4986](https://github.com/EQEmu/Server/pull/4986)) @Kinglykrab 2025-08-17
+
+### Fixes
+
+* Fix #show recipe uint16 Cap ([#4978](https://github.com/EQEmu/Server/pull/4978)) @Kinglykrab 2025-08-11
+* Fix Race 474 for Titanium ([#4979](https://github.com/EQEmu/Server/pull/4979)) @regneq 2025-08-11
+* Fix Recipe Inspect Bug ([#4994](https://github.com/EQEmu/Server/pull/4994)) @Kinglykrab 2025-08-30
+* Fix Several Evolving Item Bugs ([#4992](https://github.com/EQEmu/Server/pull/4992)) @neckkola 2025-09-08
+* Fix Task Reloading ([#5002](https://github.com/EQEmu/Server/pull/5002)) @Kinglykrab 2025-08-29
+
+### Loginserver
+
+* Fix Legacy World When Using Local DB ([#4970](https://github.com/EQEmu/Server/pull/4970)) @solar984 2025-08-03
+
+### Pets
+
+* Add Pet Constants and Methods ([#4987](https://github.com/EQEmu/Server/pull/4987)) @Kinglykrab 2025-08-17
+
+### Quest API
+
+* Add EVENT_CHARM_START and EVENT_CHARM_END ([#5013](https://github.com/EQEmu/Server/pull/5013)) @Kinglykrab 2025-09-15
+* Add GetKeyRing() to Perl/Lua ([#4980](https://github.com/EQEmu/Server/pull/4980)) @Kinglykrab 2025-08-17
+* Add GetNPCTintIndex() to Perl/Lua ([#4983](https://github.com/EQEmu/Server/pull/4983)) @Kinglykrab 2025-08-17
+* Add GetTimers() and GetPausedTimers() to Perl/Lua ([#4965](https://github.com/EQEmu/Server/pull/4965)) @Kinglykrab 2025-08-03
+* Add Identifiers to Get/Modify NPC Stat Methods ([#5012](https://github.com/EQEmu/Server/pull/5012)) @Kinglykrab 2025-09-15
+
+### Repositories
+
+* Convert Character Inspect Messages to Repositories ([#4997](https://github.com/EQEmu/Server/pull/4997)) @Kinglykrab 2025-08-30
+* Convert Damage Shield Types to Repositories ([#4995](https://github.com/EQEmu/Server/pull/4995)) @Kinglykrab 2025-08-30
+* Convert Item Loading to Repositories ([#4998](https://github.com/EQEmu/Server/pull/4998)) @Kinglykrab 2025-08-30
+* Convert Mail Key to Repositories ([#5007](https://github.com/EQEmu/Server/pull/5007)) @Kinglykrab 2025-09-15
+* Convert Shared Bank Platinum to Repositories ([#5006](https://github.com/EQEmu/Server/pull/5006)) @Kinglykrab 2025-09-02
+* Convert Spell Loading to Repositories ([#4996](https://github.com/EQEmu/Server/pull/4996)) @Kinglykrab 2025-08-30
+* Convert Total Time Played to Repositories ([#5008](https://github.com/EQEmu/Server/pull/5008)) @Kinglykrab 2025-09-15
+
+## [23.9.1] 8/2/2025
+
+### Hotfix
+
+* Fix Quest Ownership Edge Case ([#4977](https://github.com/EQEmu/Server/pull/4977)) @Kinglykrab 2025-08-02
+
+## [23.9.0] 8/2/2025
+
+### Bots
+
+* Fix FinishBuffing rule ([#4961](https://github.com/EQEmu/Server/pull/4961)) @nytmyr 2025-07-01
+* Fix ^cast resurrects ([#4958](https://github.com/EQEmu/Server/pull/4958)) @nytmyr 2025-06-29
+
+### Build
+
+* Fix Linking with GCC ([#4969](https://github.com/EQEmu/Server/pull/4969)) @solar984 2025-08-03
+* More Build Speed Improvements ([#4959](https://github.com/EQEmu/Server/pull/4959)) @Akkadius 2025-06-30
+
+### Commands
+
+* Add #show keyring Subcommand ([#4973](https://github.com/EQEmu/Server/pull/4973)) @Kinglykrab 2025-08-03
+
+### Database
+
+* Add Indexes to NPC's Spawns Loot ([#4972](https://github.com/EQEmu/Server/pull/4972)) @Akkadius 2025-07-30
+
+### Feature
+
+* Zone Scripting ([#4908](https://github.com/EQEmu/Server/pull/4908)) @Kinglykrab 2025-07-10
+
+### Fixes
+
+* Add a missing Froglok starting area for Titanium Startzone. ([#4962](https://github.com/EQEmu/Server/pull/4962)) @regneq 2025-07-04
+* Fix Hero's Forge Ingame and Character Select ([#4966](https://github.com/EQEmu/Server/pull/4966)) @Kinglykrab 2025-07-30
+* Show player count on the server list status. ([#4971](https://github.com/EQEmu/Server/pull/4971)) @regneq 2025-07-30
+
+### Loginserver
+
+* Fix Legacy World When Using Local DB ([#4970](https://github.com/EQEmu/Server/pull/4970)) @solar984 2025-08-03
+
+### Performance
+
+* Clear Wearchange Deduplication Cache ([#4960](https://github.com/EQEmu/Server/pull/4960)) @Akkadius 2025-06-30
+
+### Quest API
+
+* Add GetMemberRole() to Perl/Lua ([#4963](https://github.com/EQEmu/Server/pull/4963)) @Barathos 2025-07-10
+* Add GetTimers() and GetPausedTimers() to Perl/Lua ([#4965](https://github.com/EQEmu/Server/pull/4965)) @Kinglykrab 2025-08-03
+
+## [23.8.1] 6/28/2025
+
+### Crash Fix
+
+* Fix Possible Crashes with Raid Methods ([#4955](https://github.com/EQEmu/Server/pull/4955)) @Kinglykrab 2025-06-26
+
+### Databuckets
+
+* Revert Caching Changes of #4917 ([#4957](https://github.com/EQEmu/Server/pull/4957)) @Akkadius 2025-06-28
+
+### Fixes
+
+* Fix FindCharacter Using content_db ([#4956](https://github.com/EQEmu/Server/pull/4956)) @Kinglykrab 2025-06-26
+* Fix Hero Forge on Character Select ([#4954](https://github.com/EQEmu/Server/pull/4954)) @Kinglykrab 2025-06-26
+
+## [23.8.0] 6/25/2025
+
+### API
+
+* Add wwmarquee <type> <message> ([#4919](https://github.com/EQEmu/Server/pull/4919)) @Akkadius 2025-06-23
+
+### Build
+
+* Significantly Improve Build Times Using Unity Builds ([#4948](https://github.com/EQEmu/Server/pull/4948)) @Akkadius 2025-06-22
+
+### Code
+
+* AdventureManager Global to Singleton Cleanup ([#4931](https://github.com/EQEmu/Server/pull/4931)) @Kinglykrab 2025-06-25
+* Cleanup Strings Header ([#4950](https://github.com/EQEmu/Server/pull/4950)) @Akkadius 2025-06-22
+* ClientList Global to Singleton Cleanup ([#4942](https://github.com/EQEmu/Server/pull/4942)) @Kinglykrab 2025-06-25
+* DatabaseUpdate Global to Singleton Cleanup ([#4943](https://github.com/EQEmu/Server/pull/4943)) @Kinglykrab 2025-06-25
+* DiscordManager Global to Singleton Cleanup ([#4926](https://github.com/EQEmu/Server/pull/4926)) @Kinglykrab 2025-06-25
+* EQ::Random Global to Singleton Cleanup ([#4936](https://github.com/EQEmu/Server/pull/4936)) @Kinglykrab 2025-06-22
+* EQEmuLogSys Global to Singleton Cleanup ([#4925](https://github.com/EQEmu/Server/pull/4925)) @Akkadius 2025-06-25
+* EvolvingItemsManager Global to Singleton Cleanup ([#4929](https://github.com/EQEmu/Server/pull/4929)) @Kinglykrab 2025-06-25
+* LFGuildManager Global to Singleton Cleanup ([#4927](https://github.com/EQEmu/Server/pull/4927)) @Kinglykrab 2025-06-25
+* LoginServerList Global to Singleton Cleanup ([#4941](https://github.com/EQEmu/Server/pull/4941)) @Kinglykrab 2025-06-25
+* Optimize PCH Config (Faster Builds) ([#4951](https://github.com/EQEmu/Server/pull/4951)) @Akkadius 2025-06-22
+* PCH Cleanup ([#4952](https://github.com/EQEmu/Server/pull/4952)) @Akkadius 2025-06-25
+* PathManager Global to Singleton Cleanup ([#4924](https://github.com/EQEmu/Server/pull/4924)) @Akkadius 2025-06-22
+* PetitionList Global to Singleton Cleanup ([#4944](https://github.com/EQEmu/Server/pull/4944)) @Kinglykrab 2025-06-25
+* PlayerEventLogs Global to Singleton Cleanup ([#4928](https://github.com/EQEmu/Server/pull/4928)) @Kinglykrab 2025-06-25
+* QueryServConnection Global to Singleton Cleanup ([#4938](https://github.com/EQEmu/Server/pull/4938)) @Kinglykrab 2025-06-25
+* Remove Lua Rule Constants ([#4949](https://github.com/EQEmu/Server/pull/4949)) @Akkadius 2025-06-22
+* Remove Regex Compile Bloat ([#4947](https://github.com/EQEmu/Server/pull/4947)) @Akkadius 2025-06-22
+* Remove Unused MZoneShutdown Mutex ([#4946](https://github.com/EQEmu/Server/pull/4946)) @Kinglykrab 2025-06-22
+* SharedTaskManager Global to Singleton Cleanup ([#4930](https://github.com/EQEmu/Server/pull/4930)) @Kinglykrab 2025-06-25
+* SkillCaps Global to Singleton Cleanup ([#4933](https://github.com/EQEmu/Server/pull/4933)) @Kinglykrab 2025-06-22
+* TaskManager Global to Singleton Cleanup ([#4945](https://github.com/EQEmu/Server/pull/4945)) @Kinglykrab 2025-06-22
+* UCSConnection Global to Singleton Cleanup ([#4937](https://github.com/EQEmu/Server/pull/4937)) @Kinglykrab 2025-06-25
+* WebInterfaceList Global to Singleton Cleanup ([#4935](https://github.com/EQEmu/Server/pull/4935)) @Kinglykrab 2025-06-25
+* WorldContentServer Global to Singleton Cleanup ([#4939](https://github.com/EQEmu/Server/pull/4939)) @Kinglykrab 2025-06-25
+* WorldEventScheduler and ZoneEventScheduler Global to Singleton Cleanup ([#4932](https://github.com/EQEmu/Server/pull/4932)) @Kinglykrab 2025-06-25
+* ZSList Global to Singleton Cleanup ([#4940](https://github.com/EQEmu/Server/pull/4940)) @Kinglykrab 2025-06-25
+* ZoneStore Global to Singleton Cleanup ([#4934](https://github.com/EQEmu/Server/pull/4934)) @Kinglykrab 2025-06-23
+
+### Corpses
+
+* Add corpse entity variables to DB ([#4911](https://github.com/EQEmu/Server/pull/4911)) @fryguy503 2025-06-25
+
+### Databuckets
+
+* Move Databuckets to Common ([#4918](https://github.com/EQEmu/Server/pull/4918)) @Akkadius 2025-06-16
+* Nested Caching ([#4917](https://github.com/EQEmu/Server/pull/4917)) @Akkadius 2025-06-25
+
+### Doors
+
+* Fix door saving for versions ([#4905](https://github.com/EQEmu/Server/pull/4905)) @nytmyr 2025-06-09
+
+### Fixes
+
+* Bulk Send Corpses after Idle State ([#4910](https://github.com/EQEmu/Server/pull/4910)) @Akkadius 2025-06-09
+* Fix ClientList Singleton Shortcomings of #4942  @Akkadius 2025-06-25
+* Fix breaking changes to Titanium, SoF, SoD patches causes by big bags update ([#4922](https://github.com/EQEmu/Server/pull/4922)) @regneq 2025-06-25
+
+### Logs
+
+* Fix output for tasks in logs ([#4907](https://github.com/EQEmu/Server/pull/4907)) @joligario 2025-06-09
+
+### Performance
+
+* Auto Idle / AFK ([#4903](https://github.com/EQEmu/Server/pull/4903)) @Akkadius 2025-05-22
+* Wearchange Packet Send Deduplication ([#4916](https://github.com/EQEmu/Server/pull/4916)) @Akkadius 2025-06-25
+
+### Player Event Logs
+
+* Don't Clear Event Data on ETL Events ([#4913](https://github.com/EQEmu/Server/pull/4913)) @Akkadius 2025-06-25
+
+### Player Events
+
+* Don't Write Empty Data ([#4912](https://github.com/EQEmu/Server/pull/4912)) @Akkadius 2025-06-25
+* Zone Fetch Settings from QS if Enabled ([#4915](https://github.com/EQEmu/Server/pull/4915)) @Akkadius 2025-06-25
+
+### Quest API
+
+* Add CompleteTask and UncompleteTask methods to Perl/Lua ([#4921](https://github.com/EQEmu/Server/pull/4921)) @Barathos 2025-06-25
+* Lua Client Scoped EnableTitleSets ([#4914](https://github.com/EQEmu/Server/pull/4914)) @fryguy503 2025-06-25
+
+### Quests
+
+* Support Multiple Quest, Plugin, and Lua Module Paths ([#4906](https://github.com/EQEmu/Server/pull/4906)) @Akkadius 2025-06-09
+
+### World API
+
+* Input Validation ([#4904](https://github.com/EQEmu/Server/pull/4904)) @Akkadius 2025-05-22
+
+## [23.7.0] 5/19/2025
+
+### CLI
+
+* Add custom database version output ([#4901](https://github.com/EQEmu/Server/pull/4901)) @joligario 2025-05-18
+* Fix MySQL check in database dumper ([#4897](https://github.com/EQEmu/Server/pull/4897)) @joligario 2025-05-16
+
+### Commands
+
+* Add #zonevariable Command ([#4882](https://github.com/EQEmu/Server/pull/4882)) @Kinglykrab 2025-05-15
+
+### Database
+
+* Add Custom Database Migrations for Operators ([#4892](https://github.com/EQEmu/Server/pull/4892)) @Akkadius 2025-05-16
+* Remove Transaction Wrapped Character Save ([#4894](https://github.com/EQEmu/Server/pull/4894)) @Akkadius 2025-05-16
+
+### Fixes
+
+* Deadlock on failed #copycharacter commands ([#4887](https://github.com/EQEmu/Server/pull/4887)) @Akkadius 2025-05-16
+
+### Logging
+
+* Auto Update Log Category Names ([#4890](https://github.com/EQEmu/Server/pull/4890)) @Akkadius 2025-05-16
+
+### Netcode
+
+* Resend Logic Adjustments ([#4900](https://github.com/EQEmu/Server/pull/4900)) @Akkadius 2025-05-18
+
+### Player Events
+
+* Add rule to ignore configured GM commands ([#4888](https://github.com/EQEmu/Server/pull/4888)) @Akkadius 2025-05-16
+
+### Rules
+
+* Auto Update Rule Notes from Source ([#4891](https://github.com/EQEmu/Server/pull/4891)) @Akkadius 2025-05-16
+
+### World
+
+* Fix Rarer Reload Deadlock ([#4893](https://github.com/EQEmu/Server/pull/4893)) @Akkadius 2025-05-16
+
+### Zone State
+
+* Load New Spawn2 Data When Present ([#4889](https://github.com/EQEmu/Server/pull/4889)) @Akkadius 2025-05-16
+
+## [23.6.0] 5/14/2025
+
+### Bots
+
+* Correct ^pull logic and add checks for Enchanter pets ([#4827](https://github.com/EQEmu/Server/pull/4827)) @nytmyr 2025-05-15
+* Fix creation limit, spawn limit, level requirement checks ([#4868](https://github.com/EQEmu/Server/pull/4868)) @nytmyr 2025-05-15
+* Move all spell_id instances to uint16 ([#4876](https://github.com/EQEmu/Server/pull/4876)) @nytmyr 2025-05-15
+* Prevent non-taunters from potentially fleeing mob on TargetReflection ([#4859](https://github.com/EQEmu/Server/pull/4859)) @nytmyr 2025-04-28
+
+### CLI
+
+* ETL Settings Output ([#4873](https://github.com/EQEmu/Server/pull/4873)) @joligario 2025-05-15
+
+### Code
+
+* Fix typo in QueryNameAvailablity ([#4869](https://github.com/EQEmu/Server/pull/4869)) @nytmyr 2025-04-28
+
+### Crash
+
+* Fix crash bug with pbae and quest scripts spawning mobs ([#4884](https://github.com/EQEmu/Server/pull/4884)) @carolus21rex 2025-05-15
+
+### Feature
+
+* Add Character:TradeskillUpMinChance rule ([#4867](https://github.com/EQEmu/Server/pull/4867)) @zrix-eq 2025-05-15
+* Enable spawn attribute for NPCTintID ([#4871](https://github.com/EQEmu/Server/pull/4871)) @neckkola 2025-05-15
+
+### Fixes
+
+* Add trader/buyer cleanup actions ([#4843](https://github.com/EQEmu/Server/pull/4843)) @neckkola 2025-05-15
+* Fix #copycharacter command ([#4860](https://github.com/EQEmu/Server/pull/4860)) @nytmyr 2025-04-28
+* Fix Crash with #task ([#4874](https://github.com/EQEmu/Server/pull/4874)) @Kinglykrab 2025-04-30
+* Fix Object Name Init, User Refs, and Client Sync on Close ([#4861](https://github.com/EQEmu/Server/pull/4861)) @zimp-wow 2025-05-15
+* Fix breaking change to UF patches caused by Big Bags update ([#4883](https://github.com/EQEmu/Server/pull/4883)) @hbingram 2025-05-15
+* Prevent Ranged Attack from being triggered at arbitrary rate ([#4879](https://github.com/EQEmu/Server/pull/4879)) @catapultam-habeo 2025-05-15
+
+### Performance
+
+* Store Player Title Sets in Client Memory ([#4836](https://github.com/EQEmu/Server/pull/4836)) @Kinglykrab 2025-05-15
+
+### Quest API
+
+* Add Last Login and First Login Flags to EVENT_CONNECT ([#4866](https://github.com/EQEmu/Server/pull/4866)) @Kinglykrab 2025-05-15
+
+## [23.5.0] 4/10/2025
+
+### API
+
+* World API Optimizations ([#4850](https://github.com/EQEmu/Server/pull/4850)) @Akkadius 2025-04-10
+
+### Bots
+
+* Add valid state checks to ^clickitem ([#4830](https://github.com/EQEmu/Server/pull/4830)) @nytmyr 2025-04-10
+* Flag all buffs with SE_DamageShield as Damage Shield ([#4833](https://github.com/EQEmu/Server/pull/4833)) @nytmyr 2025-04-10
+* Positioning rewrite ([#4856](https://github.com/EQEmu/Server/pull/4856)) @nytmyr 2025-04-10
+* Restore old buff overwrite blocking ([#4832](https://github.com/EQEmu/Server/pull/4832)) @nytmyr 2025-04-10
+
+### Bugfix
+
+* Load zone variables before encounter_load. ([#4846](https://github.com/EQEmu/Server/pull/4846)) @zimp-wow 2025-04-10
+* Prevent depops from blocking new spawns. ([#4841](https://github.com/EQEmu/Server/pull/4841)) @zimp-wow 2025-04-10
+* Prevent final shutdown from persisting incomplete state. ([#4849](https://github.com/EQEmu/Server/pull/4849)) @zimp-wow 2025-04-10
+
+### Code
+
+* Remove queryserv dump flag ([#4842](https://github.com/EQEmu/Server/pull/4842)) @joligario 2025-04-10
+* Update link for legacy EQEmu loginserver account setup ([#4826](https://github.com/EQEmu/Server/pull/4826)) @joligario 2025-04-10
+
+### Crash
+
+* Fix rarer exception crash issue in PlayerEventLogs::ProcessBatchQueue ([#4835](https://github.com/EQEmu/Server/pull/4835)) @Akkadius 2025-04-03
+
+### Database
+
+* Fix manifest for `helmtexture` in `horses` table ([#4852](https://github.com/EQEmu/Server/pull/4852)) @joligario 2025-04-10
+
+### Feature
+
+* Add rule to consume command text from any channel ([#4839](https://github.com/EQEmu/Server/pull/4839)) @catapultam-habeo 2025-04-10
+
+### Fixes
+
+* Add the bazaar search limit to query ([#4829](https://github.com/EQEmu/Server/pull/4829)) @neckkola 2025-04-10
+* Backfill expire_at (not sure why this didn't make it in there to begin with)  @Akkadius 2025-03-31
+* Bazaar Search window not working in a DZ ([#4828](https://github.com/EQEmu/Server/pull/4828)) @neckkola 2025-04-10
+* Databuckets Account Cache Loading ([#4855](https://github.com/EQEmu/Server/pull/4855)) @Akkadius 2025-04-10
+* Fix missing timer_name check on Mob::StopTimer ([#4840](https://github.com/EQEmu/Server/pull/4840)) @zimp-wow 2025-04-04
+* FixHeading Infinite Loop Fix ([#4854](https://github.com/EQEmu/Server/pull/4854)) @KimLS 2025-04-10
+* Make sure we don't expire default value instances  @Akkadius 2025-03-31
+* Regression in World SendEmoteMessageRaw ([#4837](https://github.com/EQEmu/Server/pull/4837)) @Akkadius 2025-04-03
+* Remove QS Tables From Export  @Akkadius 2025-04-10
+* Zone State Spawn2 Location Restore ([#4844](https://github.com/EQEmu/Server/pull/4844)) @Akkadius 2025-04-10
+
+### Netcode
+
+* Fix Stale Client Edge Case ([#4853](https://github.com/EQEmu/Server/pull/4853)) @Akkadius 2025-04-10
+
+### Performance
+
+* Character Save Optimizations ([#4851](https://github.com/EQEmu/Server/pull/4851)) @Akkadius 2025-04-10
+* Network Ring Buffers ([#4857](https://github.com/EQEmu/Server/pull/4857)) @Akkadius 2025-04-10
+* Pre-Compute CLE Server Lists ([#4838](https://github.com/EQEmu/Server/pull/4838)) @Akkadius 2025-04-10
+
+### Spells
+
+* Fear resistance effects edge case fixes and support for SPA 102 as an AA ([#4848](https://github.com/EQEmu/Server/pull/4848)) @KayenEQ 2025-04-10
+* Update to SPA 180 SE_ResistSpellChance to not block unresistable spells. ([#4847](https://github.com/EQEmu/Server/pull/4847)) @KayenEQ 2025-04-10
+* Update to SPA 378 SE_SpellEffectResistChance ([#4845](https://github.com/EQEmu/Server/pull/4845)) @KayenEQ 2025-04-10
+
+## [23.4.0] 3/30/2025
+
+### API
+
+* Expose Zoneserver Compile Metadata ([#4815](https://github.com/EQEmu/Server/pull/4815)) @Akkadius 2025-03-29
+
+### Bots
+
+* Charmed Pets were breaking Mob respawns ([#4780](https://github.com/EQEmu/Server/pull/4780)) @nytmyr 2025-03-16
+* Enraged positioning ([#4789](https://github.com/EQEmu/Server/pull/4789)) @nytmyr 2025-03-29
+* Fix IsValidSpellTypeBySpellID to account for all types ([#4764](https://github.com/EQEmu/Server/pull/4764)) @nytmyr 2025-03-19
+* Fix Rule ZonesWithSpawnLimits/ZonesWithForcedSpawnLimits errors ([#4791](https://github.com/EQEmu/Server/pull/4791)) @nytmyr 2025-03-29
+* Fix rule Bots:FinishBuffing ([#4788](https://github.com/EQEmu/Server/pull/4788)) @nytmyr 2025-03-29
+* Line of Sight and Mez optimizations and cleanup ([#4746](https://github.com/EQEmu/Server/pull/4746)) @nytmyr 2025-03-29
+* Prevent bot pets from despawning on #repop ([#4790](https://github.com/EQEmu/Server/pull/4790)) @nytmyr 2025-03-29
+
+### Code
+
+* Control flow defaults missed in recent bot updates ([#4817](https://github.com/EQEmu/Server/pull/4817)) @joligario 2025-03-30
+* Remove Extraneous Time Type in ShowZoneData ([#4806](https://github.com/EQEmu/Server/pull/4806)) @Kinglykrab 2025-03-29
+* Remove Unused Command Methods ([#4805](https://github.com/EQEmu/Server/pull/4805)) @Kinglykrab 2025-03-29
+* UCS Member Count ([#4819](https://github.com/EQEmu/Server/pull/4819)) @joligario 2025-03-30
+
+### Commands
+
+* Add #show zone_variables ([#4812](https://github.com/EQEmu/Server/pull/4812)) @Akkadius 2025-03-29
+* Add Instance Support to #zoneshutdown ([#4807](https://github.com/EQEmu/Server/pull/4807)) @Kinglykrab 2025-03-29
+
+### Crash
+
+* Fix Rarer World Crash with Player Event Thread Processor ([#4800](https://github.com/EQEmu/Server/pull/4800)) @Akkadius 2025-03-29
+* Fix Repop Race Condition Crash ([#4814](https://github.com/EQEmu/Server/pull/4814)) @Akkadius 2025-03-29
+
+### Database
+
+* Fix Respawn Times Table ([#4802](https://github.com/EQEmu/Server/pull/4802)) @Akkadius 2025-03-29
+* Wrap PurgeExpiredInstances in a Transaction ([#4824](https://github.com/EQEmu/Server/pull/4824)) @Akkadius 2025-03-30
+
+### Feature
+
+* Implement /changename & related script bindings. Clean up #set name ([#4770](https://github.com/EQEmu/Server/pull/4770)) @catapultam-habeo 2025-03-20
+
+### Fixes
+
+* AllowFVNoDrop Flag trades ([#4809](https://github.com/EQEmu/Server/pull/4809)) @neckkola 2025-03-27
+* Fix Instance Creation Race Condition ([#4803](https://github.com/EQEmu/Server/pull/4803)) @Akkadius 2025-03-29
+* Fix zone crash when attempting to add a disappearing client to hate list. ([#4782](https://github.com/EQEmu/Server/pull/4782)) @zimp-wow 2025-03-19
+* Globally Reloading Quests when not loaded ([#4813](https://github.com/EQEmu/Server/pull/4813)) @Akkadius 2025-03-29
+* Instance DZ Creation ([#4823](https://github.com/EQEmu/Server/pull/4823)) @Akkadius 2025-03-30
+* Zone State Entity Variable Load Pre-Spawn ([#4785](https://github.com/EQEmu/Server/pull/4785)) @Akkadius 2025-03-19
+* Zone State Position Fix ([#4784](https://github.com/EQEmu/Server/pull/4784)) @Akkadius 2025-03-19
+* Zone State Variables Load First ([#4798](https://github.com/EQEmu/Server/pull/4798)) @Akkadius 2025-03-29
+* Zone state edge case with 0 hp ([#4787](https://github.com/EQEmu/Server/pull/4787)) @Akkadius 2025-03-29
+
+### Instance
+
+* Clear Respawn Timers on Creation ([#4801](https://github.com/EQEmu/Server/pull/4801)) @Akkadius 2025-03-29
+
+### Instances
+
+* Add `expire_at` Column ([#4820](https://github.com/EQEmu/Server/pull/4820)) @Akkadius 2025-03-30
+
+### Performance
+
+* Add several database indexes ([#4811](https://github.com/EQEmu/Server/pull/4811)) @Akkadius 2025-03-29
+* Have World Send Smarter Guild Updates ([#4796](https://github.com/EQEmu/Server/pull/4796)) @Akkadius 2025-03-29
+* Improve Character Select DB Performance ([#4799](https://github.com/EQEmu/Server/pull/4799)) @Akkadius 2025-03-29
+* Reduce Adventure S2S chatter ([#4793](https://github.com/EQEmu/Server/pull/4793)) @Akkadius 2025-03-29
+* Reduce CorpseOwnerOnline S2S Chatter to World ([#4795](https://github.com/EQEmu/Server/pull/4795)) @Akkadius 2025-03-29
+* Reduce LFGuild Chatter ([#4794](https://github.com/EQEmu/Server/pull/4794)) @Akkadius 2025-03-29
+* Reduce UpdateWho S2S Chatter to World ([#4792](https://github.com/EQEmu/Server/pull/4792)) @Akkadius 2025-03-29
+* Send Smarter Emote Packets ([#4818](https://github.com/EQEmu/Server/pull/4818)) @Akkadius 2025-03-30
+
+### Quest API
+
+* Add Support for NPC ID and NPC Name Specificity ([#4781](https://github.com/EQEmu/Server/pull/4781)) @Kinglykrab 2025-03-19
+
+### Reload
+
+* Add Reload for Maps / Navs ([#4816](https://github.com/EQEmu/Server/pull/4816)) @Akkadius 2025-03-29
+
+### Zone
+
+* Zone State Automated Testing and Improvements ([#4808](https://github.com/EQEmu/Server/pull/4808)) @Akkadius 2025-03-30
+* Zone State Improvements Part 3 ([#4773](https://github.com/EQEmu/Server/pull/4773)) @Akkadius 2025-03-13
+
+## [23.3.4] 3/14/2025
+
+### Fixes
+
+* Add check for simultaneous direct vendor and parcel Trader/Buyer Purchase ([#4778](https://github.com/EQEmu/Server/pull/4778)) @neckkola 2025-03-14
+* Fix for rare circumstance where NPC's would have 0 health on restore @Akkadius
+
+## [23.3.3] 3/13/2025
+
+### Database
+
+* Add indexes for data_buckets and zone_state_spawns ([#4771](https://github.com/EQEmu/Server/pull/4771)) @Akkadius 2025-03-11
+
+### Fixes
+
+* Update GuildBank to correctly handle items with charges equal to zero ([#4774](https://github.com/EQEmu/Server/pull/4774)) @neckkola 2025-03-13
+
+### Networking
+
+* Fix "port in use" error ([#4772](https://github.com/EQEmu/Server/pull/4772)) @Akkadius 2025-03-12
+
+### Zone
+
+* Zone State Improvements Part 3 ([#4773](https://github.com/EQEmu/Server/pull/4773)) @Akkadius 2025-03-13
+
+## [23.3.2] 3/11/2025
+
+### DynamicZones
+
+* Bulk request dz member statuses on zone boot ([#4769](https://github.com/EQEmu/Server/pull/4769)) @hgtw 2025-03-11
+
+### Zone
+
+* Zone State Improvements (Continued) ([#4768](https://github.com/EQEmu/Server/pull/4768)) @Akkadius 2025-03-11
+
+## [23.3.0] 3/8/2025
+
+### Bots
+
+* Fix buffs not overwriting lesser buffs ([#4756](https://github.com/EQEmu/Server/pull/4756)) @nytmyr 2025-03-06
+* Fix taunting bots positioning ([#4754](https://github.com/EQEmu/Server/pull/4754)) @nytmyr 2025-03-06
+* Move commanded spell map to zone ([#4755](https://github.com/EQEmu/Server/pull/4755)) @nytmyr 2025-03-06
+
+### Code
+
+* Fix typo in GM tradeskill combine message ([#4762](https://github.com/EQEmu/Server/pull/4762)) @nytmyr 2025-03-08
+
+### Crash
+
+* Bot aura crash fix ([#4752](https://github.com/EQEmu/Server/pull/4752)) @nytmyr 2025-03-06
+
+### Databuckets
+
+* Nested Databuckets Protections and Improvements ([#4748](https://github.com/EQEmu/Server/pull/4748)) @Akkadius 2025-03-04
+
+### Feature
+
+* Add Rule for dealing with augments when an item evolves ([#4758](https://github.com/EQEmu/Server/pull/4758)) @neckkola 2025-03-08
+* Allow assigning Helm Texture independently of Body Texture for Horses ([#4759](https://github.com/EQEmu/Server/pull/4759)) @catapultam-habeo 2025-03-08
+
+### Fixes
+
+* Add crash checks for certain PlayerEventLogs ([#4761](https://github.com/EQEmu/Server/pull/4761)) @neckkola 2025-03-07
+* Correct incorrectly calculated stat caps with Heroic Stats ([#4760](https://github.com/EQEmu/Server/pull/4760)) @catapultam-habeo 2025-03-08
+* Fix sigabort crash from invalid JSON  @Akkadius 2025-03-03
+* Forgot to push up some changes for test output  @Akkadius 2025-03-04
+* Parcel Delivery Updates for two edge cases ([#4753](https://github.com/EQEmu/Server/pull/4753)) @neckkola 2025-03-06
+* Remove one port check in world  @Akkadius 2025-03-03
+* Zero out currentnpcid whenever spawn is reset. ([#4763](https://github.com/EQEmu/Server/pull/4763)) @zimp-wow 2025-03-08
+
+### Logging
+
+* Convert JSON Error to Data Buckets Logging Category ([#4747](https://github.com/EQEmu/Server/pull/4747)) @Kinglykrab 2025-03-04
+
+### Pets
+
+* Fix renamed pets loading as blank names ([#4751](https://github.com/EQEmu/Server/pull/4751)) @nytmyr 2025-03-05
+
+### Rules
+
+* Fix EvolvingItems:PercentOfRaidExperience Description ([#4757](https://github.com/EQEmu/Server/pull/4757)) @Kinglykrab 2025-03-07
+
+### Tests
+
+* Cleanup Hand-in Tests ([#4749](https://github.com/EQEmu/Server/pull/4749)) @Akkadius 2025-03-04
+
+### Zone
+
+* Make zone controller less likely to be visible, immune to all forms of combat ([#4750](https://github.com/EQEmu/Server/pull/4750)) @Akkadius 2025-03-06
+* State Save Improvements ([#4765](https://github.com/EQEmu/Server/pull/4765)) @Akkadius 2025-03-08
+
+## [23.2.0] 3/3/2025
+
+### Crash
+
+* Database SetMutex crash fix ([#4741](https://github.com/EQEmu/Server/pull/4741)) @Akkadius 2025-03-03
+* Fix Aura process crash with bots ([#4743](https://github.com/EQEmu/Server/pull/4743)) @Akkadius 2025-03-03
+* Fix crash in add loot code path ([#4745](https://github.com/EQEmu/Server/pull/4745)) @Akkadius 2025-03-03
+* Fix world repop crash ([#4742](https://github.com/EQEmu/Server/pull/4742)) @Akkadius 2025-03-03
+* Potential crash fix in scan close mobs ([#4744](https://github.com/EQEmu/Server/pull/4744)) @Akkadius 2025-03-03
+
+### Fixes
+
+* Cleanup zone buckets on instance purge. ([#4739](https://github.com/EQEmu/Server/pull/4739)) @zimp-wow 2025-03-02
+* Fix an error causing Endurance Regen to not be applied by items. ([#4738](https://github.com/EQEmu/Server/pull/4738)) @catapultam-habeo 2025-03-02
+
+### World
+
+* Check if port in use to avoid double booting mistakes ([#4740](https://github.com/EQEmu/Server/pull/4740)) @Akkadius 2025-03-03
+
+## [23.1.0] 3/1/2025
+
+### Bots
+
+* Fix unresponsive bots in groups upon group wipe ([#4712](https://github.com/EQEmu/Server/pull/4712)) @nytmyr 2025-02-28
+
+### Code
+
+* More login <-> world code cleanup ([#4724](https://github.com/EQEmu/Server/pull/4724)) @Akkadius 2025-02-28
+
+### Crash
+
+* Check for directory existence before traversing in CheckForCompatibleQuestPlugins ([#4730](https://github.com/EQEmu/Server/pull/4730)) @Akkadius 2025-03-02
+* Fix filesystem crash / exception in DatabaseDumpService::RemoveCredentialsFile() ([#4731](https://github.com/EQEmu/Server/pull/4731)) @Akkadius 2025-03-01
+* Fix large file size crash in File::GetContents for windows ([#4735](https://github.com/EQEmu/Server/pull/4735)) @Akkadius 2025-03-02
+* Fix reload concurrency crash when ran from Spire ([#4733](https://github.com/EQEmu/Server/pull/4733)) @Akkadius 2025-03-02
+* Validate item in SE_SummonItemIntoBag ([#4734](https://github.com/EQEmu/Server/pull/4734)) @Akkadius 2025-03-02
+* World CLI validation ([#4728](https://github.com/EQEmu/Server/pull/4728)) @Akkadius 2025-03-01
+
+### Database
+
+* Remove force_interactive from big bag updates ([#4727](https://github.com/EQEmu/Server/pull/4727)) @Akkadius 2025-03-01
+
+### Feature
+
+* Add a rule for spells to bypass stacking rules ([#4716](https://github.com/EQEmu/Server/pull/4716)) @catapultam-habeo 2025-02-28
+* Evolving items Additions ([#4725](https://github.com/EQEmu/Server/pull/4725)) @neckkola 2025-03-01
+
+### Fixes
+
+* Add character_pet_name to player tables schema  @Akkadius 2025-03-02
+* Add client packets to questmanager:setguild ([#4732](https://github.com/EQEmu/Server/pull/4732)) @neckkola 2025-03-01
+* Clear m_completed_shared_tasks before reloading  @Akkadius 2025-02-24
+* Fix AA Reset Error Message ([#4720](https://github.com/EQEmu/Server/pull/4720)) @Kinglykrab 2025-02-28
+* Fix Issue with Suffixes/Prefixes ([#4723](https://github.com/EQEmu/Server/pull/4723)) @Kinglykrab 2025-02-28
+* Fix Trading Items to Bot Pets ([#4721](https://github.com/EQEmu/Server/pull/4721)) @MortimerGreenwald 2025-02-28
+* Refactor ApplyItemBonuses to fix double-counting of ATK and recommended levels not correctly applying ([#4713](https://github.com/EQEmu/Server/pull/4713)) @catapultam-habeo 2025-03-01
+
+### Loginserver
+
+* Minor cleanup ([#4729](https://github.com/EQEmu/Server/pull/4729)) @Akkadius 2025-03-01
+
+### Quest API
+
+* Add Key Ring Methods to Perl and Lua ([#4719](https://github.com/EQEmu/Server/pull/4719)) @Kinglykrab 2025-02-28
+* Implement eq.handin() and quest::handin() ([#4718](https://github.com/EQEmu/Server/pull/4718)) @Akkadius 2025-02-28
+
+### Tasks
+
+* Extend IsTaskCompleted to also be aware of shared task completion ([#4714](https://github.com/EQEmu/Server/pull/4714)) @Akkadius 2025-02-24
+
+### Zone
+
+* Implement Zone State Saving on Shutdown ([#4715](https://github.com/EQEmu/Server/pull/4715)) @Akkadius 2025-02-28
+
+### Zone State
+
+* Wrap all serialization/deserialization in try/catch ([#4726](https://github.com/EQEmu/Server/pull/4726)) @Akkadius 2025-03-01
+
+## [23.0.2] 2/21/2025
+
+### Bots
+
+* Add checks to ensure bots and pets do not engage on ^pull ([#4708](https://github.com/EQEmu/Server/pull/4708)) @nytmyr 2025-02-22
+* Improve positioning ([#4709](https://github.com/EQEmu/Server/pull/4709)) @nytmyr 2025-02-22
+* Prevent medding in combat if any mob has bot targeted ([#4707](https://github.com/EQEmu/Server/pull/4707)) @nytmyr 2025-02-22
+
+### Client Mod
+
+* Adds a hacked fast camp rule for GMs ([#4697](https://github.com/EQEmu/Server/pull/4697)) @KimLS 2025-02-20
+
+### Fixes
+
+* Fix Lua Zone ID Exports ([#4700](https://github.com/EQEmu/Server/pull/4700)) @Kinglykrab 2025-02-22
+* Fix bad Mob reference in QuestManager::resumetimer() ([#4710](https://github.com/EQEmu/Server/pull/4710)) @zimp-wow 2025-02-22
+* Fix cursor load on zone ([#4704](https://github.com/EQEmu/Server/pull/4704)) @nytmyr 2025-02-22
+* Fix infinite loop in QuestManager::stoptimer() ([#4703](https://github.com/EQEmu/Server/pull/4703)) @zimp-wow 2025-02-21
+
+### Quest API
+
+* Add GetSpawn() to Perl and Lua ([#4702](https://github.com/EQEmu/Server/pull/4702)) @Kinglykrab 2025-02-22
+
+## [23.0.1] 2/20/2025
+
+### Fixes
+
+* Player event ordering merge fix ([#4699](https://github.com/EQEmu/Server/pull/4699)) @Akkadius 2025-02-20
+
+### Quest API
+
+* Add DisableRespawnTimers to Perl and Lua ([#4691](https://github.com/EQEmu/Server/pull/4691)) @Kinglykrab 2025-02-20
+
+## [23.0.0] 2/19/2025
+
+### Bots
+
+* Add AEHateLine to HateLine ParentType ([#4678](https://github.com/EQEmu/Server/pull/4678)) @nytmyr 2025-02-15
+* Add IsInRaidOrGroup checks to ^attack and ^pull ([#4654](https://github.com/EQEmu/Server/pull/4654)) @nytmyr 2025-02-07
+* Add missing stance options ([#4681](https://github.com/EQEmu/Server/pull/4681)) @nytmyr 2025-02-15
+* Bot Overhaul ([#4580](https://github.com/EQEmu/Server/pull/4580)) @nytmyr 2025-02-03
+* Command Cleanup ([#4676](https://github.com/EQEmu/Server/pull/4676)) @nytmyr 2025-02-15
+* Correct camp count on ^camp ([#4650](https://github.com/EQEmu/Server/pull/4650)) @nytmyr 2025-02-06
+* Correct helper message for forced casts ([#4656](https://github.com/EQEmu/Server/pull/4656)) @nytmyr 2025-02-07
+* Crash fixes related to GetNumberNeedingHealedInGroup ([#4684](https://github.com/EQEmu/Server/pull/4684)) @nytmyr 2025-02-15
+* Fix AE range calculation ([#4683](https://github.com/EQEmu/Server/pull/4683)) @nytmyr 2025-02-15
+* Fix Bards not casting ([#4638](https://github.com/EQEmu/Server/pull/4638)) @nytmyr 2025-02-03
+* Fix a couple potential crashes with GetNumberNeedingHealedInGroup ([#4652](https://github.com/EQEmu/Server/pull/4652)) @nytmyr 2025-02-07
+* Fix crash related to GetTempSpellType() ([#4649](https://github.com/EQEmu/Server/pull/4649)) @nytmyr 2025-02-06
+* Fix pets causing aggro ([#4677](https://github.com/EQEmu/Server/pull/4677)) @nytmyr 2025-02-15
+* Fix spell priority commands ([#4660](https://github.com/EQEmu/Server/pull/4660)) @nytmyr 2025-02-08
+* Fix typo in positioning ([#4659](https://github.com/EQEmu/Server/pull/4659)) @nytmyr 2025-02-08
+* Move BotGetSpellsByType to cache ([#4655](https://github.com/EQEmu/Server/pull/4655)) @nytmyr 2025-02-07
+* Prevents casting on ineligible targets due to target type, stacking, etc. ([#4680](https://github.com/EQEmu/Server/pull/4680)) @nytmyr 2025-02-15
+* Sanity checks for spell type updates ([#4641](https://github.com/EQEmu/Server/pull/4641)) @nytmyr 2025-02-05
+
+### Bug
+
+* Item Purchase Offset when multiple buyers are buying at the same time. ([#4628](https://github.com/EQEmu/Server/pull/4628)) @fryguy503 2025-02-06
+
+### CI
+
+* Fix database race condition ([#4646](https://github.com/EQEmu/Server/pull/4646)) @Akkadius 2025-02-06
+
+### Client Mod
+
+* Adds a hacked fast camp rule for GMs ([#4697](https://github.com/EQEmu/Server/pull/4697)) @KimLS 2025-02-20
+
+### Code
+
+* Bot RaidGroupSay ([#4653](https://github.com/EQEmu/Server/pull/4653)) @nytmyr 2025-02-07
+* Cleanup logic in cursor bag check ([#4642](https://github.com/EQEmu/Server/pull/4642)) @nytmyr 2025-02-04
+* Use Repositories for Titles ([#4608](https://github.com/EQEmu/Server/pull/4608)) @Kinglykrab 2025-02-07
+
+### Commands
+
+* Fix #goto not accepting proper heading ([#4685](https://github.com/EQEmu/Server/pull/4685)) @nytmyr 2025-02-15
+* Fix Illusion Block ([#4666](https://github.com/EQEmu/Server/pull/4666)) @nytmyr 2025-02-12
+
+### Crash
+
+* Fix raid/group crash regression ([#4671](https://github.com/EQEmu/Server/pull/4671)) @Akkadius 2025-02-12
+* Fix zone crash caused by NPC::MoveTo ([#4639](https://github.com/EQEmu/Server/pull/4639)) @catapultam-habeo 2025-02-03
+
+### Databuckets
+
+* Add Zone Scoped Databuckets ([#4690](https://github.com/EQEmu/Server/pull/4690)) @Akkadius 2025-02-18
+
+### Expeditions
+
+* Move expedition code into DynamicZone ([#4672](https://github.com/EQEmu/Server/pull/4672)) @hgtw 2025-02-16
+
+### Feature
+
+* Add Support for Tradeskill Recipe Inspect ([#4648](https://github.com/EQEmu/Server/pull/4648)) @Kinglykrab 2025-02-06
+* Add rule to allow /changepetname to function without being enabled by scripts.  @catapultam-habeo 2025-02-05
+* GuildBank Updates ([#4674](https://github.com/EQEmu/Server/pull/4674)) @neckkola 2025-02-15
+* Implement Big Bags ([#4606](https://github.com/EQEmu/Server/pull/4606)) @Kinglykrab 2025-02-03
+
+### Fixes
+
+* #rq and #reload quest alias ([#4694](https://github.com/EQEmu/Server/pull/4694)) @Akkadius 2025-02-18
+* Always spawn zone controller first ([#4669](https://github.com/EQEmu/Server/pull/4669)) @Akkadius 2025-02-12
+* Big Bag Cleanup ([#4643](https://github.com/EQEmu/Server/pull/4643)) @fryguy503 2025-02-05
+* Big Bag additional fixes ([#4644](https://github.com/EQEmu/Server/pull/4644)) @fryguy503 2025-02-05
+* Change logging level for no items found in a bazaar search to reduce spam logs. ([#4675](https://github.com/EQEmu/Server/pull/4675)) @neckkola 2025-02-13
+* Find Zone - Expansion Settings ([#4692](https://github.com/EQEmu/Server/pull/4692)) @MortimerGreenwald 2025-02-18
+* Fix Beastlord Warder Size Modifier ([#4665](https://github.com/EQEmu/Server/pull/4665)) @Kinglykrab 2025-02-12
+* Fix CI since hand-ins are merged  @Akkadius 2025-02-03
+* Fix Illusion Fade Texture Bug ([#4673](https://github.com/EQEmu/Server/pull/4673)) @Kinglykrab 2025-02-14
+* Fix Item Discovery ([#4663](https://github.com/EQEmu/Server/pull/4663)) @Kinglykrab 2025-02-10
+* Fix ST_GroupNoPets and ST_GroupClientAndPet ([#4667](https://github.com/EQEmu/Server/pull/4667)) @nytmyr 2025-02-10
+* Fix SendStatsWindow Mod2 Value Display ([#4658](https://github.com/EQEmu/Server/pull/4658)) @Kinglykrab 2025-02-07
+* Fix Tradeskill Queries ([#4661](https://github.com/EQEmu/Server/pull/4661)) @Kinglykrab 2025-02-09
+* Fix error in update manifest ([#4637](https://github.com/EQEmu/Server/pull/4637)) @nytmyr 2025-02-03
+* Fix issue with getting an unset nested databucket ([#4693](https://github.com/EQEmu/Server/pull/4693)) @Akkadius 2025-02-19
+* Fix non-error in player_event_logs ([#4695](https://github.com/EQEmu/Server/pull/4695)) @Akkadius 2025-02-18
+* GMMove Update Edge Case With Clients ([#4686](https://github.com/EQEmu/Server/pull/4686)) @Akkadius 2025-02-15
+* Item Handins to Pets ([#4687](https://github.com/EQEmu/Server/pull/4687)) @Akkadius 2025-02-15
+* Parcel Delivery Updates ([#4688](https://github.com/EQEmu/Server/pull/4688)) @neckkola 2025-02-16
+* Prevent zone from loading ETL ID's on bootup ([#4696](https://github.com/EQEmu/Server/pull/4696)) @Akkadius 2025-02-18
+* Update pre big bag corpse slot_id's to support big bags ([#4679](https://github.com/EQEmu/Server/pull/4679)) @nytmyr 2025-02-15
+
+### Inventory
+
+* Fix cursor bag saving to invalid slot_ids ([#4640](https://github.com/EQEmu/Server/pull/4640)) @nytmyr 2025-02-04
+
+### Items
+
+* Overhaul Item Hand-in System ([#4593](https://github.com/EQEmu/Server/pull/4593)) @Akkadius 2025-02-03
+
+### Loginserver
+
+* Fix iterator crash ([#4670](https://github.com/EQEmu/Server/pull/4670)) @Akkadius 2025-02-12
+* Modernize codebase ([#4647](https://github.com/EQEmu/Server/pull/4647)) @Akkadius 2025-02-06
+
+### NPC Handins
+
+* Fix MultiQuest Handins ([#4651](https://github.com/EQEmu/Server/pull/4651)) @Akkadius 2025-02-07
+
+### Performance
+
+* Server Reload Overhaul ([#4689](https://github.com/EQEmu/Server/pull/4689)) @Akkadius 2025-02-18
+
+### Player Event Logs
+
+* Migrate and Deprecate QS Legacy Logging ([#4542](https://github.com/EQEmu/Server/pull/4542)) @neckkola 2025-02-05
+
+### Quest API
+
+* Add Bandolier Methods ([#4635](https://github.com/EQEmu/Server/pull/4635)) @Kinglykrab 2025-02-03
+* Add Potion Belt Methods ([#4634](https://github.com/EQEmu/Server/pull/4634)) @Kinglykrab 2025-02-04
+* Add Zone Support to Perl and Lua ([#4662](https://github.com/EQEmu/Server/pull/4662)) @Kinglykrab 2025-02-09
+
+### Spells
+
+* Add all types to checks for max_targets_allowed rule for AEs ([#4682](https://github.com/EQEmu/Server/pull/4682)) @nytmyr 2025-02-15
+
+## [22.62.2] 2/1/2025
+
+### Fixes
+
+* Add price change check to the Bazaar Search Window purchase mechanics ([#4632](https://github.com/EQEmu/Server/pull/4632)) @neckkola 2025-02-01
+* NewBazaar Search Consumables ([#4631](https://github.com/EQEmu/Server/pull/4631)) @neckkola 2025-02-01
+* Update the shard bazaar search feature ([#4630](https://github.com/EQEmu/Server/pull/4630)) @neckkola 2025-02-01
+
+### Memory Leak
+
+* Revert " Change raw pointer to unique_ptr to avoid potential leak in dbg stream " ([#4616](https://github.com/EQEmu/Server/pull/4616)) @Akkadius 2025-01-27
+
+### Performance
+
+* Significantly Improve Client Network Resends ([#4629](https://github.com/EQEmu/Server/pull/4629)) @Akkadius 2025-02-01
+
+## [22.62.1] 1/27/2025
+
+### Memory Leak
+
+* Revert "Change raw pointer to unique_ptr to avoid potential leak in dbg stream" ([#4616](https://github.com/EQEmu/Server/pull/4616)) @Akkadius 2025-01-27
+
+### Performance
+
+* Re-use ClientUpdate packet memory ([#4619](https://github.com/EQEmu/Server/pull/4619)) @Akkadius 2025-01-27
+* Re-use OP_Animation packet ([#4621](https://github.com/EQEmu/Server/pull/4621)) @Akkadius 2025-01-27
+* Re-use OP_Damage packet memory ([#4625](https://github.com/EQEmu/Server/pull/4625)) @Akkadius 2025-01-27
+* Re-use OP_HPUpdate packet memory ([#4622](https://github.com/EQEmu/Server/pull/4622)) @Akkadius 2025-01-27
+* Re-use OP_PlayerStateAdd packet memory ([#4626](https://github.com/EQEmu/Server/pull/4626)) @Akkadius 2025-01-27
+* Re-use OP_SendFindableNPCs packet memory ([#4623](https://github.com/EQEmu/Server/pull/4623)) @Akkadius 2025-01-27
+
+### Repop
+
+* Make #repop instant ([#4620](https://github.com/EQEmu/Server/pull/4620)) @Akkadius 2025-01-27
+
+## [22.62.0] 1/26/2025
+
+### Bazaar
+
+* Improve Bazaar Search Performance ([#4615](https://github.com/EQEmu/Server/pull/4615)) @neckkola 2025-01-27
+
+### CLI
+
+* Add --skip-backup to world database:updates ([#4605](https://github.com/EQEmu/Server/pull/4605)) @Akkadius 2025-01-22
+
+### Database
+
+* Change npc_types walkspeed to be of type float ([#4589](https://github.com/EQEmu/Server/pull/4589)) @Akkadius 2025-01-07
+
+### Databuckets
+
+* Add Account Scoped Databuckets ([#4603](https://github.com/EQEmu/Server/pull/4603)) @Akkadius 2025-01-21
+* Implement Nested Databuckets ([#4604](https://github.com/EQEmu/Server/pull/4604)) @Akkadius 2025-01-27
+
+### Feature
+
+* Add Alternate Bazaar Search Approach ([#4600](https://github.com/EQEmu/Server/pull/4600)) @neckkola 2025-01-20
+* Add Support for Item Previews ([#4599](https://github.com/EQEmu/Server/pull/4599)) @Kinglykrab 2025-01-20
+* Evolving Item Support for RoF2 ([#4496](https://github.com/EQEmu/Server/pull/4496)) @neckkola 2025-01-20
+* Implement Custom Pet Names ([#4594](https://github.com/EQEmu/Server/pull/4594)) @catapultam-habeo 2025-01-22
+
+### Fixes
+
+* Add Bazaar BulkSendTrader Limit for RoF2 ([#4590](https://github.com/EQEmu/Server/pull/4590)) @neckkola 2025-01-08
+* CLI help menu from parsing correctly in World  @Akkadius 2025-01-22
+* Delete later in RemoveItem second case  @Akkadius 2025-01-25
+* Fix query error in character_evolving_items  @Akkadius 2025-01-21
+* Repair a memory leak in #summonitem ([#4591](https://github.com/EQEmu/Server/pull/4591)) @neckkola 2025-01-08
+* Repair an incorrect safe_delete call memory leak. ([#4588](https://github.com/EQEmu/Server/pull/4588)) @neckkola 2025-01-07
+* Repair levers opening the Evolving XP Transfer Window ([#4607](https://github.com/EQEmu/Server/pull/4607)) @neckkola 2025-01-23
+* Update a few Bazaar RoF2 routines for memory leaks ([#4592](https://github.com/EQEmu/Server/pull/4592)) @neckkola 2025-01-08
+* Update database version to match manifest  @Akkadius 2025-01-21
+* Update trader add/remove packets to limits for RoF2 ([#4595](https://github.com/EQEmu/Server/pull/4595)) @neckkola 2025-01-19
+
+### Linux
+
+* Implement KSM Kernel Samepage Merging with Maps ([#4601](https://github.com/EQEmu/Server/pull/4601)) @Akkadius 2025-01-21
+
+### Memory Leak
+
+* Change raw pointer to unique_ptr to avoid potential leak in dbg stream ([#4616](https://github.com/EQEmu/Server/pull/4616)) @KimLS 2025-01-27
+* Fix leak in BuyTraderItemOutsideBazaar ([#4609](https://github.com/EQEmu/Server/pull/4609)) @Akkadius 2025-01-24
+* Fix leak in Client::RemoveDuplicateLore ([#4614](https://github.com/EQEmu/Server/pull/4614)) @Akkadius 2025-01-24
+* Fix leak in NPC::RemoveItem ([#4611](https://github.com/EQEmu/Server/pull/4611)) @Akkadius 2025-01-24
+* Fix leak in QuestManager::varlink ([#4610](https://github.com/EQEmu/Server/pull/4610)) @Akkadius 2025-01-24
+* Fix leaks in Client::Handle_OP_AugmentItem ([#4612](https://github.com/EQEmu/Server/pull/4612)) @Akkadius 2025-01-24
+* Fix memory leak in Client::Handle_OP_MoveMultipleItems ([#4613](https://github.com/EQEmu/Server/pull/4613)) @Akkadius 2025-01-24
+
+### Performance
+
+* Client / NPC Position Update Optimizations ([#4602](https://github.com/EQEmu/Server/pull/4602)) @Akkadius 2025-01-21
+
+### Quest API
+
+* Add SetAAEXPPercentage to Perl/Lua ([#4597](https://github.com/EQEmu/Server/pull/4597)) @Kinglykrab 2025-01-19
+
+### Zone
+
+* Implement zone player count sharding ([#4536](https://github.com/EQEmu/Server/pull/4536)) @Akkadius 2025-01-08
+
+## [22.61.0] 1/6/2025
+
+### Bots
+
+* Fix AA ranks to account for level ([#4567](https://github.com/EQEmu/Server/pull/4567)) @nytmyr 2024-12-07
+
+### Code
+
+* Convert Event Parses to Single Line ([#4569](https://github.com/EQEmu/Server/pull/4569)) @Kinglykrab 2024-12-12
+* Fix GM Flag Spell Restriction Bypasses ([#4571](https://github.com/EQEmu/Server/pull/4571)) @Kinglykrab 2025-01-06
+* Remove Unused Group Methods ([#4559](https://github.com/EQEmu/Server/pull/4559)) @Kinglykrab 2024-12-12
+
+### Commands
+
+* Add #find bot Subcommand ([#4563](https://github.com/EQEmu/Server/pull/4563)) @Kinglykrab 2024-12-12
+* Add #find ldon_theme Subcommand ([#4564](https://github.com/EQEmu/Server/pull/4564)) @Kinglykrab 2024-12-12
+* Fix #copycharacter ([#4582](https://github.com/EQEmu/Server/pull/4582)) @Akkadius 2025-01-06
+
+### Databuckets
+
+* Improved Reliability and Performance of Databuckets ([#4562](https://github.com/EQEmu/Server/pull/4562)) @Akkadius 2024-12-12
+
+### Feature
+
+* Enable bazaar window 'Find Trader' functionality ([#4560](https://github.com/EQEmu/Server/pull/4560)) @neckkola 2024-12-12
+
+### Filesystem
+
+* Path Manager Improvements ([#4557](https://github.com/EQEmu/Server/pull/4557)) @Akkadius 2025-01-06
+
+### Fixes
+
+* Allow Items in ROF2 to Stack to 32,767 ([#4556](https://github.com/EQEmu/Server/pull/4556)) @Kinglykrab 2024-12-12
+* Fix EVENT_COMBAT on NPC Death ([#4558](https://github.com/EQEmu/Server/pull/4558)) @Kinglykrab 2024-11-28
+* Guild Membership Update Fix ([#4581](https://github.com/EQEmu/Server/pull/4581)) @neckkola 2025-01-06
+* Guild creation to propagate across zones ([#4575](https://github.com/EQEmu/Server/pull/4575)) @neckkola 2025-01-06
+* Repair a EQEMUConfig Memory Leak ([#4584](https://github.com/EQEmu/Server/pull/4584)) @neckkola 2025-01-06
+* Repair a LoadNPCEmote MemoryLeak ([#4586](https://github.com/EQEmu/Server/pull/4586)) @neckkola 2025-01-06
+* Repair a memory leak in GuildsList ([#4585](https://github.com/EQEmu/Server/pull/4585)) @neckkola 2025-01-06
+* Resolve a client crash when logging in or zoning ([#4572](https://github.com/EQEmu/Server/pull/4572)) @neckkola 2024-12-14
+
+### Groups
+
+* Fix AmIMainAssist incorrectly checking for MainTankName ([#4565](https://github.com/EQEmu/Server/pull/4565)) @nytmyr 2024-12-04
+
+### Inventory
+
+* Add GetInventorySlots() Method ([#4566](https://github.com/EQEmu/Server/pull/4566)) @Kinglykrab 2025-01-06
+
+### Logs
+
+* Improve Crash log defaults ([#4579](https://github.com/EQEmu/Server/pull/4579)) @Akkadius 2025-01-06
+
+### Maps
+
+* Fix broken Map MMFS implementation ([#4576](https://github.com/EQEmu/Server/pull/4576)) @Akkadius 2025-01-06
+
+### Network
+
+* Prune / disconnect TCP connections gracefully ([#4574](https://github.com/EQEmu/Server/pull/4574)) @Akkadius 2025-01-06
+
+### Rules
+
+* Add rules for requiring custom files from client ([#4561](https://github.com/EQEmu/Server/pull/4561)) @knervous 2024-12-12
+
+## [22.60.0] 11/25/2024
+
+### Bazaar
+
+* Further refinements for instanced bazaar ([#4544](https://github.com/EQEmu/Server/pull/4544)) @neckkola 2024-11-16
+
+### Code
+
+* Fix build with older C++ libraries ([#4549](https://github.com/EQEmu/Server/pull/4549)) @hgtw 2024-11-24
+
+### Config
+
+* Fix World TCP Address Configuration Default ([#4551](https://github.com/EQEmu/Server/pull/4551)) @Akkadius 2024-11-24
+
+### Fixes
+
+* Fix Issue with Perl EVENT_PAYLOAD ([#4545](https://github.com/EQEmu/Server/pull/4545)) @Kinglykrab 2024-11-24
+* Fix Possible Item Loss in Trades ([#4554](https://github.com/EQEmu/Server/pull/4554)) @Kinglykrab 2024-11-24
+* Fix Strings::Commify bug with #mystats ([#4547](https://github.com/EQEmu/Server/pull/4547)) @carolus21rex 2024-11-22
+* Fix an edge case with augmented items inside parceled containers ([#4546](https://github.com/EQEmu/Server/pull/4546)) @neckkola 2024-11-21
+* Fix for bazaar search of containers. ([#4540](https://github.com/EQEmu/Server/pull/4540)) @neckkola 2024-11-15
+* Fix for mult-instanced bazaar zones ([#4541](https://github.com/EQEmu/Server/pull/4541)) @neckkola 2024-11-15
+* Fix for sending money via Parcel, then changing your mind ([#4552](https://github.com/EQEmu/Server/pull/4552)) @neckkola 2024-11-24
+* Fix issue where NPC's are being hidden as traders ([#4539](https://github.com/EQEmu/Server/pull/4539)) @Akkadius 2024-11-15
+* Players could become flagged as a Trader when they were not trading ([#4553](https://github.com/EQEmu/Server/pull/4553)) @neckkola 2024-11-24
+
+### Rules
+
+* Add Rule to Disable NPCs Facing Target ([#4543](https://github.com/EQEmu/Server/pull/4543)) @Kinglykrab 2024-11-24
+
+### Tasks
+
+* Update tasks in all zones if invalid zone set ([#4550](https://github.com/EQEmu/Server/pull/4550)) @hgtw 2024-11-25
+
+## [22.59.1] 11/13/2024
+
+### Hotfix
+
+* Fix faulty database migration condition with databuckets (9285)
+
+## [22.59.0] 11/13/2024
+
+### Databuckets
+
+* Add database index to data_buckets ([#4535](https://github.com/EQEmu/Server/pull/4535)) @Akkadius 2024-11-09
+
+### Fixes
+
+* Bazaar two edge case issues resolved ([#4533](https://github.com/EQEmu/Server/pull/4533)) @neckkola 2024-11-09
+* Check if the mob is already in the close mobs list before inserting  @Akkadius 2024-11-11
+* ScanCloseMobs - Ensure scanning mob has an entity ID  @Akkadius 2024-11-10
+
+### Performance
+
+* Improvements to ScanCloseMobs logic ([#4534](https://github.com/EQEmu/Server/pull/4534)) @Akkadius 2024-11-08
+
+### Quest API
+
+* Add Native Database Querying Interface ([#4531](https://github.com/EQEmu/Server/pull/4531)) @hgtw 2024-11-13
+
+### Rules
+
+* Add Rule for restricting client versions to world server ([#4527](https://github.com/EQEmu/Server/pull/4527)) @knervous 2024-11-12
+
+## [22.58.0] 11/5/2024
+
+### Code
+
+* Add mysql prepared statement support ([#4530](https://github.com/EQEmu/Server/pull/4530)) @hgtw 2024-11-06
+* Update perlbind to 1.1.0 ([#4529](https://github.com/EQEmu/Server/pull/4529)) @hgtw 2024-11-06
+
+### Feature
+
+* Focus Skill Attack Spells ([#4528](https://github.com/EQEmu/Server/pull/4528)) @mmcgarvey 2024-10-31
+
+### Fixes
+
+* Add Missing Lua Registers ([#4525](https://github.com/EQEmu/Server/pull/4525)) @Kinglykrab 2024-10-24
+* Fix cross_zone_set_entity_variable_by_char_id in Lua ([#4526](https://github.com/EQEmu/Server/pull/4526)) @Kinglykrab 2024-10-24
+
+### Loginserver
+
+* Automatifc Opcode File Creation ([#4521](https://github.com/EQEmu/Server/pull/4521)) @KimLS 2024-10-22
+
+### Quest API
+
+* Add Spawn Circle/Grid Methods to Perl/Lua ([#4524](https://github.com/EQEmu/Server/pull/4524)) @Kinglykrab 2024-10-24
+
+## [22.57.1] 10/22/2024
+
+### Bots
+
+* Enable Bot Commands Only if Rule Enabled ([#4519](https://github.com/EQEmu/Server/pull/4519)) @Kinglykrab 2024-10-22
+* Fix pet buffs from saving duplicates every save ([#4520](https://github.com/EQEmu/Server/pull/4520)) @nytmyr 2024-10-22
+
+### Loginserver
+
+* Automatic Opcode File Creation ([#4521](https://github.com/EQEmu/Server/pull/4521)) @KimLS 2024-10-22
+
+## [22.57.0] 10/20/2024
+
+### Bots
+
+* Add "silent" option to ^spawn and mute raid spawn ([#4494](https://github.com/EQEmu/Server/pull/4494)) @nytmyr 2024-10-05
+* Add attack flag when told to attack ([#4490](https://github.com/EQEmu/Server/pull/4490)) @nytmyr 2024-09-29
+* Fix timers loading on spawn and zone ([#4516](https://github.com/EQEmu/Server/pull/4516)) @nytmyr 2024-10-20
+
+### Code
+
+* Fixed a typo in Zoning.cpp ([#4515](https://github.com/EQEmu/Server/pull/4515)) @carolus21rex 2024-10-20
+* Optimization Code Cleanup ([#4489](https://github.com/EQEmu/Server/pull/4489)) @Akkadius 2024-09-30
+* Remove Extra Skill in EQ::skills::GetExtraDamageSkills() ([#4486](https://github.com/EQEmu/Server/pull/4486)) @Kinglykrab 2024-10-03
+
+### Crash
+
+* Fixes a crash when the faction_list db table is empty. ([#4511](https://github.com/EQEmu/Server/pull/4511)) @KimLS 2024-10-14
+
+### Fixes
+
+* Add character_instance_safereturns to tables_to_zero_id ([#4485](https://github.com/EQEmu/Server/pull/4485)) @Morzain 2024-09-26
+* Correctly limit max targets of PBAOE ([#4507](https://github.com/EQEmu/Server/pull/4507)) @catapultam-habeo 2024-10-11
+* FindBestZ selecting false zone floor as bestz - Results in roambox failures ([#4504](https://github.com/EQEmu/Server/pull/4504)) @fryguy503 2024-10-13
+* Fix #set motd Crash ([#4495](https://github.com/EQEmu/Server/pull/4495)) @Kinglykrab 2024-10-05
+* Fix `character_exp_modifiers` Default Values ([#4502](https://github.com/EQEmu/Server/pull/4502)) @Kinglykrab 2024-10-09
+* Fix a display error regarding a few trader/buyer query errors ([#4514](https://github.com/EQEmu/Server/pull/4514)) @neckkola 2024-10-17
+* Fix Group ID 0 in Group::SaveGroupLeaderAA() ([#4487](https://github.com/EQEmu/Server/pull/4487)) @Kinglykrab 2024-10-03
+* Fix Mercenary Encounter Crash ([#4509](https://github.com/EQEmu/Server/pull/4509)) @Kinglykrab 2024-10-12
+* Fix NPC::CanTalk() Crash ([#4499](https://github.com/EQEmu/Server/pull/4499)) @Kinglykrab 2024-10-07
+* Fix Spells:DefaultAOEMaxTargets Default Value ([#4508](https://github.com/EQEmu/Server/pull/4508)) @Kinglykrab 2024-10-12
+* Fix Targeted AOE Max Targets Rule ([#4488](https://github.com/EQEmu/Server/pull/4488)) @Kinglykrab 2024-10-03
+* fixed a bug where it would use npc value instead of faction value in the database. ([#4491](https://github.com/EQEmu/Server/pull/4491)) @regneq 2024-09-29
+* Master of Disguise should apply to illusions casted by others. ([#4506](https://github.com/EQEmu/Server/pull/4506)) @fryguy503 2024-10-11
+* Spells - Self Only (Yellow) cast when non group member is targeted ([#4503](https://github.com/EQEmu/Server/pull/4503)) @fryguy503 2024-10-11
+
+### Loginserver
+
+* Larion loginserver support ([#4492](https://github.com/EQEmu/Server/pull/4492)) @KimLS 2024-10-03
+* Login Fatal Error Spamming ([#4476](https://github.com/EQEmu/Server/pull/4476)) @KimLS 2024-10-09
+
+### Logs
+
+* Add NPC Trades to Player Events ([#4505](https://github.com/EQEmu/Server/pull/4505)) @Kinglykrab 2024-10-13
+
+### Quest API
+
+* Add Buff Fade Methods to Perl/Lua ([#4501](https://github.com/EQEmu/Server/pull/4501)) @Kinglykrab 2024-10-09
+* Add EVENT_READ_ITEM to Perl/Lua ([#4497](https://github.com/EQEmu/Server/pull/4497)) @Kinglykrab 2024-10-08
+* Add NPC List Filter Methods to Perl/Lua ([#4493](https://github.com/EQEmu/Server/pull/4493)) @Kinglykrab 2024-10-04
+* Add Scripting Support to Mercenaries ([#4500](https://github.com/EQEmu/Server/pull/4500)) @Kinglykrab 2024-10-11
+
+### Rules
+
+* Add Rule to disable PVP Regions ([#4513](https://github.com/EQEmu/Server/pull/4513)) @Kinglykrab 2024-10-17
+
+## [22.56.3] 9/23/2024
+
+### Fixes
+
+* Fix issue with Client::SaveDisciplines() not specifying character ID ([#4481](https://github.com/EQEmu/Server/pull/4477)) @Kinglykrab 2024-09-23
+
+## [22.56.2] 9/20/2024
+
+### Fixes
+
+* Fix Issue with Database::ReserveName ([#4477](https://github.com/EQEmu/Server/pull/4477)) @Kinglykrab 2024-09-20
+
+### Quest API
+
+* Add GrantAllAAPoints() Overload To Perl/Lua ([#4474](https://github.com/EQEmu/Server/pull/4474)) @Kinglykrab 2024-09-20
+
+## [22.56.1] 9/20/2024
+
+### Fixes
+
+* Fix Untrained Disciplines in Client::SaveDisciplines() ([#4472](https://github.com/EQEmu/Server/pull/4472)) @Kinglykrab 2024-09-13
+* Fix Infinite Loop in Adventure::Finished() ([#4473](https://github.com/EQEmu/Server/pull/4473)) @oddx2k 2024-09-13
+
+## [22.56.0] 9/12/2024
+
+### Code
+
+* Add IsCloseToBanker method ([#4462](https://github.com/EQEmu/Server/pull/4462)) @Akkadius 2024-08-27
+
+### Feature
+
+* Add Rule to Limit Task Update Messages ([#4459](https://github.com/EQEmu/Server/pull/4459)) @Kinglykrab 2024-08-28
+* Allow NPCs to cast Sacrifice ([#4470](https://github.com/EQEmu/Server/pull/4470)) @fuzzlecutter 2024-09-12
+* Lazy Load Bank Contents ([#4453](https://github.com/EQEmu/Server/pull/4453)) @catapultam-habeo 2024-08-27
+
+### Fixes
+
+* Add RULE_STRING to RuleManager::ResetRules ([#4467](https://github.com/EQEmu/Server/pull/4467)) @Kinglykrab 2024-09-07
+* Fix Bard Effect in Migration 9237 ([#4468](https://github.com/EQEmu/Server/pull/4468)) @Kinglykrab 2024-09-09
+* ModernAAScalingEnabled() Calculation Error ([#4469](https://github.com/EQEmu/Server/pull/4469)) @carolus21rex 2024-09-11
+
+### Performance
+
+* Move Discipline Loading to Client::CompleteConnect() ([#4466](https://github.com/EQEmu/Server/pull/4466)) @Kinglykrab 2024-09-09
+
+### Rules
+
+* Add a Bandolier Swap Delay Rule ([#4465](https://github.com/EQEmu/Server/pull/4465)) @Kinglykrab 2024-09-08
+
+## [22.55.1] 8/26/2024
+
+### Code
+
+* Remove unused methods ([#4449](https://github.com/EQEmu/Server/pull/4449)) @Kinglykrab 2024-08-22
+
+### Feature
+
+* Add Character:DefaultGuildRank Rule ([#4438](https://github.com/EQEmu/Server/pull/4438)) @Kinglykrab 2024-08-04
+* Add Optional Return to EVENT_DAMAGE_TAKEN ([#4454](https://github.com/EQEmu/Server/pull/4454)) @Kinglykrab 2024-08-27
+* Extend Spell Buckets Functionality ([#4441](https://github.com/EQEmu/Server/pull/4441)) @Kinglykrab 2024-08-22
+
+### Fixes
+
+* Apply Race & Class restrictions to Auto-Combines ([#4452](https://github.com/EQEmu/Server/pull/4452)) @catapultam-habeo 2024-08-20
+* Attune Augments when Equipped ([#4446](https://github.com/EQEmu/Server/pull/4446)) @fryguy503 2024-08-10
+* Correct missed maxlevel reference in exp.cpp ([#4463](https://github.com/EQEmu/Server/pull/4463)) @N0ctrnl 2024-08-27
+* Ensure close of Tribute Item search ([#4439](https://github.com/EQEmu/Server/pull/4439)) @joligario 2024-08-04
+* Fix AddCrystals() in Perl/Lua ([#4445](https://github.com/EQEmu/Server/pull/4445)) @Kinglykrab 2024-08-10
+* Fix Bot Spell Entries IDs Capping at 32,767 ([#4444](https://github.com/EQEmu/Server/pull/4444)) @Kinglykrab 2024-08-27
+* Fix Character ID of 0 being inserted into character_stats_record ([#4458](https://github.com/EQEmu/Server/pull/4458)) @Kinglykrab 2024-08-22
+* Fix Issue with Removed #setfaction Command ([#4448](https://github.com/EQEmu/Server/pull/4448)) @Kinglykrab 2024-08-11
+* Fix Lua Client FilteredMessage ([#4437](https://github.com/EQEmu/Server/pull/4437)) @Kinglykrab 2024-07-31
+* Fix client hotbar exchanging items when zoning ([#4460](https://github.com/EQEmu/Server/pull/4460)) @neckkola 2024-08-27
+* Fix issue with killed mob coordinates ([#4457](https://github.com/EQEmu/Server/pull/4457)) @Kinglykrab 2024-08-22
+* Imitate Death should also clear zone feign aggro ([#4436](https://github.com/EQEmu/Server/pull/4436)) @fryguy503 2024-07-31
+* client_max_level allow leveling to end of level ([#4455](https://github.com/EQEmu/Server/pull/4455)) @fryguy503 2024-08-20
+
+### Improvement
+
+* Filtered Messages Extension ([#4435](https://github.com/EQEmu/Server/pull/4435)) @fryguy503 2024-07-31
+
+### Quest API
+
+* Add AreTasksCompleted() to Perl/Lua. ([#4456](https://github.com/EQEmu/Server/pull/4456)) @Kinglykrab 2024-08-23
+* Add Area-Based Quest Methods to Perl/Lua ([#4447](https://github.com/EQEmu/Server/pull/4447)) @Kinglykrab 2024-08-27
+* Add Several Door Methods to Perl/Lua ([#4451](https://github.com/EQEmu/Server/pull/4451)) @Kinglykrab 2024-08-16
+
+### World
+
+* Fix slow world bootup bug ([#4461](https://github.com/EQEmu/Server/pull/4461)) @Akkadius 2024-08-27
+
+## [22.54.0] 7/30/2024
+
+### Code
+
+* Cleanup Client File Exporting ([#4348](https://github.com/EQEmu/Server/pull/4348)) @Kinglykrab 2024-07-31
+* Cleanup Stance Code ([#4368](https://github.com/EQEmu/Server/pull/4368)) @Kinglykrab 2024-07-03
+* Mask GM Show Buff message behind EntityVariable ([#4419](https://github.com/EQEmu/Server/pull/4419)) @nytmyr 2024-07-22
+
+### Commands
+
+* Extend #devtools Functionality ([#4425](https://github.com/EQEmu/Server/pull/4425)) @Kinglykrab 2024-07-23
+
+### Databuckets
+
+* Remove memory reserve from bulk load ([#4427](https://github.com/EQEmu/Server/pull/4427)) @Akkadius 2024-07-23
+
+### Feature
+
+* Add Barter/Buyer Features ([#4405](https://github.com/EQEmu/Server/pull/4405)) @neckkola 2024-07-30
+* Add Parcel notification for online players when using the Quest API ([#4418](https://github.com/EQEmu/Server/pull/4418)) @neckkola 2024-07-22
+* Implement Move Multiple Items ([#4259](https://github.com/EQEmu/Server/pull/4259)) @catapultam-habeo 2024-07-30
+
+### Fixes
+
+* Aegolism Spell line stacking ([#4399](https://github.com/EQEmu/Server/pull/4399)) @KayenEQ 2024-07-07
+* AllowRaidTargetBlind logic backwards ([#4400](https://github.com/EQEmu/Server/pull/4400)) @fryguy503 2024-07-01
+* AutoSplit unknown bug and cleanup. ([#4401](https://github.com/EQEmu/Server/pull/4401)) @fryguy503 2024-07-07
+* Corpse Call removing Resurrection Effects ([#4410](https://github.com/EQEmu/Server/pull/4410)) @fryguy503 2024-07-22
+* Fix #parcels add subcommand ([#4431](https://github.com/EQEmu/Server/pull/4431)) @neckkola 2024-07-29
+* Fix #setlevel Allowing Skills Above Max ([#4423](https://github.com/EQEmu/Server/pull/4423)) @Kinglykrab 2024-07-23
+* Fix Bot::SetBotStance ([#4426](https://github.com/EQEmu/Server/pull/4426)) @Kinglykrab 2024-07-23
+* Fix Client::RemoveTitle ([#4421](https://github.com/EQEmu/Server/pull/4421)) @Kinglykrab 2024-07-23
+* Fix EVENT_USE_SKILL with Sense Heading ([#4424](https://github.com/EQEmu/Server/pull/4424)) @Kinglykrab 2024-07-23
+* Fix for random disconnects when a large number of guild members zone or disconnect ([#4402](https://github.com/EQEmu/Server/pull/4402)) @neckkola 2024-07-10
+* Fix issue with quest::echo and quest::me ([#4433](https://github.com/EQEmu/Server/pull/4433)) @Kinglykrab 2024-07-30
+* Personal tributes for bard items were not applying correctly ([#4416](https://github.com/EQEmu/Server/pull/4416)) @neckkola 2024-07-16
+* Potential fix for some undesired ranged explotative behavior. ([#4413](https://github.com/EQEmu/Server/pull/4413)) @fryguy503 2024-07-22
+* Proximity Aggro for Frustrated and Undead ([#4411](https://github.com/EQEmu/Server/pull/4411)) @fryguy503 2024-07-22
+* Slay Adjustments ([#4389](https://github.com/EQEmu/Server/pull/4389)) @fryguy503 2024-07-07
+* Stop DOSing ourselves with OP_WearChange ([#4432](https://github.com/EQEmu/Server/pull/4432)) @catapultam-habeo 2024-07-30
+* [Quest API] Fix getraididbycharid and getgroupidbycharid ([#4417](https://github.com/EQEmu/Server/pull/4417)) @nytmyr 2024-07-16
+
+### Improvement
+
+* Flee Overhaul ([#4407](https://github.com/EQEmu/Server/pull/4407)) @fryguy503 2024-07-30
+
+### Rules
+
+* Add HasteCap and Hastev3Cap rules for NPCs, Bots and Mercs ([#4406](https://github.com/EQEmu/Server/pull/4406)) @nytmyr 2024-07-22
+
+### Zone Instances
+
+* Revert " Handle routing to instances when using evac/succor " (#4429) ([#4297](https://github.com/EQEmu/Server/pull/4297)) @Akkadius 2024-07-30
+
+### Zoning
+
+* Improve zone routing ([#4428](https://github.com/EQEmu/Server/pull/4428)) @Akkadius 2024-07-30
+
+## [22.53.1] 6/16/2024
+
+### Fixes
+
+* Fix trader mode ([#4397](https://github.com/EQEmu/Server/pull/4397)) @joligario 2024-06-17
+
+## [22.53.0] 6/14/2024
+
+### Bug
+
+* Anon players should not show in /who all ([#4392](https://github.com/EQEmu/Server/pull/4392)) @fryguy503 2024-06-14
+* Escape should put player into SOS if owned. ([#4388](https://github.com/EQEmu/Server/pull/4388)) @fryguy503 2024-06-07
+* Prevent Resurrection Spells from being resisted ([#4393](https://github.com/EQEmu/Server/pull/4393)) @fryguy503 2024-06-14
+
+### Code
+
+* Cleanup Account Status Code ([#4376](https://github.com/EQEmu/Server/pull/4376)) @Kinglykrab 2024-06-02
+* Cleanup Body Type Code ([#4366](https://github.com/EQEmu/Server/pull/4366)) @Kinglykrab 2024-06-02
+* Cleanup Object Type Code ([#4375](https://github.com/EQEmu/Server/pull/4375)) @Kinglykrab 2024-06-14
+* Remove unused code in emu_constants.h ([#4384](https://github.com/EQEmu/Server/pull/4384)) @Kinglykrab 2024-06-14
+
+### Fixes
+
+* Fix #goto Target ([#4382](https://github.com/EQEmu/Server/pull/4382)) @Kinglykrab 2024-06-03
+* Fix Swarm Pet Damage Messages ([#4383](https://github.com/EQEmu/Server/pull/4383)) @Kinglykrab 2024-06-04
+* Fix for players having empty bazaar window dropdown list, even though trader is tagged as a trader. ([#4391](https://github.com/EQEmu/Server/pull/4391)) @neckkola 2024-06-14
+* Fix potential trader crash when serialized item not found ([#4386](https://github.com/EQEmu/Server/pull/4386)) @joligario 2024-06-14
+
+### Rules
+
+* Add Invisible Augment Rules ([#4385](https://github.com/EQEmu/Server/pull/4385)) @Kinglykrab 2024-06-14
+* Classic Harm Touch Formula ([#4394](https://github.com/EQEmu/Server/pull/4394)) @fryguy503 2024-06-14
+* Mend/Sneak allow success tuning ([#4390](https://github.com/EQEmu/Server/pull/4390)) @fryguy503 2024-06-14
+* Snare Override Movement Bonus ([#4381](https://github.com/EQEmu/Server/pull/4381)) @fryguy503 2024-06-02
+
+## [22.52.0] 6/1/2024
+
+### Code
+
+* Cleanup Bucket Comparison Code ([#4374](https://github.com/EQEmu/Server/pull/4374)) @Kinglykrab 2024-06-02
+* Cleanup Bug Category Code ([#4367](https://github.com/EQEmu/Server/pull/4367)) @Kinglykrab 2024-06-01
+* Cleanup Deity Code ([#4363](https://github.com/EQEmu/Server/pull/4363)) @Kinglykrab 2024-06-01
+* Cleanup Special Ability Code ([#4365](https://github.com/EQEmu/Server/pull/4365)) @Kinglykrab 2024-06-01
+* Remove unused code in common/eq_constants.h ([#4364](https://github.com/EQEmu/Server/pull/4364)) @Kinglykrab 2024-06-01
+
+### Combat
+
+* Adjustments to Crippling Blows/Slay Undead and Confirmed Critical Code ([#4354](https://github.com/EQEmu/Server/pull/4354)) @fryguy503 2024-05-27
+
+### Fixes
+
+* Add protection to ensure adventure points award are only attempted on players ([#4371](https://github.com/EQEmu/Server/pull/4371)) @joligario 2024-05-31
+* Adjust Kick/RoundKick Damage Lower levels ([#4355](https://github.com/EQEmu/Server/pull/4355)) @fryguy503 2024-05-28
+* Bazaar Search not working correctly for Iksar, Vashir, Drakkin and Froglok races ([#4379](https://github.com/EQEmu/Server/pull/4379)) @neckkola 2024-06-02
+* Fix Unescaped String in Client::GotoPlayer ([#4373](https://github.com/EQEmu/Server/pull/4373)) @Kinglykrab 2024-06-01
+
+### NPC Spells
+
+* Fixed an issue where the repository spell adj value was overriding the spell difficulty default value ([#4370](https://github.com/EQEmu/Server/pull/4370)) @regneq 2024-06-01
+
+### Quest API
+
+* Add Item Link Methods to Perl/Lua ([#4359](https://github.com/EQEmu/Server/pull/4359)) @Kinglykrab 2024-06-01
+
+### Quests
+
+* Fix Lua encounter double register ([#4369](https://github.com/EQEmu/Server/pull/4369)) @Akkadius 2024-05-31
+* Fix issue with Lua encounters loading in certain circumstances ([#4378](https://github.com/EQEmu/Server/pull/4378)) @Akkadius 2024-06-01
+
+### Rules
+
+* Add Skill Base Damage Rules ([#4360](https://github.com/EQEmu/Server/pull/4360)) @Kinglykrab 2024-06-01
+
+### Skills
+
+* Fix caps out of bounds issue ([#4377](https://github.com/EQEmu/Server/pull/4377)) @Akkadius 2024-06-01
+
+## [22.51.1] 5/27/2024
+
+### Fixes
+
+* Adjust return for perl release check  @Akkadius 2024-05-26
+* Corrected issue with bazaar purchase via parcels where an incorrect quantity would be calculated. ([#4352](https://github.com/EQEmu/Server/pull/4352)) @neckkola 2024-05-27
+
+### Performance
+
+* Improve SkillCaps::GetTrainLevel() Efficiency ([#4350](https://github.com/EQEmu/Server/pull/4350)) @Kinglykrab 2024-05-26
+
+### Rules
+
+* Legacy Compute Defense against modern agi based defense. ([#4349](https://github.com/EQEmu/Server/pull/4349)) @fryguy503 2024-05-27
+
+## [22.51.0] 5/26/2024
+
+### Commands
+
+* #npcspawn Changes ([#4311](https://github.com/EQEmu/Server/pull/4311)) @twincannon 2024-05-16
+* Cleanup #resetaa Command ([#4310](https://github.com/EQEmu/Server/pull/4310)) @Kinglykrab 2024-05-22
+
+### Crash
+
+* Add validation to RemoveXTarget ([#4324](https://github.com/EQEmu/Server/pull/4324)) @Akkadius 2024-05-25
+* Fix Zone deconstructor crashes ([#4325](https://github.com/EQEmu/Server/pull/4325)) @Akkadius 2024-05-25
+* Fix crash issue when dividing by zero in CalcHPRegen ([#4320](https://github.com/EQEmu/Server/pull/4320)) @Akkadius 2024-05-25
+* Fix crash when map name is null ([#4322](https://github.com/EQEmu/Server/pull/4322)) @Akkadius 2024-05-25
+* Fix player event crash in ITEM_DESTROY ([#4326](https://github.com/EQEmu/Server/pull/4326)) @Akkadius 2024-05-25
+* Fix player events reload when out of bounds ([#4321](https://github.com/EQEmu/Server/pull/4321)) @Akkadius 2024-05-25
+* Fix rarer crash in EntityList::MobProcess ([#4319](https://github.com/EQEmu/Server/pull/4319)) @Akkadius 2024-05-25
+
+### Feature
+
+* Add RoF2 Bazaar Support ([#4315](https://github.com/EQEmu/Server/pull/4315)) @neckkola 2024-05-26
+* Add SE_IncreaseArchery and rules to tune archery ([#4335](https://github.com/EQEmu/Server/pull/4335)) @fryguy503 2024-05-26
+* Add parcel container support ([#4305](https://github.com/EQEmu/Server/pull/4305)) @neckkola 2024-05-17
+
+### Fixes
+
+* Accuracy, Avoidance and Atk adjustments ([#4336](https://github.com/EQEmu/Server/pull/4336)) @fryguy503 2024-05-26
+* Fix Crash with null Argument in #modifynpcstat ([#4318](https://github.com/EQEmu/Server/pull/4318)) @Kinglykrab 2024-05-24
+* Fix RemoveAlternateCurrencyValue not updating Client ([#4317](https://github.com/EQEmu/Server/pull/4317)) @Kinglykrab 2024-05-23
+* Fix Using Bind Wound Above 70% Health ([#4340](https://github.com/EQEmu/Server/pull/4340)) @Kinglykrab 2024-05-26
+* Fix issue with #hotfix ([#4316](https://github.com/EQEmu/Server/pull/4316)) @Kinglykrab 2024-05-22
+* Fix issue with #suspend ([#4314](https://github.com/EQEmu/Server/pull/4314)) @Kinglykrab 2024-05-23
+* Fix issue with KeepOneRecordPerCompletedTask ([#4313](https://github.com/EQEmu/Server/pull/4313)) @Kinglykrab 2024-05-23
+* Fix mistaken removed RULE_CATEGORY_END() ([#4341](https://github.com/EQEmu/Server/pull/4341)) @fryguy503 2024-05-26
+* Missed a mob offense section for PR #4328 ([#4331](https://github.com/EQEmu/Server/pull/4331)) @fryguy503 2024-05-26
+* Raid Targets should not be Blindable as this will break all spell casting AI. ([#4334](https://github.com/EQEmu/Server/pull/4334)) @fryguy503 2024-05-26
+* When Mounts are allowed to zone, block them from zoning to disallowed zones. ([#4330](https://github.com/EQEmu/Server/pull/4330)) @fryguy503 2024-05-25
+* When refreshing buffs, attempt to use the same buffslot if the buff still exists. ([#4338](https://github.com/EQEmu/Server/pull/4338)) @fryguy503 2024-05-26
+
+### Lua Mod
+
+* Fix issue with SetAAEXP and SetEXP firing when uninitialized ([#4345](https://github.com/EQEmu/Server/pull/4345)) @Akkadius 2024-05-26
+
+### Merchants
+
+* Add New Classic Greed/Faction/Charisma Prices Rule ([#4301](https://github.com/EQEmu/Server/pull/4301)) @noudess 2024-05-17
+
+### Mobs
+
+* Remove entity type checks from ScanCloseMobs ([#4323](https://github.com/EQEmu/Server/pull/4323)) @Akkadius 2024-05-25
+
+### NPC Spells
+
+* Fix an issue where procs wouldn't fire if no spell entries in list ([#4344](https://github.com/EQEmu/Server/pull/4344)) @Akkadius 2024-05-26
+
+### Perl
+
+* Linux /opt/eqemu-perl checks when using release binaries ([#4346](https://github.com/EQEmu/Server/pull/4346)) @Akkadius 2024-05-26
+
+### Quest API
+
+* Add Zone Uptime Exports to Perl/Lua ([#4339](https://github.com/EQEmu/Server/pull/4339)) @Kinglykrab 2024-05-26
+
+### Rules
+
+* Added MeleeMitigation Level Difference Roll Adjusted for level diffs ([#4332](https://github.com/EQEmu/Server/pull/4332)) @fryguy503 2024-05-26
+* Allow maximum per kill AA amount ([#4329](https://github.com/EQEmu/Server/pull/4329)) @fryguy503 2024-05-25
+* Allow servers to adjust the filtering threshold for heals from damage (e.g. Mark of Kings). ([#4327](https://github.com/EQEmu/Server/pull/4327)) @fryguy503 2024-05-25
+* Backstab Haste Correction ([#4337](https://github.com/EQEmu/Server/pull/4337)) @fryguy503 2024-05-26
+* Mob Offensive and Weapon Skill static tables ([#4328](https://github.com/EQEmu/Server/pull/4328)) @fryguy503 2024-05-25
+* Remove hard coded initial aggro in favor or an adjustable Rule ([#4333](https://github.com/EQEmu/Server/pull/4333)) @fryguy503 2024-05-26
+
+### Scripts
+
+* Fix zone data load ordering issue ([#4343](https://github.com/EQEmu/Server/pull/4343)) @Akkadius 2024-05-26
+
+### Spells
+
+* Add content filtering to NPC spells ([#4309](https://github.com/EQEmu/Server/pull/4309)) @Akkadius 2024-05-17
+
+## [22.50.1] 5/12/2024
+
+### Fixes
+
+* Clear GuildOnlineStatus on world boot ([#4306](https://github.com/EQEmu/Server/pull/4306)) @neckkola 2024-05-12
+
+## [22.50.0] 5/9/2024
+
+### Code
+
+* Fix Message in #find task ([#4270](https://github.com/EQEmu/Server/pull/4270)) @Kinglykrab 2024-04-19
+
+### Combat
+
+* Add rule to set stun duration.  Add rule to add stun messages. ([#4284](https://github.com/EQEmu/Server/pull/4284)) @noudess 2024-04-25
+
+### Commands
+
+* Adjust #kill and #list Commands ([#4271](https://github.com/EQEmu/Server/pull/4271)) @Kinglykrab 2024-05-04
+
+### Compiling
+
+* Add profiler flag ([#4293](https://github.com/EQEmu/Server/pull/4293)) @xackery 2024-05-04
+
+### Corpses
+
+* Corpse searches for items did not search augs ([#4289](https://github.com/EQEmu/Server/pull/4289)) @noudess 2024-04-27
+
+### Database
+
+* Add Extra Haste to Bots/Character Tables ([#4286](https://github.com/EQEmu/Server/pull/4286)) @Kinglykrab 2024-05-04
+* Break out changes to `npc_types` from parcels ([#4295](https://github.com/EQEmu/Server/pull/4295)) @joligario 2024-05-03
+* Move pets query to content database ([#4296](https://github.com/EQEmu/Server/pull/4296)) @joligario 2024-05-04
+
+### Doors
+
+* Replace magic # in code with a field in doors table for when door closes. ([#4288](https://github.com/EQEmu/Server/pull/4288)) @noudess 2024-04-25
+
+### Experience
+
+* Add SetExp/SetAAExp lua mods ([#4292](https://github.com/EQEmu/Server/pull/4292)) @xackery 2024-05-04
+
+### Feature
+
+* Add Augmentation Support for Parcels ([#4285](https://github.com/EQEmu/Server/pull/4285)) @neckkola 2024-04-24
+* Add Character Auto Login ([#4216](https://github.com/EQEmu/Server/pull/4216)) @Kinglykrab 2024-04-15
+* Add Parcel Feature for RoF2 Clients ([#4198](https://github.com/EQEmu/Server/pull/4198)) @neckkola 2024-04-21
+* Add `is_parcel_merchant` to #npcedit ([#4290](https://github.com/EQEmu/Server/pull/4290)) @Kinglykrab 2024-05-04
+* Add devcontainer support ([#4294](https://github.com/EQEmu/Server/pull/4294)) @xackery 2024-05-09
+* Fix ignore_default on lua mod damage ([#4228](https://github.com/EQEmu/Server/pull/4228)) @xackery 2024-04-15
+
+### Fixes
+
+* "GM flag" vs "GM Flag"  @Akkadius 2024-05-04
+* All NPC classes could stun with kick/only warriors could be stunned ([#4273](https://github.com/EQEmu/Server/pull/4273)) @noudess 2024-04-24
+* Fix Account Flags Loading ([#4243](https://github.com/EQEmu/Server/pull/4243)) @Kinglykrab 2024-04-15
+* Fix Corpses "Disappearing" ([#4275](https://github.com/EQEmu/Server/pull/4275)) @joligario 2024-04-21
+* Fix Issue With Auto Login ([#4267](https://github.com/EQEmu/Server/pull/4267)) @Kinglykrab 2024-04-21
+* Fix crash from #4266  @Akkadius 2024-05-05
+* Fixes Issue 4257 - Double Taunt Message ([#4258](https://github.com/EQEmu/Server/pull/4258)) @fryguy503 2024-04-18
+* GLAA fix after database.cpp updates ([#4277](https://github.com/EQEmu/Server/pull/4277)) @neckkola 2024-04-21
+* GetSkill default return 0  @Akkadius 2024-05-05
+* Hero forge armor bug on login and show helm toggle. ([#4246](https://github.com/EQEmu/Server/pull/4246)) @noudess 2024-04-15
+* Perl__send_parcel GCC compile error  @Akkadius 2024-05-05
+* Remove food or water GM message  @Akkadius 2024-05-05
+* Revert GetSkill from #4234  @Akkadius 2024-05-05
+* Fix for world crash with over 1500 guilds ([#4299](https://github.com/EQEmu/Server/pull/4299)) @neckkola 2024-05-09
+
+### Hot Fix
+
+* Update database_update_manifest.cpp ([#4291](https://github.com/EQEmu/Server/pull/4291)) @noudess 2024-04-29
+
+### Loot
+
+* Add content filtering to lootdrop_entries ([#4229](https://github.com/EQEmu/Server/pull/4229)) @Akkadius 2024-04-15
+* Consolidate filtering logic ([#4280](https://github.com/EQEmu/Server/pull/4280)) @Akkadius 2024-04-21
+
+### Lua
+
+* Add IsImmuneToSpell Lua Mod ([#4278](https://github.com/EQEmu/Server/pull/4278)) @xackery 2024-04-28
+* Add UpdatePersonalFaction Lua Mod ([#4279](https://github.com/EQEmu/Server/pull/4279)) @xackery 2024-05-04
+
+### Messages
+
+* Add GM Status and Invulnerability Messages ([#4266](https://github.com/EQEmu/Server/pull/4266)) @Kinglykrab 2024-05-04
+* Fix bug where DoT messages stop coming out when mob dies. ([#4249](https://github.com/EQEmu/Server/pull/4249)) @noudess 2024-04-15
+* Fix multiple errors in spell damage at death. ([#4264](https://github.com/EQEmu/Server/pull/4264)) @noudess 2024-04-28
+
+### Performance
+
+* Change skill_cap from vector to map ([#4252](https://github.com/EQEmu/Server/pull/4252)) @xackery 2024-04-15
+
+### Pets
+
+* Fix errors in sync with client of sit/stand ([#4245](https://github.com/EQEmu/Server/pull/4245)) @noudess 2024-04-15
+
+### Quest API
+
+* Add DescribeSpecialAbilities() to Perl/Lua ([#4269](https://github.com/EQEmu/Server/pull/4269)) @Kinglykrab 2024-04-21
+* Add GetConsiderColor() to Perl/Lua ([#4253](https://github.com/EQEmu/Server/pull/4253)) @Kinglykrab 2024-04-15
+* Add Parcel Sending to Perl/Lua ([#4287](https://github.com/EQEmu/Server/pull/4287)) @Kinglykrab 2024-05-04
+* Add Zone Methods to Perl/Lua ([#4268](https://github.com/EQEmu/Server/pull/4268)) @Kinglykrab 2024-04-21
+
+### Quests
+
+* Hot Reload Changes ([#4302](https://github.com/EQEmu/Server/pull/4302)) @Akkadius 2024-05-09
+* Reload Quests on Bootup, Init earlier ([#4298](https://github.com/EQEmu/Server/pull/4298)) @Akkadius 2024-05-05
+
+### Spells
+
+* Implemented SPA 122 SE_ReduceSkill ([#4234](https://github.com/EQEmu/Server/pull/4234)) @KayenEQ 2024-05-04
+* Normal Group Spells (non-raid) landed twice on caster ([#4240](https://github.com/EQEmu/Server/pull/4240)) @noudess 2024-04-15
+* SPA69 TotalHP can be used in Worn Slot, Fixes/Updates to Max HP related variables. ([#4244](https://github.com/EQEmu/Server/pull/4244)) @KayenEQ 2024-04-15
+
+### Zone Instances
+
+* Handle routing to instances when using evac/succor ([#4297](https://github.com/EQEmu/Server/pull/4297)) @joligario 2024-05-04
+
+## [22.49.1] 4/15/2024
+
+### Zoning
+
+* Fix zone routing edge case ([#4255](https://github.com/EQEmu/Server/pull/4255)) @Akkadius 2024-04-15
+
+## [22.49.0] 4/15/2024
+
+### Code
+
+* Avoid unnecessary copies in database functions ([#4220](https://github.com/EQEmu/Server/pull/4220)) @joligario 2024-03-29
+* Reference type in `GetRaidLeaderName` ([#4218](https://github.com/EQEmu/Server/pull/4218)) @joligario 2024-03-28
+* Remove unnecessary reference types ([#4212](https://github.com/EQEmu/Server/pull/4212)) @joligario 2024-03-28
+
+### Crash
+
+* Check mob pointer before trying to remove it ([#4230](https://github.com/EQEmu/Server/pull/4230)) @Akkadius 2024-04-01
+
+### Feature
+
+* Add Character Auto Login ([#4216](https://github.com/EQEmu/Server/pull/4216)) @Kinglykrab 2024-04-15
+* Add LuaMod functions for CommonDamage and HealDamage ([#4227](https://github.com/EQEmu/Server/pull/4227)) @xackery 2024-03-31
+* Add RegisterBug LuaMod ([#4209](https://github.com/EQEmu/Server/pull/4209)) @xackery 2024-03-30
+* Additive Spell Focus from Worn slot with Limit Checks ([#4208](https://github.com/EQEmu/Server/pull/4208)) @KayenEQ 2024-03-30
+* Fix ignore_default on lua mod damage ([#4228](https://github.com/EQEmu/Server/pull/4228)) @xackery 2024-04-15
+
+### Fixes
+
+* Client not updating HP bar when an HP Buff with a Heal is applied. ([#4237](https://github.com/EQEmu/Server/pull/4237)) @KayenEQ 2024-04-02
+* Fix Account Flags Loading ([#4243](https://github.com/EQEmu/Server/pull/4243)) @Kinglykrab 2024-04-15
+* Fix Auto Login Issue ([#4213](https://github.com/EQEmu/Server/pull/4213)) @Kinglykrab 2024-03-28
+* Fix Bot Creation Issue ([#4235](https://github.com/EQEmu/Server/pull/4235)) @Kinglykrab 2024-04-02
+* Fix Bot/Character ID Overlap in Groups ([#4093](https://github.com/EQEmu/Server/pull/4093)) @Kinglykrab 2024-03-23
+* Fix Group Leadership ([#4214](https://github.com/EQEmu/Server/pull/4214)) @Kinglykrab 2024-03-28
+* Fix Issue With Bot Raid Aggro ([#4222](https://github.com/EQEmu/Server/pull/4222)) @Kinglykrab 2024-03-31
+* Fix Lua Crash with Spell Blocked Event ([#4236](https://github.com/EQEmu/Server/pull/4236)) @Kinglykrab 2024-04-01
+* Fix Luabind Double Class Register ([#4219](https://github.com/EQEmu/Server/pull/4219)) @Kinglykrab 2024-03-29
+* Fix crash in SendEnterWorld ([#4204](https://github.com/EQEmu/Server/pull/4204)) @Akkadius 2024-03-24
+* Fix event_consider any_cast error ([#4210](https://github.com/EQEmu/Server/pull/4210)) @xackery 2024-03-27
+* Fix fishing chances ([#4203](https://github.com/EQEmu/Server/pull/4203)) @joligario 2024-03-24
+* Fix manifest for skill caps schema type ([#4231](https://github.com/EQEmu/Server/pull/4231)) @Akkadius 2024-04-02
+* Hero forge armor bug on login and show helm toggle. ([#4246](https://github.com/EQEmu/Server/pull/4246)) @noudess 2024-04-15
+* Radiant/Ebon Crystals should only extract to 1000 ([#4195](https://github.com/EQEmu/Server/pull/4195)) @fryguy503 2024-03-23
+* SPA214 SE_MaxHPChange calculation errors corrected. ([#4238](https://github.com/EQEmu/Server/pull/4238)) @KayenEQ 2024-04-02
+* Shared Tasks - charid is now character_id ([#4233](https://github.com/EQEmu/Server/pull/4233)) @fryguy503 2024-04-01
+* Using %T in channel messages on fresh corpse yields mob, not corpse name. ([#4168](https://github.com/EQEmu/Server/pull/4168)) @noudess 2024-04-05
+
+### Hot Fix
+
+* Fix Group::AddToGroup ([#4201](https://github.com/EQEmu/Server/pull/4201)) @Kinglykrab 2024-03-23
+* Hot Fix for Group::AddToGroup Hot Fix ([#4202](https://github.com/EQEmu/Server/pull/4202)) @Kinglykrab 2024-03-23
+
+### Loot
+
+* Add content filtering to lootdrop_entries ([#4229](https://github.com/EQEmu/Server/pull/4229)) @Akkadius 2024-04-15
+
+### Lua
+
+* Add Zone and Language Constants ([#4211](https://github.com/EQEmu/Server/pull/4211)) @fryguy503 2024-03-28
+
+### Messages
+
+* Fix bug where DoT messages stop coming out when mob dies. ([#4249](https://github.com/EQEmu/Server/pull/4249)) @noudess 2024-04-15
+
+### Performance
+
+* Change skill_cap from vector to map ([#4252](https://github.com/EQEmu/Server/pull/4252)) @xackery 2024-04-15
+
+### Pets
+
+* Fix errors in sync with client of sit/stand ([#4245](https://github.com/EQEmu/Server/pull/4245)) @noudess 2024-04-15
+
+### Quest API
+
+* Add Archetype Methods to Perl/Lua ([#4181](https://github.com/EQEmu/Server/pull/4181)) @Kinglykrab 2024-03-23
+* Add Class/Deity/Race Methods to Perl/Lua ([#4215](https://github.com/EQEmu/Server/pull/4215)) @Kinglykrab 2024-03-28
+* Add GetConsiderColor() to Perl/Lua ([#4253](https://github.com/EQEmu/Server/pull/4253)) @Kinglykrab 2024-04-15
+* Add Spell Blocked Event to Perl/Lua ([#4217](https://github.com/EQEmu/Server/pull/4217)) @Kinglykrab 2024-04-01
+
+### Quests
+
+* Avoid Player and Bot quests in unloaded zone ([#4232](https://github.com/EQEmu/Server/pull/4232)) @hgtw 2024-04-01
+
+### Repositories
+
+* Convert database.cpp to Repositories ([#4054](https://github.com/EQEmu/Server/pull/4054)) @Kinglykrab 2024-03-24
+
+### Skill Caps
+
+* Further improvements ([#4205](https://github.com/EQEmu/Server/pull/4205)) @Akkadius 2024-03-24
+* Remove from shared memory and simplify ([#4069](https://github.com/EQEmu/Server/pull/4069)) @Kinglykrab 2024-03-23
+
+### Spells
+
+* Implemented SPA 463 SE_SHIELD_TARGET ([#4224](https://github.com/EQEmu/Server/pull/4224)) @KayenEQ 2024-03-30
+* Normal Group Spells (non-raid) landed twice on caster ([#4240](https://github.com/EQEmu/Server/pull/4240)) @noudess 2024-04-15
+* SPA148 Stacking Fix ([#4206](https://github.com/EQEmu/Server/pull/4206)) @KayenEQ 2024-03-27
+* SPA69 TotalHP can be used in Worn Slot, Fixes/Updates to Max HP related variables. ([#4244](https://github.com/EQEmu/Server/pull/4244)) @KayenEQ 2024-04-15
+
+## [22.48.0] 3/23/2024
+
+### Bots
+
+* IsValidTarget Crash Fix ([#4187](https://github.com/EQEmu/Server/pull/4187)) @nytmyr 2024-03-12
+* Move BotGroupSay to Pet Response ([#4171](https://github.com/EQEmu/Server/pull/4171)) @nytmyr 2024-03-08
+
+### Code
+
+* Cleanup Zone Get Methods ([#4169](https://github.com/EQEmu/Server/pull/4169)) @Kinglykrab 2024-03-09
+
+### Fixes
+
+* An Update to Xtarget to exclude Bot owned Temp/Swarm Pets ([#4172](https://github.com/EQEmu/Server/pull/4172)) @MortimerGreenwald 2024-03-08
+* Fix #serverrules Command ([#4193](https://github.com/EQEmu/Server/pull/4193)) @Kinglykrab 2024-03-20
+* Fix Bot Cloning ([#4186](https://github.com/EQEmu/Server/pull/4186)) @Kinglykrab 2024-03-17
+* Fix Crash in ClientList::GetCLEIP ([#4173](https://github.com/EQEmu/Server/pull/4173)) @Kinglykrab 2024-03-10
+* Fix Default Value in `rule_values` table ([#4166](https://github.com/EQEmu/Server/pull/4166)) @Kinglykrab 2024-03-07
+* Fix EVENT_KILLED_MERIT firing before NPC removal ([#4185](https://github.com/EQEmu/Server/pull/4185)) @Kinglykrab 2024-03-17
+* Fix Empty Groups When Removing Bots ([#4178](https://github.com/EQEmu/Server/pull/4178)) @Kinglykrab 2024-03-14
+* Fix GetLeaderName() for Groups ([#4184](https://github.com/EQEmu/Server/pull/4184)) @Kinglykrab 2024-03-14
+* Fix Mob::CalculateDistance(mob) Typo ([#4183](https://github.com/EQEmu/Server/pull/4183)) @Kinglykrab 2024-03-10
+* Fix Proximity Say ([#4189](https://github.com/EQEmu/Server/pull/4189)) @Kinglykrab 2024-03-15
+* Fix ScaleNPC() in Perl ([#4196](https://github.com/EQEmu/Server/pull/4196)) @Kinglykrab 2024-03-23
+* Fix range_percent ([#4197](https://github.com/EQEmu/Server/pull/4197)) @Kinglykrab 2024-03-22
+* Fix reusing timers ([#4199](https://github.com/EQEmu/Server/pull/4199)) @joligario 2024-03-23
+
+### Hot Fix
+
+* Add bool return to fix Client::RemoveAAPoints ([#4176](https://github.com/EQEmu/Server/pull/4176)) @Kinglykrab 2024-03-09
+
+### Loot
+
+* Fix issue with nested data being loaded multiple times ([#4192](https://github.com/EQEmu/Server/pull/4192)) @Akkadius 2024-03-23
+
+### Misc
+
+* Windows preprocessor define in crash.cpp ([#4191](https://github.com/EQEmu/Server/pull/4191)) @joligario 2024-03-23
+
+### Quest API
+
+* Add Buff Support to Perl/Lua ([#4182](https://github.com/EQEmu/Server/pull/4182)) @Kinglykrab 2024-03-14
+* Add DeleteBot() to Perl/Lua ([#4167](https://github.com/EQEmu/Server/pull/4167)) @nytmyr 2024-03-07
+* Add GetDeityName() to Perl/Lua ([#4180](https://github.com/EQEmu/Server/pull/4180)) @Kinglykrab 2024-03-14
+* Add RemoveAAPoints() and AA Loss Event to Perl/Lua ([#4174](https://github.com/EQEmu/Server/pull/4174)) @Kinglykrab 2024-03-09
+* Add RemoveAlternateCurrencyValue() to Perl/Lua ([#4190](https://github.com/EQEmu/Server/pull/4190)) @Kinglykrab 2024-03-17
+* Add Restore Methods for Health, Mana, and Endurance to Perl/Lua ([#4179](https://github.com/EQEmu/Server/pull/4179)) @Kinglykrab 2024-03-23
+* Add Silent Saylink Methods to Perl/Lua ([#4177](https://github.com/EQEmu/Server/pull/4177)) @Kinglykrab 2024-03-14
+
+### Rules
+
+* Add World:Rules Rule ([#4194](https://github.com/EQEmu/Server/pull/4194)) @Kinglykrab 2024-03-23
+
+### Tradeskills
+
+* Implement learning recipes from books ([#4170](https://github.com/EQEmu/Server/pull/4170)) @hgtw 2024-03-23
+
+## [22.47.0] 3/5/2024
+
+### Crash Fix
+
+* Added a guild_mgr check ([#4163](https://github.com/EQEmu/Server/pull/4163)) @neckkola 2024-03-06
+* Goto Command could crash using Developer Tools ([#4158](https://github.com/EQEmu/Server/pull/4158)) @neckkola 2024-03-04
+* Groundspawn Memory Corruption ([#4157](https://github.com/EQEmu/Server/pull/4157)) @neckkola 2024-03-04
+* Update to location of qGlobals initialization ([#4144](https://github.com/EQEmu/Server/pull/4144)) @neckkola 2024-03-02
+
+### Feature
+
+* Adds rules to control level requirements for Double Backstab, Assassinate, and Double Bowshot  (#4159) ([#29](https://github.com/EQEmu/Server/pull/29)) @catapultam-habeo 2024-03-04
+* Adjust String-based Rules Length ([#4138](https://github.com/EQEmu/Server/pull/4138)) @Kinglykrab 2024-03-06
+* Exempt a zone from IP-limit checks. ([#4137](https://github.com/EQEmu/Server/pull/4137)) @catapultam-habeo 2024-03-02
+
+### Fixes
+
+* Add id to the guild_bank table ([#4155](https://github.com/EQEmu/Server/pull/4155)) @neckkola 2024-03-05
+* Fix Bots/Bot Pets ending up on XTargets ([#4132](https://github.com/EQEmu/Server/pull/4132)) @Kinglykrab 2024-03-02
+* Fix Character EXP Modifiers default ([#4161](https://github.com/EQEmu/Server/pull/4161)) @Kinglykrab 2024-03-06
+* Fix Spawns Not Parsing Quest on Zone Bootup ([#4149](https://github.com/EQEmu/Server/pull/4149)) @Kinglykrab 2024-03-05
+* Fix typo when updating spawn events in spawn condition manager ([#4160](https://github.com/EQEmu/Server/pull/4160)) @joligario 2024-03-05
+* GetBotNameByID Temporary Reference Warning ([#4145](https://github.com/EQEmu/Server/pull/4145)) @Kinglykrab 2024-03-02
+* Prevent NPE when creating DZ using ad-hoc version IDs ([#4141](https://github.com/EQEmu/Server/pull/4141)) @catapultam-habeo 2024-03-05
+* Update FreeGuildID Routine ([#4143](https://github.com/EQEmu/Server/pull/4143)) @neckkola 2024-03-02
+
+### Quest API
+
+* Add Bot Special Attacks for Immune Aggro/Damage ([#4108](https://github.com/EQEmu/Server/pull/4108)) @Kinglykrab 2024-03-02
+* Add GetHeroicStrikethrough() to Perl/Lua ([#4150](https://github.com/EQEmu/Server/pull/4150)) @Kinglykrab 2024-03-03
+* Add IsAlwaysAggro() to Perl/Lua ([#4152](https://github.com/EQEmu/Server/pull/4152)) @Kinglykrab 2024-03-04
+* Add IsBoat()/IsControllableBoat() to Perl/Lua ([#4151](https://github.com/EQEmu/Server/pull/4151)) @Kinglykrab 2024-03-03
+* Add IsDestructibleObject() to Perl/Lua ([#4153](https://github.com/EQEmu/Server/pull/4153)) @Kinglykrab 2024-03-03
+
+### Zone
+
+* Zone Routing Improvements ([#4142](https://github.com/EQEmu/Server/pull/4142)) @Akkadius 2024-03-02
+
+### Zoning
+
+* Zone routing adjustment ([#4162](https://github.com/EQEmu/Server/pull/4162)) @Akkadius 2024-03-06
+
+## [22.46.1] 3/2/2024
+
+### Fixes
+
+* Change `UnburyCorpse` to use repository methods ([#4147](https://github.com/EQEmu/Server/pull/4147)) @joligario 2024-03-03
+
+## [22.46.0] 3/2/2024
+
+### Commands
+
+* Add #fish Command ([#4136](https://github.com/EQEmu/Server/pull/4136)) @Kinglykrab 2024-03-01
+
+### Crash Fix
+
+* Raid::UpdateGroupAAs ([#4139](https://github.com/EQEmu/Server/pull/4139)) @neckkola 2024-03-02
+* Update to location of qGlobals initialization ([#4144](https://github.com/EQEmu/Server/pull/4144)) @neckkola 2024-03-02
+
+### Feature
+
+* Exempt a zone from IP-limit checks. ([#4137](https://github.com/EQEmu/Server/pull/4137)) @catapultam-habeo 2024-03-02
+
+### Fixes
+
+* Cleanup NPC Mana Tap Logic ([#4134](https://github.com/EQEmu/Server/pull/4134)) @noudess 2024-03-02
+* Fix Bots/Bot Pets ending up on XTargets ([#4132](https://github.com/EQEmu/Server/pull/4132)) @Kinglykrab 2024-03-02
+* Fix issue with NPC Secondary Textures ([#4129](https://github.com/EQEmu/Server/pull/4129)) @Kinglykrab 2024-03-01
+* GetBotNameByID Temporary Reference Warning ([#4145](https://github.com/EQEmu/Server/pull/4145)) @Kinglykrab 2024-03-02
+* Update FreeGuildID Routine ([#4143](https://github.com/EQEmu/Server/pull/4143)) @neckkola 2024-03-02
+* Use std::clamp for Mob::ChangeSize ([#4140](https://github.com/EQEmu/Server/pull/4140)) @joligario 2024-03-02
+
+### Quest API
+
+* Add Bot Special Attacks for Immune Aggro/Damage ([#4108](https://github.com/EQEmu/Server/pull/4108)) @Kinglykrab 2024-03-02
+
+### Zone
+
+* Zone Routing Improvements ([#4142](https://github.com/EQEmu/Server/pull/4142)) @Akkadius 2024-03-02
+
+## [22.45.1] 2/29/2024
+
+### Character Creation
+
+* Improved Random Name Generator ([#4081](https://github.com/EQEmu/Server/pull/4081)) @catapultam-habeo 2024-02-27
+
+### Code
+
+* Fix Server Rules Documentation Generation ([#4125](https://github.com/EQEmu/Server/pull/4125)) @Kinglykrab 2024-02-26
+* Remove unnecessary stoptimer logs ([#4128](https://github.com/EQEmu/Server/pull/4128)) @Kinglykrab 2024-02-28
+
+### Commands
+
+* Add `#forage` command ([#4133](https://github.com/EQEmu/Server/pull/4133)) @joligario 2024-02-29
+
+### Crash
+
+* Fix crash issue during database dump ([#4127](https://github.com/EQEmu/Server/pull/4127)) @Akkadius 2024-02-29
+
+### Crash Fix
+
+* D20 crash if mitigation average resulted in 0 ([#4131](https://github.com/EQEmu/Server/pull/4131)) @nytmyr 2024-02-29
+
+### Fixes
+
+* Fix forage returning first result from table ([#4130](https://github.com/EQEmu/Server/pull/4130)) @nytmyr 2024-02-29
+* Who /all displays incorrect guild name ([#4123](https://github.com/EQEmu/Server/pull/4123)) @neckkola 2024-02-25
+
+### Quest API
+
+* Add Pet Owner Methods to Perl/Lua ([#4115](https://github.com/EQEmu/Server/pull/4115)) @Kinglykrab 2024-02-25
+
+## [22.45.0] 2/24/2024
+
+### Beacon
+
+* Revert a few lines of PR #4024 that broke beacons ([#4118](https://github.com/EQEmu/Server/pull/4118)) @noudess 2024-02-24
+
+### Bots
+
+* Cleanup empty `bot_commands` files ([#4095](https://github.com/EQEmu/Server/pull/4095)) @Kinglykrab 2024-02-19
+* Remove Alt Combat Functionality ([#4067](https://github.com/EQEmu/Server/pull/4067)) @Kinglykrab 2024-02-12
+
+### Code
+
+* Update fmt to 10.2.1 ([#4071](https://github.com/EQEmu/Server/pull/4071)) @hgtw 2024-02-16
+* Use explicit conversions for enum formatting ([#4064](https://github.com/EQEmu/Server/pull/4064)) @hgtw 2024-02-12
+
+### Database
+
+* Add content_database flag for zone changes ([#4104](https://github.com/EQEmu/Server/pull/4104)) @joligario 2024-02-20
+* Remove "item_tick" from database schema per https://github.com/EQEmu/Server/pull/3985 ([#4083](https://github.com/EQEmu/Server/pull/4083)) @Akkadius 2024-02-16
+
+### Expansions
+
+* Zone Expansion Version Routing ([#4084](https://github.com/EQEmu/Server/pull/4084)) @Akkadius 2024-02-20
+
+### Factions
+
+* Fix issue with npcedit and cached factions ([#4103](https://github.com/EQEmu/Server/pull/4103)) @noudess 2024-02-20
+
+### Feature
+
+* Add Augments to Starting Items for Bots/Players ([#4100](https://github.com/EQEmu/Server/pull/4100)) @Kinglykrab 2024-02-21
+* Hot Zone Bonus XP Notice ([#4091](https://github.com/EQEmu/Server/pull/4091)) @fryguy503 2024-02-18
+
+### Fixes
+
+* Add safety check to SummonAllCharacterCorpses. ([#4107](https://github.com/EQEmu/Server/pull/4107)) @fryguy503 2024-02-21
+* Added additional Guild-related crash checks ([#4105](https://github.com/EQEmu/Server/pull/4105)) @neckkola 2024-02-22
+* Aura effect spell id from #3964 ([#4094](https://github.com/EQEmu/Server/pull/4094)) @joligario 2024-02-18
+* Crash on Ubuntu 22.04 ([#4119](https://github.com/EQEmu/Server/pull/4119)) @neckkola 2024-02-25
+* Fix #wpadd Query ([#4078](https://github.com/EQEmu/Server/pull/4078)) @Kinglykrab 2024-02-14
+* Fix Bot Weapons with No Races ([#4110](https://github.com/EQEmu/Server/pull/4110)) @Kinglykrab 2024-02-25
+* Fix ClearSpawnTimers() ([#4073](https://github.com/EQEmu/Server/pull/4073)) @Kinglykrab 2024-02-13
+* Fix Issue with ClearSpawnTimers() ([#4070](https://github.com/EQEmu/Server/pull/4070)) @Kinglykrab 2024-02-13
+* Fix ObjectContentsRepository using content_db ([#4076](https://github.com/EQEmu/Server/pull/4076)) @Kinglykrab 2024-02-14
+* Fix Sympathetic Procs for Bots/Mercenariess ([#4086](https://github.com/EQEmu/Server/pull/4086)) @Kinglykrab 2024-02-19
+* Fix fix_z Query ([#4080](https://github.com/EQEmu/Server/pull/4080)) @Kinglykrab 2024-02-15
+* Fix hotzone string error ([#4109](https://github.com/EQEmu/Server/pull/4109)) @fryguy503 2024-02-22
+* Fix issue with IsEntOnHateList ([#4097](https://github.com/EQEmu/Server/pull/4097)) @Kinglykrab 2024-02-19
+* Fix manifest check on `base_data` change ([#4082](https://github.com/EQEmu/Server/pull/4082)) @joligario 2024-02-16
+* Revert 2df7d19 ([#4101](https://github.com/EQEmu/Server/pull/4101)) @joligario 2024-02-20
+* Update database_schema to add guild_permissions ([#4085](https://github.com/EQEmu/Server/pull/4085)) @neckkola 2024-02-16
+
+### Guilds
+
+* Fixes for Guild Bank ([#4120](https://github.com/EQEmu/Server/pull/4120)) @neckkola 2024-02-25
+
+### Logs
+
+* Fix log in BaseGuildManager::IsGuildLeader() ([#4102](https://github.com/EQEmu/Server/pull/4102)) @joligario 2024-02-20
+
+### Opcodes
+
+* Fix opcode reloading ([#4075](https://github.com/EQEmu/Server/pull/4075)) @Akkadius 2024-02-14
+
+### Quest API
+
+* Add Bot Methods to Perl/Lua ([#4113](https://github.com/EQEmu/Server/pull/4113)) @Kinglykrab 2024-02-25
+* Add Entity Variable Events to Perl/Lua ([#4092](https://github.com/EQEmu/Server/pull/4092)) @Kinglykrab 2024-02-20
+* Add GetAugmentIDs() to Perl/Lua ([#4114](https://github.com/EQEmu/Server/pull/4114)) @Kinglykrab 2024-02-25
+* Add GetNPCSpellsEffectsID() to Perl/Lua ([#4117](https://github.com/EQEmu/Server/pull/4117)) @Kinglykrab 2024-02-25
+* Add Hatelist Count Methods to Perl/Lua ([#4106](https://github.com/EQEmu/Server/pull/4106)) @Kinglykrab 2024-02-21
+* Add IsInAGuild() to Perl/Lua ([#4066](https://github.com/EQEmu/Server/pull/4066)) @Kinglykrab 2024-02-14
+* Add Pet Methods to Perl/Lua ([#4116](https://github.com/EQEmu/Server/pull/4116)) @Kinglykrab 2024-02-25
+* Add Timer Events to Perl/Lua ([#4099](https://github.com/EQEmu/Server/pull/4099)) @Kinglykrab 2024-02-19
+* Add spell cast methods to Lua ([#4096](https://github.com/EQEmu/Server/pull/4096)) @Kinglykrab 2024-02-19
+* Add tracebacks to Lua error messages ([#4079](https://github.com/EQEmu/Server/pull/4079)) @hgtw 2024-02-16
+* Export Combat Record to Death Events ([#4112](https://github.com/EQEmu/Server/pull/4112)) @Kinglykrab 2024-02-25
+
+### Repositories
+
+* Cleanup and Convert Character Creation to Repositories ([#4053](https://github.com/EQEmu/Server/pull/4053)) @Kinglykrab 2024-02-20
+* Convert Zone Flags to Repositories ([#4077](https://github.com/EQEmu/Server/pull/4077)) @Kinglykrab 2024-02-16
+* Update `zone` base repository from #4084 ([#4111](https://github.com/EQEmu/Server/pull/4111)) @joligario 2024-02-23
+
+## [22.44.5] - 2/12/2024
+
+### Fixes
+
+* [Hotfix] Fix issues where we're using the wrong database pointers @Akkadius
+
+## [22.44.4] - 2/12/2024
+
+### Fixes
+
+* Fix ClearSpawnTimers() ([#4073](https://github.com/EQEmu/Server/pull/4073)) @Kinglykrab 2024-02-13
+
+## [22.44.3] - 2/12/2024
+
+### Fixes
+
+* Fix Issue with ClearSpawnTimers() ([#4070](https://github.com/EQEmu/Server/pull/4070)) @Kinglykrab 2024-02-13
+
+## [22.44.2] - 2/12/2024
+
+### Bots
+
+* Remove Alt Combat Functionality ([#4067](https://github.com/EQEmu/Server/pull/4067)) @Kinglykrab 2024-02-12
+
+### Code
+
+* Use explicit conversions for enum formatting ([#4064](https://github.com/EQEmu/Server/pull/4064)) @hgtw 2024-02-12
+
+### Database
+
+* Fix default value for `time_of_death` in `character_corpses` ([#4060](https://github.com/EQEmu/Server/pull/4060)) @joligario 2024-02-11
+* Fix table name in manifest ([#4063](https://github.com/EQEmu/Server/pull/4063)) @joligario 2024-02-11
+* Proper default for `droptime` from `object_contents` ([#4061](https://github.com/EQEmu/Server/pull/4061)) @joligario 2024-02-11
+
+### Fixes
+
+* Guard against crash condition ([#4062](https://github.com/EQEmu/Server/pull/4062)) @neckkola 2024-02-11
+
+### Guilds
+
+* Clean up `GUILD_RANK_NONE` references ([#4059](https://github.com/EQEmu/Server/pull/4059)) @joligario 2024-02-11
+
+## [22.44.1] - 2/11/2024
+
+### Fixes
+
+* Fix File::Exists(file_name) to be resilient to Chinese characters ([#4058](https://github.com/EQEmu/Server/pull/4058)) @Akkadius 2024-02-11
+
+## [22.44.0] - 2/10/2024
+
+### Base Data
+
+* Remove from shared memory and simplify ([#4045](https://github.com/EQEmu/Server/pull/4045)) @Kinglykrab 2024-02-05
+
+### Bot Commands
+
+* Separate Bot Commands into Individual Files ([#4035](https://github.com/EQEmu/Server/pull/4035)) @Kinglykrab 2024-02-01
+
+### Code
+
+* Convert Quest Ornament Methods to Repositories ([#4048](https://github.com/EQEmu/Server/pull/4048)) @Kinglykrab 2024-02-10
+* Remove redundant check in Object::HandleCombine ([#4041](https://github.com/EQEmu/Server/pull/4041)) @joligario 2024-02-03
+
+### Commands
+
+* Add #show special_abilities ([#4043](https://github.com/EQEmu/Server/pull/4043)) @Kinglykrab 2024-02-05
+
+### Crash Reporting
+
+* Update Spire to use SSL ([#4055](https://github.com/EQEmu/Server/pull/4055)) @Akkadius 2024-02-10
+
+### Database
+
+* Correct manifest migration entries that should be content ([#4047](https://github.com/EQEmu/Server/pull/4047)) @Akkadius 2024-02-05
+
+### Deprecation
+
+* Remove eqemu_server.pl script and ties to server ([#4049](https://github.com/EQEmu/Server/pull/4049)) @Akkadius 2024-02-10
+
+### Feature
+
+* Add RoF2 Guild features ([#3699](https://github.com/EQEmu/Server/pull/3699)) @neckkola 2024-02-10
+* Add optional `is_forced` parameter to Zone::Repop ([#4046](https://github.com/EQEmu/Server/pull/4046)) @Kinglykrab 2024-02-05
+* Add support to crosszone/worldwide spells to affect bot pets ([#4036](https://github.com/EQEmu/Server/pull/4036)) @Kinglykrab 2024-02-01
+* Classic Taunt (Pre 2006) style of taunt ([#3942](https://github.com/EQEmu/Server/pull/3942)) @fryguy503 2024-02-10
+* Corpse Overhaul ([#3938](https://github.com/EQEmu/Server/pull/3938)) @fryguy503 2024-02-08
+
+### Fixes
+
+* Fix Bot Non-Melee Damage Messages ([#4038](https://github.com/EQEmu/Server/pull/4038)) @Kinglykrab 2024-02-01
+* Fix Froglok Starting Languages ([#4050](https://github.com/EQEmu/Server/pull/4050)) @Kinglykrab 2024-02-09
+* Fix Issue with Bot Dual wield ([#4037](https://github.com/EQEmu/Server/pull/4037)) @Kinglykrab 2024-02-01
+* Fix for potential crash of DS damage on death ([#4040](https://github.com/EQEmu/Server/pull/4040)) @nytmyr 2024-02-03
+
+### GM Commands
+
+* Fix typo in #rules help. ([#4042](https://github.com/EQEmu/Server/pull/4042)) @noudess 2024-02-04
+
+### Loot
+
+* Remove from shared memory, simplification ([#3988](https://github.com/EQEmu/Server/pull/3988)) @Akkadius 2024-02-05
+
+### Objects
+
+* Add `fix_z` column to ground spawns ([#3992](https://github.com/EQEmu/Server/pull/3992)) @Kinglykrab 2024-02-01
+
+### Quest API
+
+* Add GetAAEXPPercentage() and GetEXPPercentage() to Perl/Lua ([#4044](https://github.com/EQEmu/Server/pull/4044)) @Kinglykrab 2024-02-04
+
+### Quests
+
+* Cleanup Quest Parser Logic ([#4025](https://github.com/EQEmu/Server/pull/4025)) @Kinglykrab 2024-02-06
+
+### Tasks
+
+* Avoid removing client tasks from memory on load ([#4052](https://github.com/EQEmu/Server/pull/4052)) @hgtw 2024-02-10
+* Send active elements in task select packet ([#4051](https://github.com/EQEmu/Server/pull/4051)) @hgtw 2024-02-10
+
+## [22.43.3] - 1/30/2024
+
+### API
+
+* Add lock_status method to world API ([#4028](https://github.com/EQEmu/Server/pull/4028)) @Akkadius 2024-01-29
+
+### Alternate Currency
+
+* Convert Load of Alternate Currencies to Repositories ([#3993](https://github.com/EQEmu/Server/pull/3993)) @Kinglykrab 2024-01-29
+
+### Beacon
+
+* Cleanup Beacons Code ([#4024](https://github.com/EQEmu/Server/pull/4024)) @Kinglykrab 2024-01-29
+
+### Bots
+
+* Convert Bot Database Methods to Repositories ([#4023](https://github.com/EQEmu/Server/pull/4023)) @Kinglykrab 2024-01-29
+* Missing boolean returns on DeletePetStats and SaveInspectMessage ([#4031](https://github.com/EQEmu/Server/pull/4031)) @joligario 2024-01-30
+
+### Code
+
+* Add Raid Loot Type Constants ([#4022](https://github.com/EQEmu/Server/pull/4022)) @Kinglykrab 2024-01-29
+* Cleanup cross-zone/world-wide OPCode handling ([#4003](https://github.com/EQEmu/Server/pull/4003)) @Kinglykrab 2024-01-29
+
+### Commands
+
+* Cleanup #petitems Command ([#4005](https://github.com/EQEmu/Server/pull/4005)) @Kinglykrab 2024-01-29
+
+### Crash Fix
+
+* Fix Possible Crash in HateList::Find ([#4027](https://github.com/EQEmu/Server/pull/4027)) @Kinglykrab 2024-01-28
+
+### Fixes
+
+* Fix NPC After Death Emotes ([#4021](https://github.com/EQEmu/Server/pull/4021)) @Kinglykrab 2024-01-29
+* Fix database loading routines ([#4030](https://github.com/EQEmu/Server/pull/4030)) @Akkadius 2024-01-29
+* Fix issue in character_corpses Repository Query ([#4029](https://github.com/EQEmu/Server/pull/4029)) @Kinglykrab 2024-01-29
+* Limit Pet Taunt Distance ([#4018](https://github.com/EQEmu/Server/pull/4018)) @fryguy503 2024-01-26
+* Limit Player Taunt Distance ([#4019](https://github.com/EQEmu/Server/pull/4019)) @fryguy503 2024-01-26
+* Patch for recent change to DEATH ([#4032](https://github.com/EQEmu/Server/pull/4032)) @noudess 2024-01-30
+* spawn_conditions map was being emptied by mistake ([#4033](https://github.com/EQEmu/Server/pull/4033)) @noudess 2024-01-30
+
+### Grids
+
+* Convert Grid/Grid Entries to Repositories ([#4011](https://github.com/EQEmu/Server/pull/4011)) @Kinglykrab 2024-01-29
+
+### Mercenaries
+
+* Add expansion settings update to Mercs:Enable ([#4001](https://github.com/EQEmu/Server/pull/4001)) @Kinglykrab 2024-01-29
+
+### Merchants
+
+* Convert Merchant Load to Repositories ([#4007](https://github.com/EQEmu/Server/pull/4007)) @Kinglykrab 2024-01-29
+
+### Pets
+
+* Convert Load of Pets Beastlord Data to Repositories ([#3995](https://github.com/EQEmu/Server/pull/3995)) @Kinglykrab 2024-01-29
+
+### Quests
+
+* Use separate variable for quest idle override. ([#4026](https://github.com/EQEmu/Server/pull/4026)) @noudess 2024-01-27
+
+### Rules
+
+* Add rules for cross-zone/world-wide casts to affect Bots/Mercenaries/Pets ([#4002](https://github.com/EQEmu/Server/pull/4002)) @Kinglykrab 2024-01-29
+
+### Spawn2
+
+* Convert Spawn2 Methods to Repositories ([#4014](https://github.com/EQEmu/Server/pull/4014)) @Kinglykrab 2024-01-29
+
+### Traps
+
+* Convert Load/Set of Traps to Repositories ([#3994](https://github.com/EQEmu/Server/pull/3994)) @Kinglykrab 2024-01-29
+
+### Zone
+
+* Convert Fishing/Foraging to Repositories ([#4008](https://github.com/EQEmu/Server/pull/4008)) @Kinglykrab 2024-01-30
+
+## [22.43.2] - 1/25/2024
+
+### Bots
+
+* ^mez command spell list fix ([#3998](https://github.com/EQEmu/Server/pull/3998)) @dariusuknuis 2024-01-19
+
+### Code
+
+* Cleanup position methods ([#4015](https://github.com/EQEmu/Server/pull/4015)) @Kinglykrab 2024-01-25
+
+### Commands
+
+* Add `#npcedit set_grid [Grid ID]` to `#npcedit` ([#4004](https://github.com/EQEmu/Server/pull/4004)) @Kinglykrab 2024-01-22
+
+### Crash Fix
+
+* Fix crash when creating Frogloks/Drakkin ([#4016](https://github.com/EQEmu/Server/pull/4016)) @Kinglykrab 2024-01-25
+* Reverting PR #3877 ([#3997](https://github.com/EQEmu/Server/pull/3997)) @fryguy503 2024-01-17
+
+### Database
+
+* Drop deprecated item_tick table ([#3977](https://github.com/EQEmu/Server/pull/3977)) @Akkadius 2024-01-14
+* Drop item_tick if exists tweak in manifest ([#3985](https://github.com/EQEmu/Server/pull/3985)) @Akkadius 2024-01-15
+* Increase max spawngroup name from 50 to 200 ([#3991](https://github.com/EQEmu/Server/pull/3991)) @Akkadius 2024-01-22
+
+### Fixes
+
+* Fix Mercenaries Buffs/Zoning Issues ([#4000](https://github.com/EQEmu/Server/pull/4000)) @Kinglykrab 2024-01-22
+* Fix zone database update manifest ([#3972](https://github.com/EQEmu/Server/pull/3972)) @Kinglykrab 2024-01-13
+* Fixes to zone idle while empty changes. ([#4006](https://github.com/EQEmu/Server/pull/4006)) @noudess 2024-01-23
+* Reversed logic on InLiquid ([#3979](https://github.com/EQEmu/Server/pull/3979)) @fryguy503 2024-01-14
+
+### Instances
+
+* Convert Instance Quest Methods to Repositories ([#4012](https://github.com/EQEmu/Server/pull/4012)) @Kinglykrab 2024-01-25
+
+### Logging
+
+* Force Info category to be always on in file/console logs ([#3990](https://github.com/EQEmu/Server/pull/3990)) @Akkadius 2024-01-22
+
+### Merchants
+
+* Change database structure for merchant slots ([#3974](https://github.com/EQEmu/Server/pull/3974)) @joligario 2024-01-14
+
+### Messages
+
+* Fix disciple message added by previous patch. ([#3986](https://github.com/EQEmu/Server/pull/3986)) @noudess 2024-01-15
+
+### Quest API
+
+* QuestReward should now summon item to the inventory instead of the cursor. ([#3996](https://github.com/EQEmu/Server/pull/3996)) @regneq 2024-01-22
+
+### Repositories
+
+* Add `rank` to reserved words ([#3982](https://github.com/EQEmu/Server/pull/3982)) @Akkadius 2024-01-15
+* Fix datetime zero-value save behavior ([#3976](https://github.com/EQEmu/Server/pull/3976)) @Akkadius 2024-01-14
+
+### Spawn2
+
+* Spawn condition value should default spawn_conditions value ([#3980](https://github.com/EQEmu/Server/pull/3980)) @noudess 2024-01-14
+
+### Zoning
+
+* Additional logs for zoning under instance checks ([#3989](https://github.com/EQEmu/Server/pull/3989)) @Akkadius 2024-01-22
+
+## [22.43.1] - 1/14/2024
+
+### Repositories
+
+*  Revert #3976 - fix character corpses @Akkadius 2024-01-14
+
+## [22.43.0] - 1/14/2024
+
+### Database
+
+* Drop deprecated item_tick table ([#3977](https://github.com/EQEmu/Server/pull/3977)) @Akkadius 2024-01-14
+
+### Merchants
+
+* Change database structure for merchant slots ([#3974](https://github.com/EQEmu/Server/pull/3974)) @joligario 2024-01-14
+
+### Repositories
+
+* Fix datetime zero-value save behavior ([#3976](https://github.com/EQEmu/Server/pull/3976)) @Akkadius 2024-01-14
+
+### Zones
+
+* Convert IDLE_WHEN_EMPTY to a Zone Column ([#3891](https://github.com/EQEmu/Server/pull/3891)) @Kinglykrab 2024-01-13
+
+## [22.42.1] - 1/13/2024
+
+### Fixes
+
+* Fix zone database update manifest ([#3972](https://github.com/EQEmu/Server/pull/3972)) @Kinglykrab 2024-01-13
+* quest::processmobswhilezoneempty() fix. ([#3971](https://github.com/EQEmu/Server/pull/3971)) @noudess 2024-01-13
+
+## [22.42.0] - 1/13/2024
+
+### AAs
+
+* Convert Loading of AAs to Repositories ([#3963](https://github.com/EQEmu/Server/pull/3963)) @Kinglykrab 2024-01-13
+
+### Auras
+
+* Convert Get of Auras to Repositories ([#3964](https://github.com/EQEmu/Server/pull/3964)) @Kinglykrab 2024-01-13
+
+### Character
+
+* Character EXP Modifiers in Memory ([#3934](https://github.com/EQEmu/Server/pull/3934)) @Kinglykrab 2024-01-13
+* Convert Character Corpses to Repositories ([#3941](https://github.com/EQEmu/Server/pull/3941)) @Kinglykrab 2024-01-13
+* Convert Save of Character Languages to Repositories ([#3948](https://github.com/EQEmu/Server/pull/3948)) @Kinglykrab 2024-01-12
+
+### Code
+
+* Cleanup AddCash() and RemoveCash() NPC Methods ([#3957](https://github.com/EQEmu/Server/pull/3957)) @Kinglykrab 2024-01-12
+* Cleanup ChangeSize() ([#3959](https://github.com/EQEmu/Server/pull/3959)) @Kinglykrab 2024-01-12
+* Cleanup Owner Related Mob Methods ([#3960](https://github.com/EQEmu/Server/pull/3960)) @Kinglykrab 2024-01-13
+* Cleanup RandomizeFeatures() ([#3958](https://github.com/EQEmu/Server/pull/3958)) @Kinglykrab 2024-01-12
+* Remove GroupCount() and RaidGroupCount() ([#3943](https://github.com/EQEmu/Server/pull/3943)) @Kinglykrab 2024-01-13
+* Remove unused Grid methods ([#3944](https://github.com/EQEmu/Server/pull/3944)) @Kinglykrab 2024-01-13
+
+### Commands
+
+* Convert NPC Spawn Methods to Repositories ([#3956](https://github.com/EQEmu/Server/pull/3956)) @Kinglykrab 2024-01-13
+
+### Crash Fix
+
+* Character Creation Class/Race out of Range. ([#3920](https://github.com/EQEmu/Server/pull/3920)) @fryguy503 2024-01-09
+
+### Feat
+
+* Alt Sinister Strike Formula ([#3921](https://github.com/EQEmu/Server/pull/3921)) @fryguy503 2024-01-09
+
+### Feature
+
+* Add Lore Item Trade Error ([#3932](https://github.com/EQEmu/Server/pull/3932)) @fryguy503 2024-01-13
+* Rule: UseLiveBlockedMessage Bard Spam ([#3933](https://github.com/EQEmu/Server/pull/3933)) @fryguy503 2024-01-09
+
+### Fixes
+
+* Attack Corpse Skill Up Fix ([#3924](https://github.com/EQEmu/Server/pull/3924)) @fryguy503 2024-01-09
+* Fix Issue with SetFlyMode() ([#3961](https://github.com/EQEmu/Server/pull/3961)) @Kinglykrab 2024-01-12
+* Harm Touch Critical Ratio ([#3915](https://github.com/EQEmu/Server/pull/3915)) @fryguy503 2024-01-09
+* Increase Precision in CheckDoubleAttack ([#3928](https://github.com/EQEmu/Server/pull/3928)) @fryguy503 2024-01-09
+* IsOfClientBotMerc() for Discipline Messages ([#3940](https://github.com/EQEmu/Server/pull/3940)) @fryguy503 2024-01-09
+* Limit MeleeMitigationEffect to defender if only client. ([#3918](https://github.com/EQEmu/Server/pull/3918)) @fryguy503 2024-01-09
+* Rampage Number of Hits Limit ([#3929](https://github.com/EQEmu/Server/pull/3929)) @fryguy503 2024-01-09
+* Remove duplicate character_data repository in zonedb.cpp ([#3935](https://github.com/EQEmu/Server/pull/3935)) @Kinglykrab 2024-01-09
+* Undead Should Never Flee ([#3926](https://github.com/EQEmu/Server/pull/3926)) @fryguy503 2024-01-09
+
+### Global Loot
+
+* Convert Global Loot to Repositories ([#3962](https://github.com/EQEmu/Server/pull/3962)) @Kinglykrab 2024-01-13
+
+### Ground Spawns
+
+* Convert Ground Spawns to Repositories ([#3967](https://github.com/EQEmu/Server/pull/3967)) @Kinglykrab 2024-01-13
+
+### Horses
+
+* Convert Horses to Repositories ([#3965](https://github.com/EQEmu/Server/pull/3965)) @Kinglykrab 2024-01-13
+
+### Item Ticks
+
+* Remove Item Ticks Code ([#3955](https://github.com/EQEmu/Server/pull/3955)) @Kinglykrab 2024-01-13
+
+### Mercenaries
+
+* Convert Mercenaries to Repositories ([#3947](https://github.com/EQEmu/Server/pull/3947)) @Kinglykrab 2024-01-13
+
+### Merchants
+
+* Convert Clear/Delete/Save of Temporary Merchant Lists to Repositories ([#3945](https://github.com/EQEmu/Server/pull/3945)) @Kinglykrab 2024-01-13
+
+### NPCs
+
+* Convert Load of NPC Emotes to Repositories ([#3954](https://github.com/EQEmu/Server/pull/3954)) @Kinglykrab 2024-01-13
+
+### Objects
+
+* Convert Add/Delete/Update of Objects to Repositories ([#3966](https://github.com/EQEmu/Server/pull/3966)) @Kinglykrab 2024-01-13
+* Convert World Containers to Repositories ([#3951](https://github.com/EQEmu/Server/pull/3951)) @Kinglykrab 2024-01-13
+
+### Pets
+
+* Convert Pets to Repositories ([#3968](https://github.com/EQEmu/Server/pull/3968)) @Kinglykrab 2024-01-13
+
+### Repositories
+
+* Add null integer column support, instance_list notes migration, regenerate repositories ([#3969](https://github.com/EQEmu/Server/pull/3969)) @Akkadius 2024-01-13
+
+### Respawns
+
+* Convert Respawn Times to Repositories ([#3949](https://github.com/EQEmu/Server/pull/3949)) @Kinglykrab 2024-01-13
+
+### Rules
+
+* Add rule for bard aggro cap ([#3909](https://github.com/EQEmu/Server/pull/3909)) @fryguy503 2024-01-09
+* Allow GMs to silently summon ([#3910](https://github.com/EQEmu/Server/pull/3910)) @fryguy503 2024-01-09
+* Bash Two Hander use Shoulders ([#3925](https://github.com/EQEmu/Server/pull/3925)) @fryguy503 2024-01-09
+* Classic Spell Data SPA Calc variability ([#3931](https://github.com/EQEmu/Server/pull/3931)) @fryguy503 2024-01-09
+* Classic Tracking Skillups ([#3923](https://github.com/EQEmu/Server/pull/3923)) @fryguy503 2024-01-09
+* Separate Tradeskill Max Train from Research. ([#3916](https://github.com/EQEmu/Server/pull/3916)) @fryguy503 2024-01-09
+
+### Tasks
+
+* Add Support for Task Window Element Groups ([#3902](https://github.com/EQEmu/Server/pull/3902)) @hgtw 2024-01-09
+
+### Traps
+
+* Convert Load of LDoN Traps/Trap Entries to Repositories ([#3953](https://github.com/EQEmu/Server/pull/3953)) @Kinglykrab 2024-01-13
+
+### Zones
+
+* Convert Get/Set of Zone Timezone to Repositories ([#3946](https://github.com/EQEmu/Server/pull/3946)) @Kinglykrab 2024-01-13
+* Convert IDLE_WHEN_EMPTY to a Zone Column ([#3891](https://github.com/EQEmu/Server/pull/3891)) @Kinglykrab 2024-01-13
+* Convert SaveZoneCFG to Repositories ([#3950](https://github.com/EQEmu/Server/pull/3950)) @Kinglykrab 2024-01-13
+
+## [22.41.0] - 1/8/2024
+
+### Bug
+
+* DI Buff Fade ([#3919](https://github.com/EQEmu/Server/pull/3919)) @fryguy503 2024-01-08
+* NPCs will now only proc on hit ([#3913](https://github.com/EQEmu/Server/pull/3913)) @fryguy503 2024-01-08
+* Pets should not ignore Z axis ([#3912](https://github.com/EQEmu/Server/pull/3912)) @fryguy503 2024-01-08
+
+### Fixes
+
+* Disciplines should show when someone casts them. ([#3901](https://github.com/EQEmu/Server/pull/3901)) @fryguy503 2024-01-08
+* Fix Typo in Character Skills loading ([#3937](https://github.com/EQEmu/Server/pull/3937)) @Kinglykrab 2024-01-09
+* Fix for HasLockoutByCharacterID ([#3927](https://github.com/EQEmu/Server/pull/3927)) @fryguy503 2024-01-08
+* Harm Touch, Improved Harm Touch, and Unholy Touch ([#3904](https://github.com/EQEmu/Server/pull/3904)) @fryguy503 2024-01-08
+* Legacy Manaburn should have hard cap. ([#3905](https://github.com/EQEmu/Server/pull/3905)) @fryguy503 2024-01-08
+* TGB - Added logic to stop bard errors on group songs. ([#3906](https://github.com/EQEmu/Server/pull/3906)) @fryguy503 2024-01-08
+* World Shutdown Filter ([#3930](https://github.com/EQEmu/Server/pull/3930)) @fryguy503 2024-01-08
+
+### Info
+
+* Adding textual feedback when trying to sell alt items back to … ([#3917](https://github.com/EQEmu/Server/pull/3917)) @fryguy503 2024-01-08
+
+### Rules
+
+* Backstab Damage Modifier ([#3908](https://github.com/EQEmu/Server/pull/3908)) @fryguy503 2024-01-08
+* Classic Tradeskill Skill Clamp ([#3914](https://github.com/EQEmu/Server/pull/3914)) @fryguy503 2024-01-08
+* Classic Triple Attack ([#3903](https://github.com/EQEmu/Server/pull/3903)) @fryguy503 2024-01-08
+* Ensure mana taps only effect NPC's that have mana. ([#3907](https://github.com/EQEmu/Server/pull/3907)) @fryguy503 2024-01-08
+* Over Taunt Hate ([#3900](https://github.com/EQEmu/Server/pull/3900)) @fryguy503 2024-01-08
+* Stun Chance Percent Rule ([#3922](https://github.com/EQEmu/Server/pull/3922)) @fryguy503 2024-01-08
+
+## [22.40.0] - 1/7/2024
+
+### Account
+
+* Convert Get/Update Account Karma to Repositories ([#3858](https://github.com/EQEmu/Server/pull/3858)) @Kinglykrab 2024-01-07
+* Convert UpdateGMStatus to Repositories ([#3859](https://github.com/EQEmu/Server/pull/3859)) @Kinglykrab 2024-01-07
+
+### Bots
+
+* Resist Spell Fix ([#3840](https://github.com/EQEmu/Server/pull/3840)) @dariusuknuis 2024-01-07
+
+### Bugfix
+
+* Negative Aggro Fix ([#3866](https://github.com/EQEmu/Server/pull/3866)) @fryguy503 2024-01-07
+
+### Character
+
+* Convert Clear/Delete/Get/Update of Character Item Recast to Repositories ([#3857](https://github.com/EQEmu/Server/pull/3857)) @Kinglykrab 2024-01-07
+* Convert Delete/Load/Remove/Save of Character AA to Repositories ([#3849](https://github.com/EQEmu/Server/pull/3849)) @Kinglykrab 2024-01-07
+* Convert Delete/Load/Save of Character Bandolier to Repositories ([#3845](https://github.com/EQEmu/Server/pull/3845)) @Kinglykrab 2024-01-07
+* Convert Delete/Load/Save of Character Disciplines to Repositories ([#3850](https://github.com/EQEmu/Server/pull/3850)) @Kinglykrab 2024-01-07
+* Convert Delete/Load/Save of Character Leadership Abilities to Repositories ([#3847](https://github.com/EQEmu/Server/pull/3847)) @Kinglykrab 2024-01-07
+* Convert Delete/Load/Save of Character Material to Repositories ([#3846](https://github.com/EQEmu/Server/pull/3846)) @Kinglykrab 2024-01-07
+* Convert Delete/Load/Save of Character Spells to Repositories ([#3842](https://github.com/EQEmu/Server/pull/3842)) @Kinglykrab 2024-01-07
+* Convert Delete/Save of Character Memmed Spells to Repositories ([#3841](https://github.com/EQEmu/Server/pull/3841)) @Kinglykrab 2024-01-07
+* Convert Load/Save of Character Bind to Repositories ([#3851](https://github.com/EQEmu/Server/pull/3851)) @Kinglykrab 2024-01-07
+* Convert Load/Save of Character Buffs to Repositories ([#3855](https://github.com/EQEmu/Server/pull/3855)) @Kinglykrab 2024-01-07
+* Convert Load/Save of Character Currency to Repositories ([#3848](https://github.com/EQEmu/Server/pull/3848)) @Kinglykrab 2024-01-07
+* Convert Load/Save of Character Data to Repositories ([#3839](https://github.com/EQEmu/Server/pull/3839)) @Kinglykrab 2024-01-07
+* Convert Load/Save of Character Potion Belt to Repositories ([#3844](https://github.com/EQEmu/Server/pull/3844)) @Kinglykrab 2024-01-07
+* Convert Load/Save of Character Skills to Repositories ([#3843](https://github.com/EQEmu/Server/pull/3843)) @Kinglykrab 2024-01-07
+* Convert Load/Update of Character Alternate Currencies to Repositories ([#3856](https://github.com/EQEmu/Server/pull/3856)) @Kinglykrab 2024-01-07
+* Convert NoRentExpired to Repositories ([#3860](https://github.com/EQEmu/Server/pull/3860)) @Kinglykrab 2024-01-07
+
+### Characters
+
+* Convert Load/Save of Character Auras to Repositories ([#3854](https://github.com/EQEmu/Server/pull/3854)) @Kinglykrab 2024-01-07
+
+### Code
+
+* Remove bot-based saylink method ([#3852](https://github.com/EQEmu/Server/pull/3852)) @Kinglykrab 2024-01-07
+
+### Commands
+
+* Add #clearxtargets Command ([#3833](https://github.com/EQEmu/Server/pull/3833)) @Kinglykrab 2024-01-07
+* Add scoped buckets and editing to #databuckets ([#3826](https://github.com/EQEmu/Server/pull/3826)) @Kinglykrab 2024-01-07
+* Cleanup #appearance Command ([#3827](https://github.com/EQEmu/Server/pull/3827)) @Kinglykrab 2024-01-07
+* Cleanup #fixmob  Command ([#3828](https://github.com/EQEmu/Server/pull/3828)) @Kinglykrab 2024-01-07
+* Cleanup #petname Command ([#3829](https://github.com/EQEmu/Server/pull/3829)) @Kinglykrab 2024-01-07
+* Cleanup #shutdown Command ([#3830](https://github.com/EQEmu/Server/pull/3830)) @Kinglykrab 2024-01-07
+* Remove #zopp Command ([#3831](https://github.com/EQEmu/Server/pull/3831)) @Kinglykrab 2024-01-07
+
+### Crash
+
+* Fix crash where Raid invite could be accepted after forming group with the Raid invitor. ([#3837](https://github.com/EQEmu/Server/pull/3837)) @Aeadoin 2024-01-06
+
+### Feature
+
+* Break Trader if moved ([#3862](https://github.com/EQEmu/Server/pull/3862)) @fryguy503 2024-01-07
+* Formula Addition (40+ Harm Touch) ([#3870](https://github.com/EQEmu/Server/pull/3870)) @fryguy503 2024-01-07
+* Legacy Fizzle Code ([#3868](https://github.com/EQEmu/Server/pull/3868)) @fryguy503 2024-01-07
+* Legacy Manaburn Rule ([#3872](https://github.com/EQEmu/Server/pull/3872)) @fryguy503 2024-01-07
+
+### Fixes
+
+* Add locations where melee can be bound outside of a city. ([#3887](https://github.com/EQEmu/Server/pull/3887)) @fryguy503 2024-01-07
+* Amplification should not benefit from instrument mods ([#3898](https://github.com/EQEmu/Server/pull/3898)) @fryguy503 2024-01-07
+* Bard Caster Level Fixes ([#3883](https://github.com/EQEmu/Server/pull/3883)) @fryguy503 2024-01-07
+* Buff Sync ([#3896](https://github.com/EQEmu/Server/pull/3896)) @fryguy503 2024-01-07
+* Cancel Magic SE fix ([#3890](https://github.com/EQEmu/Server/pull/3890)) @fryguy503 2024-01-07
+* Class Trainers dont steal your money! ([#3864](https://github.com/EQEmu/Server/pull/3864)) @fryguy503 2024-01-07
+* Clear Ramp when Clearing hate ([#3892](https://github.com/EQEmu/Server/pull/3892)) @fryguy503 2024-01-07
+* DI/Death Pact Fix ([#3867](https://github.com/EQEmu/Server/pull/3867)) @fryguy503 2024-01-07
+* Depop Charm Pet and Detach Debuffs on Evacuate ([#3888](https://github.com/EQEmu/Server/pull/3888)) @fryguy503 2024-01-07
+* Dire Charm Reset ([#3875](https://github.com/EQEmu/Server/pull/3875)) @fryguy503 2024-01-07
+* Disciplines Getting Focuses Fix ([#3884](https://github.com/EQEmu/Server/pull/3884)) @fryguy503 2024-01-07
+* Fix issue with 9th/10th inventory slot ([#3835](https://github.com/EQEmu/Server/pull/3835)) @Kinglykrab 2024-01-03
+* Fix typo on ZoneDatabase::LoadPetInfo ([#3871](https://github.com/EQEmu/Server/pull/3871)) @Kinglykrab 2024-01-07
+* Harm Touch Unholy Disc Type ([#3874](https://github.com/EQEmu/Server/pull/3874)) @fryguy503 2024-01-07
+* Prevent QS Crashes ([#3877](https://github.com/EQEmu/Server/pull/3877)) @fryguy503 2024-01-07
+* Rez Effects Stacking ([#3882](https://github.com/EQEmu/Server/pull/3882)) @fryguy503 2024-01-07
+* Rez in zone clear aggro ([#3895](https://github.com/EQEmu/Server/pull/3895)) @fryguy503 2024-01-07
+* Rune Invis Break ([#3893](https://github.com/EQEmu/Server/pull/3893)) @fryguy503 2024-01-07
+* Snare and DOT Stacking ([#3897](https://github.com/EQEmu/Server/pull/3897)) @fryguy503 2024-01-07
+* Swim Skillup and Underwater Fall Damage Fix ([#3885](https://github.com/EQEmu/Server/pull/3885)) @fryguy503 2024-01-07
+* Swimming Rules Adjustment and Racial ([#3889](https://github.com/EQEmu/Server/pull/3889)) @fryguy503 2024-01-07
+* Target Locked Pet Taunt ([#3894](https://github.com/EQEmu/Server/pull/3894)) @fryguy503 2024-01-07
+* Vampiric Embrace Fixes ([#3873](https://github.com/EQEmu/Server/pull/3873)) @fryguy503 2024-01-07
+
+### Languages
+
+* Cleanup language constants, use repositories ([#3838](https://github.com/EQEmu/Server/pull/3838)) @Kinglykrab 2024-01-07
+
+### Pets
+
+* Convert Load/Save of Pet Info to Repositories ([#3853](https://github.com/EQEmu/Server/pull/3853)) @Kinglykrab 2024-01-07
+
+### Rules
+
+* Casting Charm on over level = Aggro ([#3886](https://github.com/EQEmu/Server/pull/3886)) @fryguy503 2024-01-07
+* Classic Invite Requires Target ([#3878](https://github.com/EQEmu/Server/pull/3878)) @fryguy503 2024-01-07
+* Evac Aggro Wipe ([#3880](https://github.com/EQEmu/Server/pull/3880)) @fryguy503 2024-01-07
+* Mounts will wear off on zone ([#3865](https://github.com/EQEmu/Server/pull/3865)) @fryguy503 2024-01-07
+* PC Push and NPCtoNPC Push ([#3879](https://github.com/EQEmu/Server/pull/3879)) @fryguy503 2024-01-07
+* RequireMnemonicRetention for Spells 9-12 Rule ([#3876](https://github.com/EQEmu/Server/pull/3876)) @fryguy503 2024-01-07
+* Resist Softcap rules ([#3863](https://github.com/EQEmu/Server/pull/3863)) @fryguy503 2024-01-07
+* Restrict Finishing Blow to only Fleeing NPC's. ([#3869](https://github.com/EQEmu/Server/pull/3869)) @fryguy503 2024-01-07
+* Undead Aggro ([#3881](https://github.com/EQEmu/Server/pull/3881)) @fryguy503 2024-01-07
+
+### Tuning
+
+* FD and Sneak break when cast on adjustments. ([#3861](https://github.com/EQEmu/Server/pull/3861)) @fryguy503 2024-01-07
+
+### UCS
+
+* Consolidate configuration block ([#3768](https://github.com/EQEmu/Server/pull/3768)) @Akkadius 2024-01-07
+
+## [22.39.1] - 12/31/2023
+
+### Code
+
+* Appearance not appearence ([#3819](https://github.com/EQEmu/Server/pull/3819)) @Kinglykrab 2023-12-30
+* Delete errmsg.h in common and zone ([#3821](https://github.com/EQEmu/Server/pull/3821)) @Kinglykrab 2023-12-30
+* Gender constants cleanup ([#3817](https://github.com/EQEmu/Server/pull/3817)) @Kinglykrab 2023-12-30
+* Remove MakeSpawnUpdateNoDelta from mob.cpp/mob.h ([#3816](https://github.com/EQEmu/Server/pull/3816)) @Kinglykrab 2023-12-31
+* Remove SendStunAppearance from mob.cpp/mob.h ([#3818](https://github.com/EQEmu/Server/pull/3818)) @Kinglykrab 2023-12-31
+* Remove unused PlotPosition methods from mob.cpp/mob.h ([#3820](https://github.com/EQEmu/Server/pull/3820)) @Kinglykrab 2023-12-31
+
+### Database
+
+* Database update improvements, content db and terminal checks ([#3814](https://github.com/EQEmu/Server/pull/3814)) @Akkadius 2023-12-31
+
+### Fixes
+
+* Client:SetBucket Overload Incorrectly Named ([#3825](https://github.com/EQEmu/Server/pull/3825)) @fryguy503 2023-12-30
+* Fix crash in Client::Handle_OP_GMGoto ([#3832](https://github.com/EQEmu/Server/pull/3832)) @Kinglykrab 2023-12-31
+
+### Quest API
+
+* Add HasItemOnCorpse() to Perl/Lua ([#3824](https://github.com/EQEmu/Server/pull/3824)) @Kinglykrab 2023-12-31
+* Fix issue with death events. ([#3823](https://github.com/EQEmu/Server/pull/3823)) @Kinglykrab 2023-12-31
+
+### Repositories
+
+* Protected extended repositories from being overwritten if exists ([#3815](https://github.com/EQEmu/Server/pull/3815)) @Akkadius 2023-12-31
+
+## [22.39.0] - 12/27/2023
+
+### Character
+
+* Fix character copier due to schema change ([#3805](https://github.com/EQEmu/Server/pull/3805)) @Akkadius 2023-12-28
+
+### Combat
+
+* Disarm was not dropping item to ground due to bug ([#3811](https://github.com/EQEmu/Server/pull/3811)) @noudess 2023-12-27
+
+### Logs
+
+* Bulk insert new log settings ([#3810](https://github.com/EQEmu/Server/pull/3810)) @Akkadius 2023-12-28
+* Reclassify unhelpful Info message ([#3809](https://github.com/EQEmu/Server/pull/3809)) @Akkadius 2023-12-28
+
+### MySQL
+
+* Fix MySQL Query error formatting ([#3808](https://github.com/EQEmu/Server/pull/3808)) @Akkadius 2023-12-28
+
+### Objects
+
+* Remove "No objects to load for zone" error message ([#3807](https://github.com/EQEmu/Server/pull/3807)) @Akkadius 2023-12-28
+
+### Player Events
+
+* Bulk replace settings on boot ([#3806](https://github.com/EQEmu/Server/pull/3806)) @Akkadius 2023-12-28
+
+### Tasks
+
+* Add enabled column ([#3804](https://github.com/EQEmu/Server/pull/3804)) @Akkadius 2023-12-28
+
+## [22.38.0] - 12/26/2023
+
+### Bots
+
+* Remove unnecessary error on SetItemReuse ([#3795](https://github.com/EQEmu/Server/pull/3795)) @nytmyr 2023-12-20
+
+### Code
+
+* Consolidate GetHateRandom(), GetHateRandomBot(), GetHateRandomClient(), and GetHateRandomNPC() ([#3794](https://github.com/EQEmu/Server/pull/3794)) @Kinglykrab 2023-12-25
+* Race constants refactor ([#3782](https://github.com/EQEmu/Server/pull/3782)) @Akkadius 2023-12-23
+
+### Database
+
+* Fix issue with saylinks query in MySQL 8.0+ ([#3800](https://github.com/EQEmu/Server/pull/3800)) @Akkadius 2023-12-24
+* Update faction mods with Live data ([#3799](https://github.com/EQEmu/Server/pull/3799)) @joligario 2023-12-23
+
+### Fixes
+
+* Disable Hide/Improved Hide on Trap damage ([#3791](https://github.com/EQEmu/Server/pull/3791)) @Kinglykrab 2023-12-19
+* Fix Bard Invisibility Songs breaking every 4 ticks ([#3783](https://github.com/EQEmu/Server/pull/3783)) @Kinglykrab 2023-12-19
+* Fix can_riposte parameter in DoMeleeSkillAttackDmg ([#3792](https://github.com/EQEmu/Server/pull/3792)) @Kinglykrab 2023-12-19
+
+### Forage
+
+* Add a rule to disabled using common_food_ids from the list in forage.cpp.  currently set to enabled. ([#3796](https://github.com/EQEmu/Server/pull/3796)) @regneq 2023-12-22
+
+### NPC
+
+* Support for multiple emotes per type, emote variables ([#3801](https://github.com/EQEmu/Server/pull/3801)) @regneq 2023-12-25
+
+### Quest API
+
+* Add GetHateTopBot(), GetHateTopClient(), and GetHateTopNPC() to Perl/Lua ([#3793](https://github.com/EQEmu/Server/pull/3793)) @Kinglykrab 2023-12-22
+* Add SummonItemIntoInventory() to Perl/Lua ([#3797](https://github.com/EQEmu/Server/pull/3797)) @Kinglykrab 2023-12-22
+
+### Repositories
+
+* Add ReplaceOne and ReplaceMany ([#3802](https://github.com/EQEmu/Server/pull/3802)) @Akkadius 2023-12-26
+
+## [22.37.0] - 12/18/2023
+
+### Bots
+
+* Add ScanCloseMobs support to fix AEs ([#3786](https://github.com/EQEmu/Server/pull/3786)) @nytmyr 2023-12-18
+* Expand ^itemuse options ([#3756](https://github.com/EQEmu/Server/pull/3756)) @nytmyr 2023-12-17
+* Fix ^defensive from checking aggressive disciplines. ([#3787](https://github.com/EQEmu/Server/pull/3787)) @nytmyr 2023-12-18
+* Fix ^oo autodefend from sending bots/pets to invalid haters ([#3772](https://github.com/EQEmu/Server/pull/3772)) @nytmyr 2023-12-16
+* Fix unnecessary failed to save timer error ([#3788](https://github.com/EQEmu/Server/pull/3788)) @nytmyr 2023-12-18
+* [Quest API] Add ^clickitem, ^timer, fix GetBestBotSpellForCure ([#3755](https://github.com/EQEmu/Server/pull/3755)) @nytmyr 2023-12-17
+
+### CI
+
+* Switch to use clang for Linux builds (speed) ([#3777](https://github.com/EQEmu/Server/pull/3777)) @Akkadius 2023-12-17
+
+### Compilation
+
+* Use pre-compiled headers for Windows (speed) ([#3778](https://github.com/EQEmu/Server/pull/3778)) @Akkadius 2023-12-18
+
+### Fixes
+
+* Drop Invisibility when hit by traps ([#3785](https://github.com/EQEmu/Server/pull/3785)) @Kinglykrab 2023-12-18
+* Fix NPCs routing to 0.0, 0.0 on #summon ([#3780](https://github.com/EQEmu/Server/pull/3780)) @Kinglykrab 2023-12-18
+* Fix bad merge  @Akkadius 2023-12-17
+* Fix issue with HOTBonusHealingSplitOverDuration Rule ([#3776](https://github.com/EQEmu/Server/pull/3776)) @Kinglykrab 2023-12-17
+* Fixed the discrepacy with time using command #time and in quests. ([#3767](https://github.com/EQEmu/Server/pull/3767)) @regneq 2023-12-17
+* Send Entity ID in Death Events to resolve #3721 ([#3779](https://github.com/EQEmu/Server/pull/3779)) @Kinglykrab 2023-12-18
+
+### Quest API
+
+* Add EVENT_ALT_CURRENCY_GAIN and EVENT_ALT_CURRENCY_LOSS to Perl/Lua ([#3734](https://github.com/EQEmu/Server/pull/3734)) @Kinglykrab 2023-12-17
+* Add EVENT_CRYSTAL_GAIN and EVENT_CRYSTAL_LOSS to Perl/Lua ([#3735](https://github.com/EQEmu/Server/pull/3735)) @Kinglykrab 2023-12-17
+* Add EVENT_LDON_POINTS_GAIN and EVENT_LDON_POINTS_LOSS to Perl/Lua ([#3742](https://github.com/EQEmu/Server/pull/3742)) @Kinglykrab 2023-12-17
+* Add EVENT_LEVEL_UP and EVENT_LEVEL_DOWN to Bots ([#3750](https://github.com/EQEmu/Server/pull/3750)) @Kinglykrab 2023-12-17
+* Add EVENT_LOOT_ADDED to Perl/Lua ([#3739](https://github.com/EQEmu/Server/pull/3739)) @Kinglykrab 2023-12-17
+* Add GetNPCAggro() and SetNPCAggro() to Perl/Lua ([#3781](https://github.com/EQEmu/Server/pull/3781)) @Kinglykrab 2023-12-18
+
+## [22.36.0] - 12/16/2023
+
+### Bots
+
+* Add rule to toggle DT hitting owner ([#3757](https://github.com/EQEmu/Server/pull/3757)) @nytmyr 2023-12-11
+* Enable auto-saving of bots. ([#3758](https://github.com/EQEmu/Server/pull/3758)) @nytmyr 2023-12-13
+
+### Code
+
+* Cleanup classes.cpp/classes.h ([#3752](https://github.com/EQEmu/Server/pull/3752)) @Kinglykrab 2023-12-13
+
+### Corpse
+
+* Fix /corpse command regression from #3727 ([#3770](https://github.com/EQEmu/Server/pull/3770)) @Akkadius 2023-12-16
+
+### Database
+
+* Make it clearer to users that a database backup is occurring ([#3769](https://github.com/EQEmu/Server/pull/3769)) @Akkadius 2023-12-16
+* When database version is greater than binary, we are up to date ([#3771](https://github.com/EQEmu/Server/pull/3771)) @Akkadius 2023-12-16
+
+### Fixes
+
+* Fix Starting Items SQL ([#3766](https://github.com/EQEmu/Server/pull/3766)) @Kinglykrab 2023-12-16
+
+### Logging
+
+* Change empty object loading to warning ([#3759](https://github.com/EQEmu/Server/pull/3759)) @nytmyr 2023-12-11
+
+### Rules
+
+* Add DOT and HOT Rules ([#3760](https://github.com/EQEmu/Server/pull/3760)) @Kinglykrab 2023-12-16
+
+## [22.35.0] - 12/10/2023
+
+### Bots
+
+* Add BotHealOnLevel to fully heal/mana on level. ([#3745](https://github.com/EQEmu/Server/pull/3745)) @nytmyr 2023-12-08
+* Fix bots learning spells on level ([#3744](https://github.com/EQEmu/Server/pull/3744)) @nytmyr 2023-12-08
+
+### Bug
+
+* Fix blocked spells regression from #3638 ([#3753](https://github.com/EQEmu/Server/pull/3753)) @joligario 2023-12-11
+* PR 3638 Missed the blocked spells repository updates ([#3748](https://github.com/EQEmu/Server/pull/3748)) @fryguy503 2023-12-08
+
+### CMake
+
+* Update minimum version of CMake ([#3743](https://github.com/EQEmu/Server/pull/3743)) @joligario 2023-12-08
+
+### Code
+
+* Remove hard-coded Status Checks ([#3727](https://github.com/EQEmu/Server/pull/3727)) @Kinglykrab 2023-12-03
+
+### Commands
+
+* #guild set CharName 0 did not remove char from guild. ([#3717](https://github.com/EQEmu/Server/pull/3717)) @noudess 2023-11-25
+* #petname changes PC to Nobody if selected. ([#3720](https://github.com/EQEmu/Server/pull/3720)) @noudess 2023-11-26
+* Add #show aas Command ([#3710](https://github.com/EQEmu/Server/pull/3710)) @Kinglykrab 2023-11-26
+* Add #task complete Command ([#3711](https://github.com/EQEmu/Server/pull/3711)) @Kinglykrab 2023-11-26
+* Cleanup #acceptrules Command ([#3716](https://github.com/EQEmu/Server/pull/3716)) @Kinglykrab 2023-11-26
+* Cleanup #disarmtrap Command ([#3713](https://github.com/EQEmu/Server/pull/3713)) @Kinglykrab 2023-11-26
+* Cleanup #list Command ([#3714](https://github.com/EQEmu/Server/pull/3714)) @Kinglykrab 2023-11-26
+* Cleanup #movement Command ([#3715](https://github.com/EQEmu/Server/pull/3715)) @Kinglykrab 2023-11-26
+* Cleanup #object Command ([#3722](https://github.com/EQEmu/Server/pull/3722)) @Kinglykrab 2023-12-03
+* Cleanup #zonebootup and #zoneshutdown Commands ([#3729](https://github.com/EQEmu/Server/pull/3729)) @Kinglykrab 2023-12-03
+* Fix formatting of #wpinfo output. ([#3728](https://github.com/EQEmu/Server/pull/3728)) @noudess 2023-12-01
+
+### Database
+
+* Add primary key to keyring table ([#3746](https://github.com/EQEmu/Server/pull/3746)) @Kinglykrab 2023-12-08
+* Consolidate Starting Items Table ([#3723](https://github.com/EQEmu/Server/pull/3723)) @Kinglykrab 2023-11-30
+* Extra whitespace in #3723 ([#3730](https://github.com/EQEmu/Server/pull/3730)) @joligario 2023-12-02
+* Minor adjustment to #3726 ([#3732](https://github.com/EQEmu/Server/pull/3732)) @joligario 2023-12-03
+* Modify `updated` column in `items` table with proper default. ([#3726](https://github.com/EQEmu/Server/pull/3726)) @joligario 2023-12-02
+* Pull Spell Group Cache from Content DB ([#3749](https://github.com/EQEmu/Server/pull/3749)) @fryguy503 2023-12-08
+
+### Faction
+
+* Alliance line is only allowed 1 faction change at a time. ([#3718](https://github.com/EQEmu/Server/pull/3718)) @noudess 2023-11-26
+
+### Fixes
+
+* Changing Group Leader Invalidated GetLeaderName() ([#3712](https://github.com/EQEmu/Server/pull/3712)) @Kinglykrab 2023-11-26
+* Fix 9245 SQL ([#3740](https://github.com/EQEmu/Server/pull/3740)) @Kinglykrab 2023-12-05
+* Fix Swarm Pets Requiring NPC Aggros Flag ([#3738](https://github.com/EQEmu/Server/pull/3738)) @Kinglykrab 2023-12-05
+* Guild Message Limits ([#3724](https://github.com/EQEmu/Server/pull/3724)) @neckkola 2023-11-29
+
+### Quest API
+
+* Add EVENT_AA_GAIN to AddAAPoints() ([#3733](https://github.com/EQEmu/Server/pull/3733)) @Kinglykrab 2023-12-03
+* Add GMMove Overloads to Perl/Lua ([#3719](https://github.com/EQEmu/Server/pull/3719)) @Kinglykrab 2023-11-25
+
+### Scripts
+
+* Import items into `items_new` table instead of writing directly to the existing `items` table. ([#3725](https://github.com/EQEmu/Server/pull/3725)) @joligario 2023-11-30
+* Revert database engine change from #3702. ([#3736](https://github.com/EQEmu/Server/pull/3736)) @joligario 2023-12-03
+* Update 13th Floor Import Tool ([#3702](https://github.com/EQEmu/Server/pull/3702)) @joligario 2023-11-26
+
 ## [22.34.2] - 11/23/2023
 
 ### Admin
@@ -22,7 +2729,7 @@
 
 ### EQTime
 
-Hotfix for world not spamming save messages by setting to detail level logging @Akkadius 2023-11-20 
+Hotfix for world not spamming save messages by setting to detail level logging @Akkadius 2023-11-20
 
 ## [22.34.0] - 11/19/2023
 
@@ -1104,7 +3811,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Telnet encoding fix ([#3269](https://github.com/EQEmu/Server/pull/3269)) @Akkadius 2023-04-05
 
-## [22.9.1] - 04/03/2023 
+## [22.9.1] - 04/03/2023
 
 ### Code
 
@@ -1149,7 +3856,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Change to use Pass by reference where valid. ([#3163](https://github.com/EQEmu/Server/pull/3163)) @Aeadoin 2023-04-02
 
-## [22.9.0] - 04/01/2023 
+## [22.9.0] - 04/01/2023
 
 ### Bots
 
@@ -1173,7 +3880,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Add missing Luabind definitions to lua_general.cpp ([#3167](https://github.com/EQEmu/Server/pull/3167)) @Kinglykrab 2023-04-01
 
-## [22.8.2] - 03/30/2023 
+## [22.8.2] - 03/30/2023
 
 ### Code
 
@@ -1197,13 +3904,13 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Remove Guild Bank Zone ID Rule ([#3156](https://github.com/EQEmu/Server/pull/3156)) @Kinglykrab 2023-03-29
 
-## [22.8.1] - 03/27/2023 
+## [22.8.1] - 03/27/2023
 
 ### Fixes
 
 * Fix for NPCs having spells interrupted. ([#3150](https://github.com/EQEmu/Server/pull/3150)) @Aeadoin 2023-03-27
 
-## [22.8.0] - 03/25/2023 
+## [22.8.0] - 03/25/2023
 
 ### Code
 
@@ -1223,7 +3930,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 * Fix for Items looted from corpses. ([#3147](https://github.com/EQEmu/Server/pull/3147)) @Aeadoin 2023-03-26
 * Fix for SQL Query in npc_scale_global_base ([#3144](https://github.com/EQEmu/Server/pull/3144)) @Aeadoin 2023-03-26
 
-## [22.7.0] - 03/24/2023 
+## [22.7.0] - 03/24/2023
 
 ### Bots
 
@@ -1380,7 +4087,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 * Add exception handling to converters themselves ([#3029](https://github.com/EQEmu/Server/pull/3029)) @Akkadius 2023-03-05
 * Add more number formatters ([#2873](https://github.com/EQEmu/Server/pull/2873)) @Kinglykrab 2023-03-04
 
-## [22.4.5] - 03/03/2023 
+## [22.4.5] - 03/03/2023
 
 ### Bots
 
@@ -1422,7 +4129,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 * Add IsFindable() and IsTrackable() to Perl/Lua ([#2996](https://github.com/EQEmu/Server/pull/2996)) @Kinglykrab 2023-03-01
 * Add IsUnderwaterOnly() to Perl/Lua ([#2995](https://github.com/EQEmu/Server/pull/2995)) @Kinglykrab 2023-03-01
 
-## [22.4.4] - 02/24/2023 
+## [22.4.4] - 02/24/2023
 
 ### Bots
 
@@ -1469,7 +4176,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Fix for Lore Conflict ([#2977](https://github.com/EQEmu/Server/pull/2977)) ([Aeadoin](https://github.com/Aeadoin)) 2023-02-24
 
-## [22.4.3] - 02/21/2023 
+## [22.4.3] - 02/21/2023
 
 ### Bots
 
@@ -1516,7 +4223,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Add date to optional Drakkin Guktan Faction Update ([#2965](https://github.com/EQEmu/Server/pull/2965)) ([joligario](https://github.com/joligario)) 2023-02-19
 
-## [22.4.2] - 02/18/2023 
+## [22.4.2] - 02/18/2023
 
 ### Content
 
@@ -1538,7 +4245,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 
 * Fix regression caused by #2932 ([#2956](https://github.com/EQEmu/Server/pull/2956)) ([Aeadoin](https://github.com/Aeadoin)) 2023-02-18
 
-## [22.4.1] - 02/17/2023 
+## [22.4.1] - 02/17/2023
 
 ### Bots
 
@@ -1559,7 +4266,7 @@ Revert Perl regression in #3648 causing scripts to not reliably initialize on zo
 * Fix rare out of bound issue when loading event types ([#2946](https://github.com/EQEmu/Server/pull/2946)) ([Akkadius](https://github.com/Akkadius)) 2023-02-17
 * Turn off KILLED_NPC (trash) off by default ([#2948](https://github.com/EQEmu/Server/pull/2948)) ([Akkadius](https://github.com/Akkadius)) 2023-02-17
 
-## [22.4.0] - 02/17/2023 
+## [22.4.0] - 02/17/2023
 
 ### Bots
 

@@ -86,19 +86,19 @@ void Perl_NPC_RemoveItem(NPC* self, uint32 item_id, uint16 quantity, uint16 slot
 	self->RemoveItem(item_id, quantity, slot_id);
 }
 
-void Perl_NPC_ClearItemList(NPC* self) // @categories Inventory and Items
+void Perl_NPC_ClearLootItems(NPC* self) // @categories Inventory and Items
 {
-	self->ClearItemList();
+	self->ClearLootItems();
 }
 
-void Perl_NPC_AddCash(NPC* self, uint16 copper, uint16 silver, uint16 gold, uint16 platinum) // @categories Currency and Points
+void Perl_NPC_AddLootCash(NPC* self, uint32 copper, uint32 silver, uint32 gold, uint32 platinum) // @categories Currency and Points
 {
-	self->AddCash(copper, silver, gold, platinum);
+	self->AddLootCash(copper, silver, gold, platinum);
 }
 
-void Perl_NPC_RemoveCash(NPC* self) // @categories Currency and Points
+void Perl_NPC_RemoveLootCash(NPC* self) // @categories Currency and Points
 {
-	self->RemoveCash();
+	self->RemoveLootCash();
 }
 
 uint32_t Perl_NPC_CountLoot(NPC* self) // @categories Inventory and Items
@@ -204,6 +204,7 @@ bool Perl_NPC_IsOnHatelist(NPC* self, Mob* mob) // @categories Hate and Aggro
 void Perl_NPC_RemoveFromHateList(NPC* self, Mob* mob) // @categories Hate and Aggro
 {
 	self->RemoveFromHateList(mob);
+	self->RemoveFromRampageList(mob);
 }
 
 void Perl_NPC_SetNPCFactionID(NPC* self, int faction_id) // @categories Faction
@@ -614,19 +615,19 @@ bool Perl_NPC_HasItem(NPC* self, uint32 item_id) // @categories Script Utility
 	return self->HasItem(item_id);
 }
 
-int Perl_NPC_CountItem(NPC* self, uint32 item_id)
+uint32 Perl_NPC_CountItem(NPC* self, uint32 item_id)
 {
 	return self->CountItem(item_id);
 }
 
-uint32_t Perl_NPC_GetItemIDBySlot(NPC* self, uint16 loot_slot)
+uint32_t Perl_NPC_GetLootItemIDBySlot(NPC* self, uint16 loot_slot)
 {
-	return self->GetItemIDBySlot(loot_slot);
+	return self->GetLootItemIDBySlot(loot_slot);
 }
 
-int Perl_NPC_GetFirstSlotByItemID(NPC* self, uint32 item_id)
+int Perl_NPC_GetFirstLootSlotByItemID(NPC* self, uint32 item_id)
 {
-	return self->GetFirstSlotByItemID(item_id);
+	return self->GetFirstLootSlotByItemID(item_id);
 }
 
 float Perl_NPC_GetHealScale(NPC* self) // @categories Stats and Attributes
@@ -757,12 +758,12 @@ void Perl_NPC_SetLDoNTrapDetected(NPC* self, bool is_detected)
 
 void Perl_NPC_ScaleNPC(NPC* self, uint8 npc_level)
 {
-	return self->ScaleNPC(npc_level);
+	self->ScaleNPC(npc_level, true);
 }
 
 void Perl_NPC_ScaleNPC(NPC* self, uint8 npc_level, bool override_special_abilities)
 {
-	return self->ScaleNPC(npc_level, override_special_abilities);
+	self->ScaleNPC(npc_level, true, override_special_abilities);
 }
 
 bool Perl_NPC_IsUnderwaterOnly(NPC* self) // @categories Script Utility
@@ -773,6 +774,125 @@ bool Perl_NPC_IsUnderwaterOnly(NPC* self) // @categories Script Utility
 bool Perl_NPC_HasSpecialAbilities(NPC* self) // @categories Script Utility
 {
 	return self->HasSpecialAbilities();
+}
+
+bool Perl_NPC_GetNPCAggro(NPC* self) // @categories Script Utility
+{
+	return self->GetNPCAggro();
+}
+
+void Perl_NPC_SetNPCAggro(NPC* self, bool in_npc_aggro) // @categories Script Utility
+{
+	self->SetNPCAggro(in_npc_aggro);
+}
+
+uint32 Perl_NPC_GetNPCSpellsEffectsID(NPC* self)
+{
+	return self->GetNPCSpellsEffectsID();
+}
+
+void Perl_NPC_DescribeSpecialAbilities(NPC* self, Client* c)
+{
+	self->DescribeSpecialAbilities(c);
+}
+
+bool Perl_NPC_IsMultiQuestEnabled(NPC* self)
+{
+	return self->IsMultiQuestEnabled();
+}
+
+void Perl_NPC_MultiQuestEnable(NPC* self)
+{
+	self->MultiQuestEnable();
+}
+
+bool Perl_NPC_IsResumedFromZoneSuspend(NPC* self)
+{
+	return self->IsResumedFromZoneSuspend();
+}
+
+bool Perl_NPC_CheckHandin(
+	NPC* self,
+	Client* c,
+	perl::reference handin_ref,
+	perl::reference required_ref,
+	perl::array items_ref
+)
+{
+	perl::hash handin   = handin_ref;
+	perl::hash required = required_ref;
+
+	std::map<std::string, uint32>   handin_map;
+	std::map<std::string, uint32>   required_map;
+	std::vector<EQ::ItemInstance *> items;
+
+	for (auto e: handin) {
+		if (!e.first) {
+			continue;
+		}
+
+		if (Strings::EqualFold(e.first, "0")) {
+			continue;
+		}
+
+		LogNpcHandinDetail("Handin key [{}] value [{}]", e.first, handin.at(e.first).c_str());
+
+		const uint32 count = static_cast<uint32>(handin.at(e.first));
+		handin_map[e.first] = count;
+	}
+
+	for (auto e: required) {
+		if (!e.first) {
+			continue;
+		}
+
+		if (Strings::EqualFold(e.first, "0")) {
+			continue;
+		}
+
+		LogNpcHandinDetail("Required key [{}] value [{}]", e.first, required.at(e.first).c_str());
+
+		const uint32 count = static_cast<uint32>(required.at(e.first));
+		required_map[e.first] = count;
+	}
+
+	for (auto e : items_ref) {
+		EQ::ItemInstance* i = static_cast<EQ::ItemInstance*>(e);
+		if (!i) {
+			continue;
+		}
+
+		items.emplace_back(i);
+
+		LogNpcHandinDetail(
+			"Item instance [{}] ({}) UUID ({}) added to handin list",
+			i->GetItem()->Name,
+			i->GetItem()->ID,
+			i->GetSerialNumber()
+		);
+	}
+
+	return self->CheckHandin(c, handin_map, required_map, items);
+}
+
+void Perl_NPC_ReturnHandinItems(NPC *self, Client* c)
+{
+	self->ReturnHandinItems(c);
+}
+
+Spawn2* Perl_NPC_GetSpawn(NPC* self)
+{
+	return self->GetSpawn();
+}
+
+void Perl_NPC_SetNPCTintIndex(NPC* self, uint32 index)
+{
+	self->SetNPCTintIndex(index);
+}
+
+uint32 Perl_NPC_GetNPCTintIndex(NPC* self)
+{
+	return self->GetNPCTintIndex();
 }
 
 void perl_register_npc()
@@ -787,7 +907,7 @@ void perl_register_npc()
 	package.add("AddAISpell", (void(*)(NPC*, int16, uint16, uint32, int, int, int16))&Perl_NPC_AddSpellToNPCList);
 	package.add("AddAISpell", (void(*)(NPC*, int16, uint16, uint32, int, int, int16, int8, int8))&Perl_NPC_AddSpellToNPCList);
 	package.add("AddAISpellEffect", &Perl_NPC_AddAISpellEffect);
-	package.add("AddCash", &Perl_NPC_AddCash);
+	package.add("AddCash", &Perl_NPC_AddLootCash);
 	package.add("AddDefensiveProc", &Perl_NPC_AddDefensiveProc);
 	package.add("AddItem", (void(*)(NPC*, uint32))&Perl_NPC_AddItem);
 	package.add("AddItem", (void(*)(NPC*, uint32, uint16))&Perl_NPC_AddItem);
@@ -806,10 +926,12 @@ void perl_register_npc()
 	package.add("CalculateNewWaypoint", &Perl_NPC_CalculateNewWaypoint);
 	package.add("ChangeLastName", &Perl_NPC_ChangeLastName);
 	package.add("CheckNPCFactionAlly", &Perl_NPC_CheckNPCFactionAlly);
-	package.add("ClearItemList", &Perl_NPC_ClearItemList);
+	package.add("CheckHandin", &Perl_NPC_CheckHandin);
+	package.add("ClearItemList", &Perl_NPC_ClearLootItems);
 	package.add("ClearLastName", &Perl_NPC_ClearLastName);
 	package.add("CountItem", &Perl_NPC_CountItem);
 	package.add("CountLoot", &Perl_NPC_CountLoot);
+	package.add("DescribeSpecialAbilities", &Perl_NPC_DescribeSpecialAbilities);
 	package.add("DisplayWaypointInfo", &Perl_NPC_DisplayWaypointInfo);
 	package.add("DoClassAttacks", &Perl_NPC_DoClassAttacks);
 	package.add("GetAccuracyRating", &Perl_NPC_GetAccuracyRating);
@@ -818,14 +940,14 @@ void perl_register_npc()
 	package.add("GetAvoidanceRating", &Perl_NPC_GetAvoidanceRating);
 	package.add("GetCombatState", &Perl_NPC_GetCombatState);
 	package.add("GetCopper", &Perl_NPC_GetCopper);
-	package.add("GetFirstSlotByItemID", &Perl_NPC_GetFirstSlotByItemID);
+	package.add("GetFirstSlotByItemID", &Perl_NPC_GetFirstLootSlotByItemID);
 	package.add("GetGold", &Perl_NPC_GetGold);
 	package.add("GetGrid", &Perl_NPC_GetGrid);
 	package.add("GetGuardPointX", &Perl_NPC_GetGuardPointX);
 	package.add("GetGuardPointY", &Perl_NPC_GetGuardPointY);
 	package.add("GetGuardPointZ", &Perl_NPC_GetGuardPointZ);
 	package.add("GetHealScale", &Perl_NPC_GetHealScale);
-	package.add("GetItemIDBySlot", &Perl_NPC_GetItemIDBySlot);
+	package.add("GetItemIDBySlot", &Perl_NPC_GetLootItemIDBySlot);
 	package.add("GetKeepsSoldItems", &Perl_NPC_GetKeepsSoldItems);
 	package.add("GetLDoNLockedSkill", &Perl_NPC_GetLDoNLockedSkill);
 	package.add("GetLDoNTrapType", &Perl_NPC_GetLDoNTrapType);
@@ -836,10 +958,13 @@ void perl_register_npc()
 	package.add("GetMaxDamage", &Perl_NPC_GetMaxDamage);
 	package.add("GetMaxWp", &Perl_NPC_GetMaxWp);
 	package.add("GetMinDMG", &Perl_NPC_GetMinDMG);
+	package.add("GetNPCAggro", &Perl_NPC_GetNPCAggro);
 	package.add("GetNPCFactionID", &Perl_NPC_GetNPCFactionID);
 	package.add("GetNPCHate", &Perl_NPC_GetNPCHate);
+	package.add("GetNPCSpellsEffectsID", &Perl_NPC_GetNPCSpellsEffectsID);
 	package.add("GetNPCSpellsID", &Perl_NPC_GetNPCSpellsID);
 	package.add("GetNPCStat", &Perl_NPC_GetNPCStat);
+	package.add("GetNPCTintIndex", &Perl_NPC_GetNPCTintIndex);
 	package.add("GetPetSpellID", &Perl_NPC_GetPetSpellID);
 	package.add("GetPlatinum", &Perl_NPC_GetPlatinum);
 	package.add("GetPrimSkill", &Perl_NPC_GetPrimSkill);
@@ -849,6 +974,7 @@ void perl_register_npc()
 	package.add("GetSilver", &Perl_NPC_GetSilver);
 	package.add("GetSlowMitigation", &Perl_NPC_GetSlowMitigation);
 	package.add("GetSp2", &Perl_NPC_GetSp2);
+	package.add("GetSpawn", &Perl_NPC_GetSpawn);
 	package.add("GetSpawnKillCount", &Perl_NPC_GetSpawnKillCount);
 	package.add("GetSpawnPointH", &Perl_NPC_GetSpawnPointH);
 	package.add("GetSpawnPointID", &Perl_NPC_GetSpawnPointID);
@@ -868,10 +994,12 @@ void perl_register_npc()
 	package.add("IsGuarding", &Perl_NPC_IsGuarding);
 	package.add("IsLDoNLocked", &Perl_NPC_IsLDoNLocked);
 	package.add("IsLDoNTrapped", &Perl_NPC_IsLDoNTrapped);
-	package.add("IsLDoNTrapDetected", &Perl_NPC_IsLDoNTrapDetected);;
+	package.add("IsLDoNTrapDetected", &Perl_NPC_IsLDoNTrapDetected);
+	package.add("IsMultiQuestEnabled", &Perl_NPC_IsMultiQuestEnabled);
 	package.add("IsOnHatelist", &Perl_NPC_IsOnHatelist);
 	package.add("IsRaidTarget", &Perl_NPC_IsRaidTarget);
 	package.add("IsRareSpawn", &Perl_NPC_IsRareSpawn);
+	package.add("IsResumedFromZoneSuspend", &Perl_NPC_IsResumedFromZoneSuspend);
 	package.add("IsTaunting", &Perl_NPC_IsTaunting);
 	package.add("IsUnderwaterOnly", (bool(*)(NPC*))&Perl_NPC_IsUnderwaterOnly);
 	package.add("MerchantCloseShop", &Perl_NPC_MerchantCloseShop);
@@ -880,6 +1008,7 @@ void perl_register_npc()
 	package.add("MoveTo", (void(*)(NPC*, float, float, float))&Perl_NPC_MoveTo);
 	package.add("MoveTo", (void(*)(NPC*, float, float, float, float))&Perl_NPC_MoveTo);
 	package.add("MoveTo", (void(*)(NPC*, float, float, float, float, bool))&Perl_NPC_MoveTo);
+	package.add("MultiQuestEnable", &Perl_NPC_MultiQuestEnable);
 	package.add("NextGuardPosition", &Perl_NPC_NextGuardPosition);
 	package.add("PauseWandering", &Perl_NPC_PauseWandering);
 	package.add("PickPocket", &Perl_NPC_PickPocket);
@@ -887,7 +1016,7 @@ void perl_register_npc()
 	package.add("ReloadSpells", &Perl_NPC_ReloadSpells);
 	package.add("RemoveAISpell", &Perl_NPC_RemoveSpellFromNPCList);
 	package.add("RemoveAISpellEffect", &Perl_NPC_RemoveAISpellEffect);
-	package.add("RemoveCash", &Perl_NPC_RemoveCash);
+	package.add("RemoveCash", &Perl_NPC_RemoveLootCash);
 	package.add("RemoveDefensiveProc", &Perl_NPC_RemoveDefensiveProc);
 	package.add("RemoveFromHateList", &Perl_NPC_RemoveFromHateList);
 	package.add("RemoveItem", (void(*)(NPC*, uint32))&Perl_NPC_RemoveItem);
@@ -896,6 +1025,7 @@ void perl_register_npc()
 	package.add("RemoveMeleeProc", &Perl_NPC_RemoveMeleeProc);
 	package.add("RemoveRangedProc", &Perl_NPC_RemoveRangedProc);
 	package.add("ResumeWandering", &Perl_NPC_ResumeWandering);
+	package.add("ReturnHandinItems", &Perl_NPC_ReturnHandinItems);
 	package.add("SaveGuardSpot", (void(*)(NPC*))&Perl_NPC_SaveGuardSpot);
 	package.add("SaveGuardSpot", (void(*)(NPC*, bool))&Perl_NPC_SaveGuardSpot);
 	package.add("SaveGuardSpot", (void(*)(NPC*, float, float, float, float))&Perl_NPC_SaveGuardSpot);
@@ -911,9 +1041,11 @@ void perl_register_npc()
 	package.add("SetLDoNTrapDetected", &Perl_NPC_SetLDoNTrapDetected);
 	package.add("SetLDoNTrapSpellID", &Perl_NPC_SetLDoNTrapSpellID);
 	package.add("SetLDoNTrapType", &Perl_NPC_SetLDoNTrapType);
+	package.add("SetNPCAggro", &Perl_NPC_SetNPCAggro);
 	package.add("SetGold", &Perl_NPC_SetGold);
 	package.add("SetGrid", &Perl_NPC_SetGrid);
 	package.add("SetNPCFactionID", &Perl_NPC_SetNPCFactionID);
+	package.add("SetNPCTintIndex", &Perl_NPC_SetNPCTintIndex);
 	package.add("SetPetSpellID", &Perl_NPC_SetPetSpellID);
 	package.add("SetPlatinum", &Perl_NPC_SetPlatinum);
 	package.add("SetPrimSkill", &Perl_NPC_SetPrimSkill);

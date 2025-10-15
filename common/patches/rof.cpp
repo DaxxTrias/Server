@@ -78,7 +78,7 @@ namespace RoF
 	{
 		//create our opcode manager if we havent already
 		if (opcodes == nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 
 			//load up the opcode manager.
 			//TODO: figure out how to support shared memory with multiple patches...
@@ -117,7 +117,7 @@ namespace RoF
 		//we need to go to every stream and replace it's manager.
 
 		if (opcodes != nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			if (!opcodes->ReloadOpcodes(opfile.c_str())) {
 				LogNetcode("[OPCODES] Error reloading opcodes file [{}] for patch [{}]", opfile.c_str(), name);
 				return;
@@ -202,7 +202,7 @@ namespace RoF
 		unsigned char *emu_buffer = in->pBuffer;
 		uint32 opcode = *((uint32*)emu_buffer);
 
-		if (opcode == 8) {
+		if (opcode == AlternateCurrencyMode::Populate) {
 			AltCurrencyPopulate_Struct *populate = (AltCurrencyPopulate_Struct*)emu_buffer;
 
 			auto outapp = new EQApplicationPacket(
@@ -1213,22 +1213,22 @@ namespace RoF
 		case 1: { // GuildBankItemUpdate
 			auto emu = (GuildBankItemUpdate_Struct *)in->pBuffer;
 			auto eq = (structs::GuildBankItemUpdate_Struct *)outapp->pBuffer;
-			eq->Action = 0;
-			OUT(Unknown004);
-			eq->Unknown08 = 0;
-			OUT(SlotID);
-			OUT(Area);
-			OUT(Unknown012);
-			OUT(ItemID);
-			OUT(Icon);
-			OUT(Quantity);
-			OUT(Permissions);
-			OUT(AllowMerge);
-			OUT(Useable);
-			OUT_str(ItemName);
-			OUT_str(Donator);
-			OUT_str(WhoFor);
-			OUT(Unknown226);
+			eq->action = 0;
+			OUT(unknown004);
+			eq->unknown008 = 0;
+			OUT(slot_id);
+			OUT(area);
+			OUT(display);
+			OUT(item_id);
+			OUT(icon_id);
+			OUT(quantity);
+			OUT(permissions);
+			OUT(allow_merge);
+			OUT(is_useable);
+			OUT_str(item_name);
+			OUT_str(donator);
+			OUT_str(who_for);
+			OUT(unknown226);
 			break;
 		}
 		default:
@@ -1308,13 +1308,13 @@ namespace RoF
 				PutFieldN(class_);
 
 				/* Translate older ranks to new values */
-				switch (emu_e->rank) {
-				case 0: { e->rank = htonl(5); break; }  // GUILD_MEMBER	0
-				case 1: { e->rank = htonl(3); break; }  // GUILD_OFFICER 1
-				case 2: { e->rank = htonl(1); break; }  // GUILD_LEADER	2
-				default: { e->rank = htonl(emu_e->rank); break; } // GUILD_NONE
-				}
-
+				//switch (emu_e->rank) {
+				//case 0: { e->rank = htonl(5); break; }  // GUILD_MEMBER	0
+				//case 1: { e->rank = htonl(3); break; }  // GUILD_OFFICER 1
+				//case 2: { e->rank = htonl(1); break; }  // GUILD_LEADER	2
+				//default: { e->rank = htonl(emu_e->rank); break; } // GUILD_NONE
+				//}
+				PutFieldN(rank);
 				PutFieldN(time_last_on);
 				PutFieldN(tribute_enable);
 				e->unknown01 = 0;
@@ -2621,7 +2621,7 @@ namespace RoF
 		general->parameter = RaidCommandAcceptInvite;
 		strn0cpy(general->leader_name, emu->leader_name, sizeof(emu->leader_name));
 		strn0cpy(general->player_name, emu->leader_name, sizeof(emu->leader_name));
-		
+
 		dest->FastQueuePacket(&outapp);
 
 		safe_delete(inapp);
@@ -3051,19 +3051,12 @@ namespace RoF
 		ENCODE_LENGTH_EXACT(GuildSetRank_Struct);
 		SETUP_DIRECT_ENCODE(GuildSetRank_Struct, structs::GuildSetRank_Struct);
 
-		eq->GuildID = emu->Unknown00;
+		eq->guild_id = emu->Unknown00;
+		eq->rank = emu->rank;
 
-		/* Translate older ranks to new values */
-		switch (emu->Rank) {
-		case 0: { eq->Rank = 5; break; }  // GUILD_MEMBER	0
-		case 1: { eq->Rank = 3; break; }  // GUILD_OFFICER	1
-		case 2: { eq->Rank = 1; break; }  // GUILD_LEADER	2
-		default: { eq->Rank = emu->Rank; break; }
-		}
-
-		memcpy(eq->MemberName, emu->MemberName, sizeof(eq->MemberName));
-		OUT(Banker);
-		eq->Unknown76 = 1;
+		memcpy(eq->member_name, emu->member_name, sizeof(eq->member_name));
+		OUT(banker);
+		eq->unknown76 = 1;
 
 		FINISH_ENCODE();
 	}
@@ -3092,21 +3085,6 @@ namespace RoF
 		//OUT(itemslot);
 		OUT(quantity);
 		OUT(price);
-
-		FINISH_ENCODE();
-	}
-
-	ENCODE(OP_ShopRequest)
-	{
-		ENCODE_LENGTH_EXACT(Merchant_Click_Struct);
-		SETUP_DIRECT_ENCODE(Merchant_Click_Struct, structs::Merchant_Click_Struct);
-
-		OUT(npcid);
-		OUT(playerid);
-		OUT(command);
-		OUT(rate);
-		eq->unknown01 = 3;	// Not sure what these values do yet, but list won't display without them
-		eq->unknown02 = 2592000;
 
 		FINISH_ENCODE();
 	}
@@ -3165,7 +3143,7 @@ namespace RoF
 
 		SpawnAppearance_Struct *sas = (SpawnAppearance_Struct *)emu_buffer;
 
-		if (sas->type != AT_Size)
+		if (sas->type != AppearanceType::Size)
 		{
 			dest->FastQueuePacket(&in, ack_req);
 			return;
@@ -3516,14 +3494,13 @@ namespace RoF
 			ENCODE_LENGTH_EXACT(ClickTrader_Struct);
 			SETUP_DIRECT_ENCODE(ClickTrader_Struct, structs::ClickTrader_Struct);
 
-			eq->Code = emu->Code;
-			// Live actually has 200 items now, but 80 is the most our internal struct supports
-			for (uint32 i = 0; i < 200; i++)
+			eq->Code = emu->action;
+			for (uint32 i = 0; i < RoF::invtype::BAZAAR_SIZE; i++)
 			{
 				strncpy(eq->items[i].SerialNumber, "0000000000000000", sizeof(eq->items[i].SerialNumber));
 				eq->items[i].Unknown18 = 0;
 				if (i < 80) {
-					eq->ItemCost[i] = emu->ItemCost[i];
+					eq->ItemCost[i] = emu->item_cost[i];
 				}
 				else {
 					eq->ItemCost[i] = 0;
@@ -3537,9 +3514,9 @@ namespace RoF
 			ENCODE_LENGTH_EXACT(Trader_ShowItems_Struct);
 			SETUP_DIRECT_ENCODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
 
-			eq->Code = emu->Code;
+			eq->Code = emu->action;
 			strncpy(eq->SerialNumber, "0000000000000000", sizeof(eq->SerialNumber));
-			eq->TraderID = emu->TraderID;
+			eq->TraderID = emu->entity_id;
 			eq->Stacksize = 0;
 			eq->Price = 0;
 
@@ -3565,13 +3542,13 @@ namespace RoF
 		ENCODE_LENGTH_EXACT(TraderBuy_Struct);
 		SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
 
-		OUT(Action);
-		OUT(Price);
-		OUT(TraderID);
-		memcpy(eq->ItemName, emu->ItemName, sizeof(eq->ItemName));
-		OUT(ItemID);
-		OUT(Quantity);
-		OUT(AlreadySold);
+		OUT(action);
+		OUT(price);
+		OUT(trader_id);
+		memcpy(eq->item_name, emu->item_name, sizeof(eq->item_name));
+		OUT(item_id);
+		OUT(quantity);
+		OUT(already_sold);
 
 		FINISH_ENCODE();
 	}
@@ -3868,8 +3845,8 @@ namespace RoF
 			}
 
 			float SpawnSize = emu->size;
-			if (!((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522))
+			if (!((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin))
 				)
 			{
 				PacketSize += 60;
@@ -3973,10 +3950,22 @@ namespace RoF
 
 				/* Translate older ranks to new values */
 				switch (emu->guildrank) {
-				case 0: { VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 5);  break; }  // GUILD_MEMBER	0
-				case 1: { VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 3);  break; }  // GUILD_OFFICER	1
-				case 2: { VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 1);  break; }  // GUILD_LEADER	2
-				default: { VARSTRUCT_ENCODE_TYPE(uint32, Buffer, emu->guildrank); break; }  //
+					case 0: {
+						VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 5);
+						break;
+					}  // GUILD_MEMBER	0
+					case 1: {
+						VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 3);
+						break;
+					}  // GUILD_OFFICER	1
+					case 2: {
+						VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 1);
+						break;
+					}  // GUILD_LEADER	2
+					default: {
+						VARSTRUCT_ENCODE_TYPE(uint32, Buffer, emu->guildrank);
+						break;
+					}  //
 				}
 			}
 
@@ -4002,8 +3991,8 @@ namespace RoF
 			VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 0xffffffff); // unknown18
 			VARSTRUCT_ENCODE_TYPE(uint32, Buffer, 0xffffffff); // unknown19
 
-			if ((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522)
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
 				)
 			{
 				for (k = EQ::textures::textureBegin; k < EQ::textures::materialCount; ++k)
@@ -5042,19 +5031,6 @@ namespace RoF
 		FINISH_DIRECT_DECODE();
 	}
 
-	DECODE(OP_ShopRequest)
-	{
-		DECODE_LENGTH_EXACT(structs::Merchant_Click_Struct);
-		SETUP_DIRECT_DECODE(Merchant_Click_Struct, structs::Merchant_Click_Struct);
-
-		IN(npcid);
-		IN(playerid);
-		IN(command);
-		IN(rate);
-
-		FINISH_DIRECT_DECODE();
-	}
-
 	DECODE(OP_Trader)
 	{
 		uint32 psize = __packet->size;
@@ -5064,12 +5040,11 @@ namespace RoF
 			SETUP_DIRECT_DECODE(ClickTrader_Struct, structs::ClickTrader_Struct);
 			MEMSET_IN(ClickTrader_Struct);
 
-			emu->Code = eq->Code;
-			// Live actually has 200 items now, but 80 is the most our internal struct supports
-			for (uint32 i = 0; i < 80; i++)
+			emu->action = eq->Code;
+			for (uint32 i = 0; i < RoF::invtype::BAZAAR_SIZE; i++)
 			{
-				emu->SerialNumber[i] = 0;	// eq->SerialNumber[i];
-				emu->ItemCost[i] = eq->ItemCost[i];
+				emu->serial_number[i] = 0;    // eq->SerialNumber[i];
+				emu->item_cost[i]     = eq->ItemCost[i];
 			}
 
 			FINISH_DIRECT_DECODE();
@@ -5080,8 +5055,8 @@ namespace RoF
 			SETUP_DIRECT_DECODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
 			MEMSET_IN(Trader_ShowItems_Struct);
 
-			emu->Code = eq->Code;
-			emu->TraderID = eq->TraderID;
+			emu->action = eq->Code;
+			emu->entity_id = eq->TraderID;
 
 			FINISH_DIRECT_DECODE();
 		}
@@ -5103,12 +5078,12 @@ namespace RoF
 		SETUP_DIRECT_DECODE(TraderBuy_Struct, structs::TraderBuy_Struct);
 		MEMSET_IN(TraderBuy_Struct);
 
-		IN(Action);
-		IN(Price);
-		IN(TraderID);
-		memcpy(emu->ItemName, eq->ItemName, sizeof(emu->ItemName));
-		IN(ItemID);
-		IN(Quantity);
+		IN(action);
+		IN(price);
+		IN(trader_id);
+		memcpy(emu->item_name, eq->item_name, sizeof(emu->item_name));
+		IN(item_id);
+		IN(quantity);
 
 		FINISH_DIRECT_DECODE();
 	}
@@ -5213,7 +5188,14 @@ namespace RoF
 
 		//sprintf(hdr.unknown000, "06e0002Y1W00");
 
-		snprintf(hdr.unknown000, sizeof(hdr.unknown000), "%016d", item->ID);
+		strn0cpy(
+			hdr.unknown000,
+			fmt::format(
+				"{:016}\0",
+				packet_type == ItemPacketInvalid ? 0 : inst->GetSerialNumber()
+			).c_str(),
+			sizeof(hdr.unknown000)
+		);
 
 		hdr.stacksize = (inst->IsStackable() ? ((inst->GetCharges() > 1000) ? 0xFFFFFFFF : inst->GetCharges()) : 1);
 		hdr.unknown004 = 0;
