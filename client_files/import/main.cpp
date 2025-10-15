@@ -27,11 +27,10 @@
 #include "../../common/content/world_content_service.h"
 #include "../../common/zone_store.h"
 #include "../../common/path_manager.h"
-
-EQEmuLogSys LogSys;
-WorldContentService content_service;
-ZoneStore zone_store;
-PathManager path;
+#include "../../common/repositories/base_data_repository.h"
+#include "../../common/file.h"
+#include "../../common/events/player_event_logs.h"
+#include "../../common/evolving_items.h"
 
 void ImportSpells(SharedDatabase *db);
 void ImportSkillCaps(SharedDatabase *db);
@@ -40,10 +39,10 @@ void ImportDBStrings(SharedDatabase *db);
 
 int main(int argc, char **argv) {
 	RegisterExecutablePlatform(ExePlatformClientImport);
-	LogSys.LoadLogSettingsDefaults();
+	EQEmuLogSys::Instance()->LoadLogSettingsDefaults();
 	set_exception_handler();
 
-	path.LoadPaths();
+	PathManager::Instance()->Init();
 
 	LogInfo("Client Files Import Utility");
 	if(!EQEmuConfig::LoadConfig()) {
@@ -86,8 +85,8 @@ int main(int argc, char **argv) {
 		content_db.SetMySQL(database);
 	}
 
-	LogSys.SetDatabase(&database)
-		->SetLogPath(path.GetLogPath())
+	EQEmuLogSys::Instance()->SetDatabase(&database)
+		->SetLogPath(PathManager::Instance()->GetLogPath())
 		->LoadLogDatabaseSettings()
 		->StartFileLogs();
 
@@ -96,7 +95,7 @@ int main(int argc, char **argv) {
 	ImportBaseData(&content_db);
 	ImportDBStrings(&database);
 
-	LogSys.CloseFileLogs();
+	EQEmuLogSys::Instance()->CloseFileLogs();
 
 	return 0;
 }
@@ -132,7 +131,7 @@ bool IsStringField(int i) {
 
 void ImportSpells(SharedDatabase *db) {
 	LogInfo("Importing Spells");
-	std::string file = fmt::format("{}/import/spells_us.txt", path.GetServerPath());
+	std::string file = fmt::format("{}/import/spells_us.txt", PathManager::Instance()->GetServerPath());
 	FILE *f = fopen(file.c_str(), "r");
 	if(!f) {
 		LogError("Unable to open {} to read, skipping.", file);
@@ -222,7 +221,7 @@ void ImportSpells(SharedDatabase *db) {
 void ImportSkillCaps(SharedDatabase *db) {
 	LogInfo("Importing Skill Caps");
 
-	std::string file = fmt::format("{}/import/SkillCaps.txt", path.GetServerPath());
+	std::string file = fmt::format("{}/import/SkillCaps.txt", PathManager::Instance()->GetServerPath());
 	FILE *f = fopen(file.c_str(), "r");
 	if(!f) {
 		LogError("Unable to open {} to read, skipping.", file);
@@ -255,56 +254,51 @@ void ImportSkillCaps(SharedDatabase *db) {
 	fclose(f);
 }
 
-void ImportBaseData(SharedDatabase *db) {
+void ImportBaseData(SharedDatabase *db)
+{
 	LogInfo("Importing Base Data");
 
-	std::string file = fmt::format("{}/import/BaseData.txt", path.GetServerPath());
-	FILE *f = fopen(file.c_str(), "r");
-	if(!f) {
-		LogError("Unable to open {} to read, skipping.", file);
-		return;
+	const std::string& file_name = fmt::format("{}/import/BaseData.txt", PathManager::Instance()->GetServerPath());
+
+	const auto& file_contents = File::GetContents(file_name);
+	if (!file_contents.error.empty()) {
+		LogError("{}", file_contents.error);
 	}
 
-	std::string delete_sql = "DELETE FROM base_data";
-	db->QueryDatabase(delete_sql);
+	db->QueryDatabase("DELETE FROM base_data");
 
-	char buffer[2048];
-	while(fgets(buffer, 2048, f)) {
-		auto split = Strings::Split(buffer, '^');
+	std::vector<BaseDataRepository::BaseData> v;
 
-		if(split.size() < 10) {
+	auto e = BaseDataRepository::NewEntity();
+
+	for (const auto& line: Strings::Split(file_contents.contents, "\n")) {
+		const auto& line_data = Strings::Split(line, '^');
+
+		if (line_data.size() < 10) {
 			continue;
 		}
 
-		std::string sql;
-		int level, class_id;
-		double hp, mana, end, unk1, unk2, hp_fac, mana_fac, end_fac;
+		e.level     = static_cast<uint8_t>(Strings::ToUnsignedInt(line_data[0]));
+		e.class_    = static_cast<uint8_t>(Strings::ToUnsignedInt(line_data[1]));
+		e.hp        = Strings::ToFloat(line_data[2]);
+		e.mana      = Strings::ToFloat(line_data[3]);
+		e.end       = Strings::ToFloat(line_data[4]);
+		e.hp_regen  = Strings::ToFloat(line_data[5]);
+		e.end_regen = Strings::ToFloat(line_data[6]);
+		e.hp_fac    = Strings::ToFloat(line_data[7]);
+		e.mana_fac  = Strings::ToFloat(line_data[8]);
+		e.end_fac   = Strings::ToFloat(line_data[9]);
 
-		level = Strings::ToInt(split[0].c_str());
-		class_id = Strings::ToInt(split[1].c_str());
-		hp = Strings::ToFloat(split[2].c_str());
-		mana = Strings::ToFloat(split[3].c_str());
-		end = Strings::ToFloat(split[4].c_str());
-		unk1 = Strings::ToFloat(split[5].c_str());
-		unk2 = Strings::ToFloat(split[6].c_str());
-		hp_fac = Strings::ToFloat(split[7].c_str());
-		mana_fac = Strings::ToFloat(split[8].c_str());
-		end_fac = Strings::ToFloat(split[9].c_str());
-
-		sql = StringFormat("INSERT INTO base_data(level, class, hp, mana, end, unk1, unk2, hp_fac, "
-			"mana_fac, end_fac) VALUES(%d, %d, %f, %f, %f, %f, %f, %f, %f, %f)",
-			level, class_id, hp, mana, end, unk1, unk2, hp_fac, mana_fac, end_fac);
-
-		db->QueryDatabase(sql);
+		v.emplace_back(e);
 	}
 
-	fclose(f);
+	BaseDataRepository::InsertMany(*db, v);
 }
 
 void ImportDBStrings(SharedDatabase *db) {
 	LogInfo("Importing DB Strings");
 
-	std::string file = fmt::format("{}/import/dbstr_us.txt", path.GetServerPath());
+	std::string file = fmt::format("{}/import/dbstr_us.txt", PathManager::Instance()->GetServerPath());
 	FILE *f = fopen(file.c_str(), "r");
 	if(!f) {
 		LogError("Unable to open {} to read, skipping.", file);

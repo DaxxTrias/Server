@@ -33,10 +33,6 @@
 #include "../common/zone_store.h"
 #include <fmt/format.h>
 
-extern ClientList      client_list;
-extern ZSList          zoneserver_list;
-extern LoginServerList loginserverlist;
-
 /**
  * @param username
  * @param password
@@ -57,11 +53,10 @@ struct EQ::Net::ConsoleLoginStatus CheckLogin(const std::string &username, const
 		return ret;
 	}
 
-	char account_name[64];
-	database.GetAccountName(ret.account_id, account_name);
+	const std::string& account_name = database.GetAccountName(ret.account_id);
 
 	ret.account_name = account_name;
-	ret.status       = database.CheckStatus(ret.account_id);
+	ret.status       = database.GetAccountStatus(ret.account_id);
 	return ret;
 }
 
@@ -96,9 +91,22 @@ void ConsoleApi(
 	BenchTimer timer;
 	timer.reset();
 
-	EQEmuApiWorldDataService::get(response, args);
+	std::string method = args.empty() ? "" : args[0];
 
-	std::string method = args[0];
+	if (method.empty()) {
+		root["execution_time"] = std::to_string(timer.elapsed());
+		root["method"]         = method;
+		root["data"]           = response;
+		root["error"]          = "No method specified";
+
+		std::stringstream payload;
+		payload << root;
+		connection->SendLine(payload.str());
+		return;
+	}
+
+	// Safe to call now that args[0] is known to exist
+	EQEmuApiWorldDataService::get(response, args);
 
 	root["execution_time"] = std::to_string(timer.elapsed());
 	root["method"]         = method;
@@ -106,7 +114,6 @@ void ConsoleApi(
 
 	std::stringstream payload;
 	payload << root;
-
 	connection->SendLine(payload.str());
 }
 
@@ -138,7 +145,7 @@ void ConsoleZoneStatus(
 )
 {
 	WorldConsoleTCPConnection console_connection(connection);
-	zoneserver_list.SendZoneStatus(0, connection->Admin(), &console_connection);
+	ZSList::Instance()->SendZoneStatus(0, connection->Admin(), &console_connection);
 }
 
 /**
@@ -182,7 +189,7 @@ void ConsoleWho(
 	}
 
 	WorldConsoleTCPConnection console_connection(connection);
-	client_list.ConsoleSendWhoAll(0, connection->Admin(), &whom, &console_connection);
+	ClientList::Instance()->ConsoleSendWhoAll(0, connection->Admin(), &whom, &console_connection);
 }
 
 /**
@@ -205,7 +212,7 @@ void ConsoleUptime(
 		ServerUptime_Struct *sus = (ServerUptime_Struct *) pack->pBuffer;
 		snprintf(sus->adminname, sizeof(sus->adminname), "*%s", connection->UserName().c_str());
 		sus->zoneserverid = Strings::ToInt(args[0]);
-		ZoneServer *zs = zoneserver_list.FindByID(sus->zoneserverid);
+		ZoneServer *zs = ZSList::Instance()->FindByID(sus->zoneserverid);
 		if (zs) {
 			zs->SendPacket(pack);
 		}
@@ -280,7 +287,7 @@ void ConsoleEmote(
 	join_args.erase(join_args.begin(), join_args.begin() + 2);
 
 	if (strcasecmp(args[0].c_str(), "world") == 0) {
-		zoneserver_list.SendEmoteMessageRaw(
+		ZSList::Instance()->SendEmoteMessageRaw(
 			0,
 			0,
 			AccountStatus::Player,
@@ -289,7 +296,7 @@ void ConsoleEmote(
 		);
 	}
 	else {
-		ZoneServer *zs = zoneserver_list.FindByName(args[0].c_str());
+		ZoneServer *zs = ZSList::Instance()->FindByName(args[0].c_str());
 		if (zs != 0) {
 			zs->SendEmoteMessageRaw(
 				0,
@@ -300,7 +307,7 @@ void ConsoleEmote(
 			);
 		}
 		else {
-			zoneserver_list.SendEmoteMessageRaw(
+			ZSList::Instance()->SendEmoteMessageRaw(
 				args[0].c_str(),
 				0,
 				AccountStatus::Player,
@@ -361,7 +368,7 @@ void ConsoleTell(
 	auto join_args = args;
 	join_args.erase(join_args.begin(), join_args.begin() + 1);
 
-	zoneserver_list.SendChannelMessage(tmpname, to.c_str(), ChatChannel_Tell, 0, Strings::Join(join_args, " ").c_str());
+	ZSList::Instance()->SendChannelMessage(tmpname, to.c_str(), ChatChannel_Tell, 0, Strings::Join(join_args, " ").c_str());
 }
 
 /**
@@ -382,7 +389,7 @@ void ConsoleBroadcast(
 	char tmpname[64];
 	tmpname[0] = '*';
 	strcpy(&tmpname[1], connection->UserName().c_str());
-	zoneserver_list.SendChannelMessage(tmpname, 0, ChatChannel_Broadcast, 0, Strings::Join(args, " ").c_str());
+	ZSList::Instance()->SendChannelMessage(tmpname, 0, ChatChannel_Broadcast, 0, Strings::Join(args, " ").c_str());
 }
 
 /**
@@ -403,7 +410,7 @@ void ConsoleGMSay(
 	char tmpname[64];
 	tmpname[0] = '*';
 	strcpy(&tmpname[1], connection->UserName().c_str());
-	zoneserver_list.SendChannelMessage(tmpname, 0, ChatChannel_GMSAY, 0, Strings::Join(args, " ").c_str());
+	ZSList::Instance()->SendChannelMessage(tmpname, 0, ChatChannel_GMSAY, 0, Strings::Join(args, " ").c_str());
 }
 
 /**
@@ -436,7 +443,7 @@ void ConsoleGuildSay(
 		Strings::Join(join_args, " ")
 	);
 
-	zoneserver_list.SendEmoteMessage(0, guild_id, AccountStatus::Player, Chat::Guild, message.c_str());
+	ZSList::Instance()->SendEmoteMessage(0, guild_id, AccountStatus::Player, Chat::Guild, message.c_str());
 }
 
 /**
@@ -457,7 +464,7 @@ void ConsoleOOC(
 	char tmpname[64];
 	tmpname[0] = '*';
 	strcpy(&tmpname[1], connection->UserName().c_str());
-	zoneserver_list.SendChannelMessage(tmpname, 0, ChatChannel_OOC, 0, Strings::Join(args, " ").c_str());
+	ZSList::Instance()->SendChannelMessage(tmpname, 0, ChatChannel_OOC, 0, Strings::Join(args, " ").c_str());
 }
 
 /**
@@ -478,7 +485,7 @@ void ConsoleAuction(
 	char tmpname[64];
 	tmpname[0] = '*';
 	strcpy(&tmpname[1], connection->UserName().c_str());
-	zoneserver_list.SendChannelMessage(tmpname, 0, ChatChannel_Auction, 0, Strings::Join(args, " ").c_str());
+	ZSList::Instance()->SendChannelMessage(tmpname, 0, ChatChannel_Auction, 0, Strings::Join(args, " ").c_str());
 }
 
 /**
@@ -507,7 +514,7 @@ void ConsoleKick(
 	strcpy(skp->adminname, tmpname);
 	strcpy(skp->name, args[0].c_str());
 	skp->adminrank = connection->Admin();
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	delete pack;
 }
 
@@ -523,8 +530,8 @@ void ConsoleLock(
 )
 {
 	WorldConfig::LockWorld();
-	if (loginserverlist.Connected()) {
-		loginserverlist.SendStatus();
+	if (LoginServerList::Instance()->Connected()) {
+		LoginServerList::Instance()->SendStatus();
 		connection->SendLine("World locked.");
 	}
 	else {
@@ -544,8 +551,8 @@ void ConsoleUnlock(
 )
 {
 	WorldConfig::UnlockWorld();
-	if (loginserverlist.Connected()) {
-		loginserverlist.SendStatus();
+	if (LoginServerList::Instance()->Connected()) {
+		LoginServerList::Instance()->SendStatus();
 		connection->SendLine("World unlocked.");
 	}
 	else {
@@ -578,25 +585,25 @@ void ConsoleZoneShutdown(
 		strcpy(&tmpname[1], connection->UserName().c_str());
 
 		auto pack = new ServerPacket;
-		pack->size    = sizeof(ServerZoneStateChange_struct);
+		pack->size    = sizeof(ServerZoneStateChange_Struct);
 		pack->pBuffer = new uchar[pack->size];
-		memset(pack->pBuffer, 0, sizeof(ServerZoneStateChange_struct));
-		ServerZoneStateChange_struct *s = (ServerZoneStateChange_struct *) pack->pBuffer;
+		memset(pack->pBuffer, 0, sizeof(ServerZoneStateChange_Struct));
+		auto *s = (ServerZoneStateChange_Struct *) pack->pBuffer;
 		pack->opcode = ServerOP_ZoneShutdown;
-		strcpy(s->adminname, tmpname);
+		strcpy(s->admin_name, tmpname);
 		if (Strings::IsNumber(args[0])) {
-			s->ZoneServerID = Strings::ToInt(args[0]);
+			s->zone_server_id = Strings::ToInt(args[0]);
 		}
 		else {
-			s->zoneid = ZoneID(args[0].c_str());
+			s->zone_id = ZoneID(args[0].c_str());
 		}
 
 		ZoneServer *zs = 0;
-		if (s->ZoneServerID != 0) {
-			zs = zoneserver_list.FindByID(s->ZoneServerID);
+		if (s->zone_server_id != 0) {
+			zs = ZSList::Instance()->FindByID(s->zone_server_id);
 		}
-		else if (s->zoneid != 0) {
-			zs = zoneserver_list.FindByName(ZoneName(s->zoneid));
+		else if (s->zone_id != 0) {
+			zs = ZSList::Instance()->FindByName(ZoneName(s->zone_id));
 		}
 		else {
 			connection->SendLine("Error: ZoneShutdown: neither ID nor name specified");
@@ -637,14 +644,14 @@ void ConsoleZoneBootup(
 		strcpy(&tmpname[1], connection->UserName().c_str());
 
 		if (args.size() > 2) {
-			zoneserver_list.SOPZoneBootup(
+			ZSList::Instance()->SOPZoneBootup(
 				tmpname,
 				Strings::ToInt(args[0]),
 				args[1].c_str(),
 				(bool) (strcasecmp(args[1].c_str(), "static") == 0));
 		}
 		else {
-			zoneserver_list.SOPZoneBootup(tmpname, Strings::ToInt(args[0]), args[1].c_str(), false);
+			ZSList::Instance()->SOPZoneBootup(tmpname, Strings::ToInt(args[0]), args[1].c_str(), false);
 		}
 	}
 }
@@ -666,7 +673,7 @@ void ConsoleZoneLock(
 
 	if (strcasecmp(args[0].c_str(), "list") == 0) {
 		WorldConsoleTCPConnection console_connection(connection);
-		zoneserver_list.ListLockedZones(0, &console_connection);
+		ZSList::Instance()->ListLockedZones(0, &console_connection);
 	}
 	else if (strcasecmp(args[0].c_str(), "lock") == 0 && connection->Admin() >= 101) {
 		if (args.size() < 2) {
@@ -675,8 +682,8 @@ void ConsoleZoneLock(
 
 		uint16 tmp = ZoneID(args[1].c_str());
 		if (tmp) {
-			if (zoneserver_list.SetLockedZone(tmp, true)) {
-				zoneserver_list.SendEmoteMessage(
+			if (ZSList::Instance()->SetLockedZone(tmp, true)) {
+				ZSList::Instance()->SendEmoteMessage(
 					0,
 					0,
 					AccountStatus::QuestTroupe,
@@ -702,8 +709,8 @@ void ConsoleZoneLock(
 
 		uint16 tmp = ZoneID(args[1].c_str());
 		if (tmp) {
-			if (zoneserver_list.SetLockedZone(tmp, false)) {
-				zoneserver_list.SendEmoteMessage(
+			if (ZSList::Instance()->SetLockedZone(tmp, false)) {
+				ZSList::Instance()->SendEmoteMessage(
 					0,
 					0,
 					AccountStatus::QuestTroupe,
@@ -823,7 +830,7 @@ void ConsoleWorldShutdown(
 		int32 time, interval;
 		if (Strings::IsNumber(args[0]) && Strings::IsNumber(args[1]) && ((time = Strings::ToInt(args[0])) > 0) &&
 			((interval = Strings::ToInt(args[1])) > 0)) {
-			zoneserver_list.WorldShutDown(time, interval);
+			ZSList::Instance()->WorldShutDown(time, interval);
 		}
 		else {
 			connection->SendLine("Usage: worldshutdown [now] [disable] ([time] [interval])");
@@ -831,19 +838,19 @@ void ConsoleWorldShutdown(
 	}
 	else if (args.size() == 1) {
 		if (strcasecmp(args[0].c_str(), "now") == 0) {
-			zoneserver_list.WorldShutDown(0, 0);
+			ZSList::Instance()->WorldShutDown(0, 0);
 		}
 		else if (strcasecmp(args[0].c_str(), "disable") == 0) {
 			connection->SendLine("[SYSTEM] World shutdown has been aborted.");
-			zoneserver_list.SendEmoteMessage(
+			ZSList::Instance()->SendEmoteMessage(
 				0,
 				0,
 				AccountStatus::Player,
 				Chat::Yellow,
 				"[SYSTEM] World shutdown has been aborted."
 			);
-			zoneserver_list.shutdowntimer->Disable();
-			zoneserver_list.reminder->Disable();
+			ZSList::Instance()->shutdowntimer->Disable();
+			ZSList::Instance()->reminder->Disable();
 		}
 		else {
 			connection->SendLine("Usage: worldshutdown [now] [disable] ([time] [interval])");
@@ -867,7 +874,7 @@ void ConsoleIpLookup(
 {
 	if (!args.empty()) {
 		WorldConsoleTCPConnection console_connection(connection);
-		client_list.SendCLEList(connection->Admin(), nullptr, &console_connection, args[0].c_str());
+		ClientList::Instance()->SendCLEList(connection->Admin(), nullptr, &console_connection, args[0].c_str());
 	}
 }
 
@@ -896,7 +903,7 @@ void ConsoleSignalCharByName(
 	CZS->update_identifier = update_identifier;
 	CZS->signal_id = Strings::ToInt(args[1]);
 	strn0cpy(CZS->client_name, (char *) args[0].c_str(), 64);
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	safe_delete(pack);
 }
 
@@ -912,12 +919,10 @@ void ConsoleReloadWorld(
 )
 {
 	connection->SendLine("Reloading World...");
-	auto               pack = new ServerPacket(ServerOP_ReloadWorld, sizeof(ReloadWorld_Struct));
-	ReloadWorld_Struct *RW  = (ReloadWorld_Struct *) pack->pBuffer;
-	RW->global_repop = ReloadWorld::Repop;
-	zoneserver_list.SendPacket(pack);
-	safe_delete(pack);
+	ZSList::Instance()->SendServerReload(ServerReload::Type::WorldRepop, nullptr);
 }
+
+auto debounce_reload = std::chrono::system_clock::now();
 
 /**
  * @param connection
@@ -935,6 +940,14 @@ void ConsoleReloadZoneQuests(
 		return;
 	}
 
+	// if now is within 1 second, return
+	if (std::chrono::system_clock::now() - debounce_reload < std::chrono::seconds(1)) {
+		debounce_reload = std::chrono::system_clock::now();
+		return;
+	}
+
+	debounce_reload = std::chrono::system_clock::now();
+
 	std::string zone_short_name = args[0];
 
 	connection->SendLine(fmt::format("Reloading Zone [{}]...", zone_short_name));
@@ -943,7 +956,7 @@ void ConsoleReloadZoneQuests(
 	auto *hot_reload_quests = (HotReloadQuestsStruct *) pack->pBuffer;
 	strn0cpy(hot_reload_quests->zone_short_name, (char *) zone_short_name.c_str(), 200);
 
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	safe_delete(pack);
 }
 
@@ -1059,7 +1072,7 @@ void ConsoleCrossZoneCastSpell(
 
 	strn0cpy(CZS->client_name, name.c_str(), sizeof(CZS->client_name));
 
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	safe_delete(pack);
 
 	connection->SendLine(
@@ -1110,7 +1123,7 @@ void ConsoleWorldWideCastSpell(
 	WWS->min_status  = min_status;
 	WWS->max_status  = max_status;
 
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	safe_delete(pack);
 
 	connection->SendLine(
@@ -1202,7 +1215,7 @@ void ConsoleCrossZoneMove(
 	const auto&  zone_short_name = !Strings::IsNumber(args[2]) ? args[2] : "";
 	const uint16 instance_id     = Strings::IsNumber(args[2]) ? static_cast<uint16>(Strings::ToUnsignedInt(args[2])) : 0;
 
-	const auto& z = !zone_short_name.empty() ? zone_store.GetZone(zone_short_name) : nullptr;
+	const auto& z = !zone_short_name.empty() ? ZoneStore::Instance()->GetZone(zone_short_name) : nullptr;
 
 	if (z && !z->id) {
 		connection->SendLine(fmt::format("No zone with the short name '{}' exists.", zone_short_name));
@@ -1241,7 +1254,7 @@ void ConsoleCrossZoneMove(
 		m->zone_short_name = zone_short_name;
 	}
 
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	safe_delete(pack);
 
 	connection->SendLine(
@@ -1272,7 +1285,7 @@ void ConsoleWorldWideMove(
 	const auto&  zone_short_name = !Strings::IsNumber(args[2]) ? args[2] : "";
 	const uint16 instance_id     = Strings::IsNumber(args[2]) ? static_cast<uint16>(Strings::ToUnsignedInt(args[2])) : 0;
 
-	const auto& z = !zone_short_name.empty() ? zone_store.GetZone(zone_short_name) : nullptr;
+	const auto& z = !zone_short_name.empty() ? ZoneStore::Instance()->GetZone(zone_short_name) : nullptr;
 
 	if (z && !z->id) {
 		connection->SendLine(fmt::format("No zone with the short name '{}' exists.", zone_short_name));
@@ -1300,7 +1313,7 @@ void ConsoleWorldWideMove(
 
 	strn0cpy(WWM->zone_short_name, zone_short_name.c_str(), sizeof(WWM->zone_short_name));
 
-	zoneserver_list.SendPacket(pack);
+	ZSList::Instance()->SendPacket(pack);
 	safe_delete(pack);
 
 	connection->SendLine(
@@ -1313,6 +1326,42 @@ void ConsoleWorldWideMove(
 	);
 }
 
+void ConsoleWWMarquee(
+	EQ::Net::ConsoleServerConnection* connection,
+	const std::string& command,
+	const std::vector<std::string>& args
+)
+{
+	if (args.size() < 2) {
+		connection->SendLine("Usage: wwmarquee <type> <message>");
+		return;
+	}
+
+	const uint32 type    = Strings::IsNumber(args[0]) ? Strings::ToUnsignedInt(args[0]) : 0;
+	std::string  message = Strings::Join(std::vector<std::string>(args.begin() + 1, args.end()), " ");
+	if (message.empty()) {
+		connection->SendLine("Message cannot be empty.");
+		return;
+	}
+
+	auto pack = new ServerPacket(ServerOP_WWMarquee, sizeof(WWMarquee_Struct));
+	auto* wwm = (WWMarquee_Struct*)pack->pBuffer;
+
+	wwm->type       = type;
+	wwm->priority   = 510;
+	wwm->fade_in    = 0;
+	wwm->fade_out   = 0;
+	wwm->duration   = 5000;
+	wwm->min_status = AccountStatus::Player;
+	wwm->max_status = AccountStatus::Player;
+
+	strn0cpy(wwm->message, message.c_str(), sizeof(wwm->message));
+
+	ZSList::Instance()->SendPacket(pack);
+	safe_delete(pack);
+
+	connection->SendLine(fmt::format("Sent world marquee type {}: {}", type, message));
+}
 
 /**
  * @param console
@@ -1350,6 +1399,12 @@ void RegisterConsoleFunctions(std::unique_ptr<EQ::Net::ConsoleServer>& console)
 	console->RegisterCall("whoami", 50, "whoami", std::bind(ConsoleWhoami, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	console->RegisterCall("worldshutdown", 200, "worldshutdown", std::bind(ConsoleWorldShutdown, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	console->RegisterCall("wwcast", 50, "wwcast [spell_id] [min_status] [max_status] - min_status and max_status are optional", std::bind(ConsoleWorldWideCastSpell, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+	console->RegisterCall(
+		"wwmarquee",
+		50,
+		"wwmarquee <type> <message>",
+		std::bind(ConsoleWWMarquee, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+	);
 	console->RegisterCall("wwmove", 50, "wwmove [instance_id|zone_short_name] [min_status] [max_status] -  min_status and max_status are optional, instance_id and zone_short_name are interchangeable", std::bind(ConsoleWorldWideMove, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	console->RegisterCall("zonebootup", 150, "zonebootup [zone_server_id] [zone_short_name]", std::bind(ConsoleZoneBootup, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 	console->RegisterCall("zonelock", 150, "zonelock [list|lock|unlock] [zone_short_name]", std::bind(ConsoleZoneLock, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));

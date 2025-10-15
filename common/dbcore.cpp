@@ -7,8 +7,8 @@
 #include "timer.h"
 
 #include "dbcore.h"
+#include "mysql_stmt.h"
 
-#include <errmsg.h>
 #include <fstream>
 #include <iostream>
 #include <mysqld_error.h>
@@ -138,7 +138,7 @@ MySQLRequestResult DBcore::QueryDatabase(const char *query, uint32 querylen, boo
 		 * Error logging
 		 */
 		if (mysql_errno(mysql) > 0 && query[0] != '\0') {
-			LogMySQLError("[{}] [{}]\n[{}]", mysql_errno(mysql), mysql_error(mysql), query);
+			LogMySQLError("MySQL Error ({}) [{}] Query [{}]", mysql_errno(mysql), mysql_error(mysql), query);
 		}
 
 		return MySQLRequestResult(nullptr, 0, 0, 0, 0, mysql_errno(mysql), errorBuffer);
@@ -160,7 +160,7 @@ MySQLRequestResult DBcore::QueryDatabase(const char *query, uint32 querylen, boo
 		(uint32) mysql_insert_id(mysql)
 	);
 
-	if (LogSys.log_settings[Logs::MySQLQuery].is_category_enabled == 1) {
+	if (EQEmuLogSys::Instance()->log_settings[Logs::MySQLQuery].is_category_enabled == 1) {
 		if ((strncasecmp(query, "select", 6) == 0)) {
 			LogMySQLQuery(
 				"{0} -- ({1} row{2} returned) ({3}s)",
@@ -189,9 +189,9 @@ void DBcore::TransactionBegin()
 	QueryDatabase("START TRANSACTION");
 }
 
-void DBcore::TransactionCommit()
+MySQLRequestResult DBcore::TransactionCommit()
 {
-	QueryDatabase("COMMIT");
+	return QueryDatabase("COMMIT");
 }
 
 void DBcore::TransactionRollback()
@@ -302,7 +302,9 @@ std::string DBcore::Escape(const std::string& s)
 
 void DBcore::SetMutex(Mutex *mutex)
 {
-	safe_delete(m_mutex);
+	if (m_mutex && m_mutex != mutex) {
+		safe_delete(m_mutex);
+	}
 
 	DBcore::m_mutex = mutex;
 }
@@ -436,4 +438,9 @@ MySQLRequestResult DBcore::QueryDatabaseMulti(const std::string &query)
 	SetMultiStatementsOff();
 
 	return r;
+}
+
+mysql::PreparedStmt DBcore::Prepare(std::string query)
+{
+	return mysql::PreparedStmt(*mysql, std::move(query), m_mutex);
 }

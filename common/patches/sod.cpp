@@ -72,7 +72,7 @@ namespace SoD
 	{
 		//create our opcode manager if we havent already
 		if (opcodes == nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			//load up the opcode manager.
 			//TODO: figure out how to support shared memory with multiple patches...
 			opcodes = new RegularOpcodeManager();
@@ -113,7 +113,7 @@ namespace SoD
 		//we need to go to every stream and replace it's manager.
 
 		if (opcodes != nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			if (!opcodes->ReloadOpcodes(opfile.c_str())) {
 				LogNetcode("[OPCODES] Error reloading opcodes file [{}] for patch [{}]", opfile.c_str(), name);
 				return;
@@ -2026,6 +2026,19 @@ namespace SoD
 		FINISH_ENCODE();
 	}
 
+	ENCODE(OP_ShopRequest)
+	{
+		ENCODE_LENGTH_EXACT(MerchantClick_Struct);
+		SETUP_DIRECT_ENCODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		OUT(npc_id);
+		OUT(player_id);
+		OUT(command);
+		OUT(rate);
+
+		FINISH_ENCODE();
+	}
+
 	ENCODE(OP_SomeItemPacketMaybe)
 	{
 		// This Opcode is not named very well. It is used for the animation of arrows leaving the player's bow
@@ -2273,13 +2286,13 @@ namespace SoD
 		ENCODE_LENGTH_EXACT(TraderBuy_Struct);
 		SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
 
-		OUT(Action);
-		OUT(Price);
-		OUT(TraderID);
-		memcpy(eq->ItemName, emu->ItemName, sizeof(eq->ItemName));
-		OUT(ItemID);
-		OUT(Quantity);
-		OUT(AlreadySold);
+		OUT(action);
+		OUT(price);
+		OUT(trader_id);
+		memcpy(eq->item_name, emu->item_name, sizeof(eq->item_name));
+		OUT(item_id);
+		OUT(quantity);
+		OUT(already_sold);
 
 		FINISH_ENCODE();
 	}
@@ -2507,8 +2520,8 @@ namespace SoD
 			}
 
 			float SpawnSize = emu->size;
-			if (!((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522))
+			if (!((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin))
 				)
 			{
 				PacketSize -= (sizeof(structs::Texture_Struct) * EQ::textures::materialCount);
@@ -2706,8 +2719,8 @@ namespace SoD
 
 			Buffer += sizeof(structs::Spawn_Struct_Position);
 
-			if ((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522)
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
 				)
 			{
 				for (k = EQ::textures::textureBegin; k < EQ::textures::materialCount; ++k)
@@ -2733,8 +2746,8 @@ namespace SoD
 			}
 
 
-			if ((emu->NPC == 0) || (emu->race <= RACE_GNOME_12) || (emu->race == RACE_IKSAR_128) ||
-					(emu->race == RACE_VAH_SHIR_130) || (emu->race == RACE_FROGLOK_330) || (emu->race == RACE_DRAKKIN_522)
+			if ((emu->NPC == 0) || (emu->race <= Race::Gnome) || (emu->race == Race::Iksar) ||
+					(emu->race == Race::VahShir) || (emu->race == Race::Froglok2) || (emu->race == Race::Drakkin)
 				)
 			{
 				structs::Texture_Struct *Equipment = (structs::Texture_Struct *)Buffer;
@@ -3483,18 +3496,33 @@ namespace SoD
 		FINISH_DIRECT_DECODE();
 	}
 
+	DECODE(OP_ShopRequest)
+	{
+		DECODE_LENGTH_EXACT(structs::MerchantClick_Struct);
+		SETUP_DIRECT_DECODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		IN(npc_id);
+		IN(player_id);
+		IN(command);
+		IN(rate);
+		emu->tab_display = 0;
+		emu->unknown020 = 0;
+
+		FINISH_DIRECT_DECODE();
+	}
+
 	DECODE(OP_TraderBuy)
 	{
 		DECODE_LENGTH_EXACT(structs::TraderBuy_Struct);
 		SETUP_DIRECT_DECODE(TraderBuy_Struct, structs::TraderBuy_Struct);
 		MEMSET_IN(TraderBuy_Struct);
 
-		IN(Action);
-		IN(Price);
-		IN(TraderID);
-		memcpy(emu->ItemName, eq->ItemName, sizeof(emu->ItemName));
-		IN(ItemID);
-		IN(Quantity);
+		IN(action);
+		IN(price);
+		IN(trader_id);
+		memcpy(emu->item_name, eq->item_name, sizeof(emu->item_name));
+		IN(item_id);
+		IN(quantity);
 
 		FINISH_DIRECT_DECODE();
 	}
@@ -3938,12 +3966,12 @@ namespace SoD
 			SoDSlot = serverSlot - 2;
 		}
 
-		else if (serverSlot <= EQ::invbag::GENERAL_BAGS_8_END && serverSlot >= EQ::invbag::GENERAL_BAGS_BEGIN) {
-			SoDSlot = serverSlot + 11;
+		else if (serverSlot <= EQ::invbag::GENERAL_BAGS_END && serverSlot >= EQ::invbag::GENERAL_BAGS_BEGIN) {
+			SoDSlot = serverSlot - (EQ::invbag::GENERAL_BAGS_BEGIN - invbag::GENERAL_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::GENERAL_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));;
 		}
 
 		else if (serverSlot <= EQ::invbag::CURSOR_BAG_END && serverSlot >= EQ::invbag::CURSOR_BAG_BEGIN) {
-			SoDSlot = serverSlot - 9;
+			SoDSlot = serverSlot - (EQ::invbag::CURSOR_BAG_BEGIN - invbag::CURSOR_BAG_BEGIN);
 		}
 
 		else if (serverSlot <= EQ::invslot::TRIBUTE_END && serverSlot >= EQ::invslot::TRIBUTE_BEGIN) {
@@ -3963,7 +3991,7 @@ namespace SoD
 		}
 
 		else if (serverSlot <= EQ::invbag::BANK_BAGS_END && serverSlot >= EQ::invbag::BANK_BAGS_BEGIN) {
-			SoDSlot = serverSlot + 1;
+			SoDSlot = serverSlot - (EQ::invbag::BANK_BAGS_BEGIN - invbag::BANK_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::BANK_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));;
 		}
 
 		else if (serverSlot <= EQ::invslot::SHARED_BANK_END && serverSlot >= EQ::invslot::SHARED_BANK_BEGIN) {
@@ -3971,7 +3999,7 @@ namespace SoD
 		}
 
 		else if (serverSlot <= EQ::invbag::SHARED_BANK_BAGS_END && serverSlot >= EQ::invbag::SHARED_BANK_BAGS_BEGIN) {
-			SoDSlot = serverSlot + 1;
+			SoDSlot = serverSlot - (EQ::invbag::SHARED_BANK_BAGS_BEGIN - invbag::SHARED_BANK_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::SHARED_BANK_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));
 		}
 
 		else if (serverSlot <= EQ::invslot::TRADE_END && serverSlot >= EQ::invslot::TRADE_BEGIN) {
@@ -3979,7 +4007,7 @@ namespace SoD
 		}
 
 		else if (serverSlot <= EQ::invbag::TRADE_BAGS_END && serverSlot >= EQ::invbag::TRADE_BAGS_BEGIN) {
-			SoDSlot = serverSlot;
+			SoDSlot = serverSlot - (EQ::invbag::TRADE_BAGS_BEGIN - invbag::TRADE_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((serverSlot - EQ::invbag::TRADE_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));
 		}
 
 		else if (serverSlot <= EQ::invslot::WORLD_END && serverSlot >= EQ::invslot::WORLD_BEGIN) {
@@ -4021,11 +4049,11 @@ namespace SoD
 		}
 
 		else if (sod_slot <= invbag::GENERAL_BAGS_END && sod_slot >= invbag::GENERAL_BAGS_BEGIN) {
-			server_slot = sod_slot - 11;
+			server_slot = sod_slot + (EQ::invbag::GENERAL_BAGS_BEGIN - invbag::GENERAL_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((sod_slot - invbag::GENERAL_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 
 		else if (sod_slot <= invbag::CURSOR_BAG_END && sod_slot >= invbag::CURSOR_BAG_BEGIN) {
-			server_slot = sod_slot + 9;
+			server_slot = sod_slot + (EQ::invbag::CURSOR_BAG_BEGIN - invbag::CURSOR_BAG_BEGIN);
 		}
 
 		else if (sod_slot <= invslot::TRIBUTE_END && sod_slot >= invslot::TRIBUTE_BEGIN) {
@@ -4045,7 +4073,7 @@ namespace SoD
 		}
 
 		else if (sod_slot <= invbag::BANK_BAGS_END && sod_slot >= invbag::BANK_BAGS_BEGIN) {
-			server_slot = sod_slot - 1;
+			server_slot = sod_slot + (EQ::invbag::BANK_BAGS_BEGIN - invbag::BANK_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((sod_slot - invbag::BANK_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 
 		else if (sod_slot <= invslot::SHARED_BANK_END && sod_slot >= invslot::SHARED_BANK_BEGIN) {
@@ -4053,7 +4081,7 @@ namespace SoD
 		}
 
 		else if (sod_slot <= invbag::SHARED_BANK_BAGS_END && sod_slot >= invbag::SHARED_BANK_BAGS_BEGIN) {
-			server_slot = sod_slot - 1;
+			server_slot = sod_slot + (EQ::invbag::SHARED_BANK_BAGS_BEGIN - invbag::SHARED_BANK_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((sod_slot - invbag::SHARED_BANK_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 
 		else if (sod_slot <= invslot::TRADE_END && sod_slot >= invslot::TRADE_BEGIN) {
@@ -4061,7 +4089,7 @@ namespace SoD
 		}
 
 		else if (sod_slot <= invbag::TRADE_BAGS_END && sod_slot >= invbag::TRADE_BAGS_BEGIN) {
-			server_slot = sod_slot;
+			server_slot = sod_slot + (EQ::invbag::TRADE_BAGS_BEGIN - invbag::TRADE_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((sod_slot - invbag::TRADE_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 
 		else if (sod_slot <= invslot::WORLD_END && sod_slot >= invslot::WORLD_BEGIN) {

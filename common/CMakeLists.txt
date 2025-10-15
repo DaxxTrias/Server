@@ -2,6 +2,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.12)
 
 SET(common_sources
     base_packet.cpp
+    bazaar.cpp
+    bodytypes.cpp
     classes.cpp
     cli/eqemu_command_handler.cpp
     compression.cpp
@@ -13,14 +15,15 @@ SET(common_sources
     crc32.cpp
     database/database_dump_service.cpp
     database.cpp
-    database_conversions.cpp
     database_instances.cpp
     database/database_update_manifest.cpp
+    database/database_update_manifest_custom.cpp
     database/database_update_manifest_bots.cpp
     database/database_update.cpp
     dbcore.cpp
     deity.cpp
     dynamic_zone_base.cpp
+    dynamic_zone_lockout.cpp
     emu_constants.cpp
     emu_limits.cpp
     emu_opcodes.cpp
@@ -38,7 +41,7 @@ SET(common_sources
     event_sub.cpp
     events/player_event_logs.cpp
     events/player_event_discord_formatter.cpp
-    expedition_lockout_timer.cpp
+    evolving_items.cpp
     extprofile.cpp
     discord/discord_manager.cpp
     faction.cpp
@@ -61,6 +64,7 @@ SET(common_sources
     mutex.cpp
     mysql_request_result.cpp
     mysql_request_row.cpp
+    mysql_stmt.cpp
     opcode_map.cpp
     opcodemgr.cpp
     packet_dump.cpp
@@ -84,7 +88,9 @@ SET(common_sources
     shared_tasks.cpp
     shareddb.cpp
     skills.cpp
+    skill_caps.cpp
     spdat.cpp
+    spdat_bot.cpp
     strings.cpp
     struct_strategy.cpp
     textures.cpp
@@ -94,12 +100,13 @@ SET(common_sources
     json/json.hpp
     json/jsoncpp.cpp
     zone_store.cpp
+    memory/ksm.hpp
     net/console_server.cpp
     net/console_server_connection.cpp
     net/crc32.cpp
-    net/daybreak_connection.cpp
     net/eqstream.cpp
     net/packet.cpp
+    net/reliable_stream_connection.cpp
     net/servertalk_client_connection.cpp
     net/servertalk_legacy_client_connection.cpp
     net/servertalk_server.cpp
@@ -156,6 +163,7 @@ SET(repositories
     repositories/base/base_bugs_repository.h
     repositories/base/base_bug_reports_repository.h
     repositories/base/base_buyer_repository.h
+    repositories/base/base_buyer_trade_items_repository.h
     repositories/base/base_character_activities_repository.h
     repositories/base/base_character_alternate_abilities_repository.h
     repositories/base/base_character_alt_currency_repository.h
@@ -168,6 +176,7 @@ SET(repositories
     repositories/base/base_character_currency_repository.h
     repositories/base/base_character_data_repository.h
     repositories/base/base_character_disciplines_repository.h
+    repositories/base/base_character_evolving_items_repository.h
     repositories/base/base_character_expedition_lockouts_repository.h
     repositories/base/base_character_exp_modifiers_repository.h
     repositories/base/base_character_inspect_messages_repository.h
@@ -177,6 +186,8 @@ SET(repositories
     repositories/base/base_character_leadership_abilities_repository.h
     repositories/base/base_character_material_repository.h
     repositories/base/base_character_memmed_spells_repository.h
+    repositories/base/base_character_parcels_repository.h
+    repositories/base/base_character_parcels_containers_repository.h
     repositories/base/base_character_peqzone_flags_repository.h
     repositories/base/base_character_pet_buffs_repository.h
     repositories/base/base_character_pet_info_repository.h
@@ -203,10 +214,9 @@ SET(repositories
     repositories/base/base_discovered_items_repository.h
     repositories/base/base_doors_repository.h
     repositories/base/base_dynamic_zones_repository.h
+    repositories/base/base_dynamic_zone_lockouts_repository.h
     repositories/base/base_dynamic_zone_members_repository.h
     repositories/base/base_dynamic_zone_templates_repository.h
-    repositories/base/base_expeditions_repository.h
-    repositories/base/base_expedition_lockouts_repository.h
     repositories/base/base_faction_association_repository.h
     repositories/base/base_faction_base_data_repository.h
     repositories/base/base_faction_list_repository.h
@@ -223,6 +233,9 @@ SET(repositories
     repositories/base/base_group_leaders_repository.h
     repositories/base/base_guilds_repository.h
     repositories/base/base_guild_ranks_repository.h
+    repositories/base/base_guild_permissions_repository.h
+    repositories/base/base_guild_members_repository.h
+    repositories/base/base_guild_bank_repository.h
     repositories/base/base_guild_relations_repository.h
     repositories/base/base_horses_repository.h
     repositories/base/base_instance_list_repository.h
@@ -231,7 +244,7 @@ SET(repositories
     repositories/base/base_inventory_snapshots_repository.h
     repositories/base/base_ip_exemptions_repository.h
     repositories/base/base_items_repository.h
-    repositories/base/base_item_tick_repository.h
+    repositories/base/base_items_evolving_details_repository.h
     repositories/base/base_ldon_trap_entries_repository.h
     repositories/base/base_ldon_trap_templates_repository.h
     repositories/base/base_level_exp_mods_repository.h
@@ -269,8 +282,20 @@ SET(repositories
     repositories/base/base_pets_equipmentset_repository.h
     repositories/base/base_pets_equipmentset_entries_repository.h
     repositories/base/base_player_titlesets_repository.h
+    repositories/base/base_player_event_aa_purchase_repository.h
+    repositories/base/base_player_event_killed_npc_repository.h
+    repositories/base/base_player_event_killed_named_npc_repository.h
+    repositories/base/base_player_event_killed_raid_npc_repository.h
     repositories/base/base_player_event_log_settings_repository.h
     repositories/base/base_player_event_logs_repository.h
+    repositories/base/base_player_event_loot_items_repository.h
+    repositories/base/base_player_event_merchant_purchase_repository.h
+    repositories/base/base_player_event_merchant_sell_repository.h
+    repositories/base/base_player_event_npc_handin_repository.h
+    repositories/base/base_player_event_npc_handin_entries_repository.h
+    repositories/base/base_player_event_speech_repository.h
+    repositories/base/base_player_event_trade_repository.h
+    repositories/base/base_player_event_trade_entries_repository.h
     repositories/base/base_quest_globals_repository.h
     repositories/base/base_raid_details_repository.h
     repositories/base/base_raid_members_repository.h
@@ -333,7 +358,8 @@ SET(repositories
     repositories/books_repository.h
     repositories/bugs_repository.h
     repositories/bug_reports_repository.h
-    repositories/buyer_repository.h
+    repositories/buyer_buy_lines_repository.h
+    repositories/buyer_trade_items_repository.h
     repositories/character_activities_repository.h
     repositories/character_alternate_abilities_repository.h
     repositories/character_alt_currency_repository.h
@@ -346,6 +372,7 @@ SET(repositories
     repositories/character_currency_repository.h
     repositories/character_data_repository.h
     repositories/character_disciplines_repository.h
+    repositories/character_evolving_items_repository.h
     repositories/character_expedition_lockouts_repository.h
     repositories/character_exp_modifiers_repository.h
     repositories/character_inspect_messages_repository.h
@@ -355,6 +382,8 @@ SET(repositories
     repositories/character_leadership_abilities_repository.h
     repositories/character_material_repository.h
     repositories/character_memmed_spells_repository.h
+    repositories/character_parcels_repository.h
+    repositories/character_parcels_containers_repository.h
     repositories/character_peqzone_flags_repository.h
     repositories/character_pet_buffs_repository.h
     repositories/character_pet_info_repository.h
@@ -381,10 +410,9 @@ SET(repositories
     repositories/discovered_items_repository.h
     repositories/doors_repository.h
     repositories/dynamic_zones_repository.h
+    repositories/dynamic_zone_lockouts_repository.h
     repositories/dynamic_zone_members_repository.h
     repositories/dynamic_zone_templates_repository.h
-    repositories/expeditions_repository.h
-    repositories/expedition_lockouts_repository.h
     repositories/faction_association_repository.h
     repositories/faction_base_data_repository.h
     repositories/faction_list_repository.h
@@ -401,6 +429,9 @@ SET(repositories
     repositories/group_leaders_repository.h
     repositories/guilds_repository.h
     repositories/guild_ranks_repository.h
+    repositories/guild_permissions_repository.h
+    repositories/guild_members_repository.h
+    repositories/guild_bank_repository.h
     repositories/guild_relations_repository.h
     repositories/horses_repository.h
     repositories/instance_list_repository.h
@@ -409,7 +440,7 @@ SET(repositories
     repositories/inventory_snapshots_repository.h
     repositories/ip_exemptions_repository.h
     repositories/items_repository.h
-    repositories/item_tick_repository.h
+    repositories/items_evolving_details_repository.h
     repositories/ldon_trap_entries_repository.h
     repositories/ldon_trap_templates_repository.h
     repositories/level_exp_mods_repository.h
@@ -447,8 +478,20 @@ SET(repositories
     repositories/pets_equipmentset_repository.h
     repositories/pets_equipmentset_entries_repository.h
     repositories/player_titlesets_repository.h
+    repositories/player_event_aa_purchase_repository.h
+    repositories/player_event_killed_npc_repository.h
+    repositories/player_event_killed_named_npc_repository.h
+    repositories/player_event_killed_raid_npc_repository.h
     repositories/player_event_log_settings_repository.h
     repositories/player_event_logs_repository.h
+    repositories/player_event_loot_items_repository.h
+    repositories/player_event_merchant_purchase_repository.h
+    repositories/player_event_merchant_sell_repository.h
+    repositories/player_event_npc_handin_repository.h
+    repositories/player_event_npc_handin_entries_repository.h
+    repositories/player_event_speech_repository.h
+    repositories/player_event_trade_repository.h
+    repositories/player_event_trade_entries_repository.h
     repositories/quest_globals_repository.h
     repositories/raid_details_repository.h
     repositories/raid_members_repository.h
@@ -489,12 +532,12 @@ SET(repositories
     repositories/zone_repository.h
     repositories/zone_points_repository.h
 
-    )
+)
 
 SET(common_headers
     additive_lagged_fibonacci_engine.h
+    bazaar.h
     base_packet.h
-    base_data.h
     bodytypes.h
     classes.h
     compression.h
@@ -517,6 +560,7 @@ SET(common_headers
     discord/discord.h
     discord/discord_manager.h
     dynamic_zone_base.h
+    dynamic_zone_lockout.h
     emu_constants.h
     emu_limits.h
     emu_opcodes.h
@@ -541,9 +585,8 @@ SET(common_headers
     events/player_event_logs.h
     events/player_event_discord_formatter.h
     events/player_events.h
-    errmsg.h
     event_sub.h
-    expedition_lockout_timer.h
+    evolving_items.h
     extprofile.h
     faction.h
     file.h
@@ -560,13 +603,11 @@ SET(common_headers
     ipc_mutex.h
     ip_util.h
     item_data.h
-    item_fieldlist.h
     item_instance.h
     json_config.h
-    languages.h
     light_source.h
     linked_list.h
-    loottable.h
+    loot.h
     mail_oplist.h
     md5.h
     memory_buffer.h
@@ -576,6 +617,7 @@ SET(common_headers
     mutex.h
     mysql_request_result.h
     mysql_request_row.h
+    mysql_stmt.h
     op_codes.h
     opcode_dispatch.h
     opcodemgr.h
@@ -592,7 +634,7 @@ SET(common_headers
     ptimer.h
     queue.h
     races.h
-	raid.h
+    raid.h
     random.h
     rdtsc.h
     rulesys.h
@@ -603,9 +645,11 @@ SET(common_headers
     server_event_scheduler.h
     serverinfo.h
     servertalk.h
+    server_reload_types.h
     shared_tasks.h
     shareddb.h
     skills.h
+    skill_caps.h
     spdat.h
     strings.h
     struct_strategy.h
@@ -626,18 +670,20 @@ SET(common_headers
     net/console_server.h
     net/console_server_connection.h
     net/crc32.h
-    net/daybreak_connection.h
-    net/daybreak_structs.h
     net/dns.h
     net/endian.h
     net/eqstream.h
     net/packet.h
+    net/reliable_stream_connection.h
+    net/reliable_stream_pooling.h
+    net/reliable_stream_structs.h
     net/servertalk_client_connection.h
     net/servertalk_legacy_client_connection.h
     net/servertalk_common.h
     net/servertalk_server.h
     net/servertalk_server_connection.h
     net/tcp_connection.h
+    net/tcp_connection_pooling.h
     net/tcp_server.h
     net/websocket_server.h
     net/websocket_server_connection.h
@@ -681,13 +727,13 @@ SOURCE_GROUP(Event FILES
     event/event_loop.h
     event/timer.h
     event/task.h
-    )
+)
 
 SOURCE_GROUP(Json FILES
     json/json.h
     json/jsoncpp.cpp
     json/json-forwards.h
-    )
+)
 
 SOURCE_GROUP(Net FILES
     net/console_server.cpp
@@ -696,9 +742,6 @@ SOURCE_GROUP(Net FILES
     net/console_server_connection.h
     net/crc32.cpp
     net/crc32.h
-    net/daybreak_connection.cpp
-    net/daybreak_connection.h
-    net/daybreak_structs.h
     net/dns.h
     net/endian.h
     net/eqmq.cpp
@@ -707,6 +750,10 @@ SOURCE_GROUP(Net FILES
     net/eqstream.h
     net/packet.cpp
     net/packet.h
+    net/reliable_stream_connection.cpp
+    net/reliable_stream_connection.h
+    net/reliable_stream_pooling.h
+    net/reliable_stream_structs.h
     net/servertalk_client_connection.cpp
     net/servertalk_client_connection.h
     net/servertalk_legacy_client_connection.cpp
@@ -718,13 +765,14 @@ SOURCE_GROUP(Net FILES
     net/servertalk_server_connection.h
     net/tcp_connection.cpp
     net/tcp_connection.h
+    net/tcp_connection_pooling.h
     net/tcp_server.cpp
     net/tcp_server.h
     net/websocket_server.cpp
     net/websocket_server.h
     net/websocket_server_connection.cpp
     net/websocket_server_connection.h
-    )
+)
 
 SOURCE_GROUP(Patches FILES
     patches/patches.h
@@ -768,12 +816,12 @@ SOURCE_GROUP(Patches FILES
     patches/titanium_limits.cpp
     patches/uf.cpp
     patches/uf_limits.cpp
-    )
+)
 
 SOURCE_GROUP(StackWalker FILES
     StackWalker/StackWalker.h
     StackWalker/StackWalker.cpp
-    )
+)
 
 SOURCE_GROUP(Util FILES
     util/memory_stream.h
@@ -781,7 +829,7 @@ SOURCE_GROUP(Util FILES
     util/directory.h
     util/uuid.cpp
     util/uuid.h
-    )
+)
 
 INCLUDE_DIRECTORIES(Patches SocketLib StackWalker)
 
@@ -792,5 +840,8 @@ IF (UNIX)
     SET_SOURCE_FILES_PROPERTIES("patches/sod.cpp" "patches/sof.cpp" "patches/rof.cpp" "patches/rof2.cpp" "patches/uf.cpp" PROPERTIES COMPILE_FLAGS -O0)
 ENDIF (UNIX)
 
+IF (EQEMU_BUILD_PCH)
+    TARGET_PRECOMPILE_HEADERS(common PRIVATE pch/std-pch.h)
+ENDIF ()
 
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)

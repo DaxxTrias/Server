@@ -25,7 +25,11 @@
 #include "zonedb.h"
 #include "../common/zone_store.h"
 #include "zonedump.h"
-#include "../common/loottable.h"
+#include "../common/repositories/npc_faction_entries_repository.h"
+#include "../common/repositories/loottable_repository.h"
+#include "../common/repositories/loottable_entries_repository.h"
+#include "../common/repositories/lootdrop_repository.h"
+#include "../common/repositories/lootdrop_entries_repository.h"
 
 #include <deque>
 #include <list>
@@ -126,7 +130,7 @@ public:
 	static NPC * SpawnZonePointNodeNPC(std::string name, const glm::vec4 &position);
 
 	//abstract virtual function implementations requird by base abstract class
-	virtual bool Death(Mob* killerMob, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill);
+	virtual bool Death(Mob* killer_mob, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, KilledByTypes killed_by = KilledByTypes::Killed_NPC, bool is_buff_tic = false);
 	virtual void Damage(Mob* from, int64 damage, uint16 spell_id, EQ::skills::SkillType attack_skill, bool avoidable = true, int8 buffslot = -1, bool iBuffTic = false, eSpecialAttacks special = eSpecialAttacks::None);
 	bool Attack(Mob* other, int Hand = EQ::invslot::slotPrimary, bool FromRiposte = false, bool IsStrikethrough = false,
 		bool IsFromSpell = false, ExtraAttackOptions *opts = nullptr) override;
@@ -192,41 +196,50 @@ public:
 	virtual void SpellProcess();
 	virtual void FillSpawnStruct(NewSpawn_Struct* ns, Mob* ForWho);
 
-	void	AddItem(const EQ::ItemData* item, uint16 charges, bool equipitem = true);
-	void	AddItem(uint32 itemid, uint16 charges, bool equipitem = true, uint32 aug1 = 0, uint32 aug2 = 0, uint32 aug3 = 0, uint32 aug4 = 0, uint32 aug5 = 0, uint32 aug6 = 0);
-	void	AddLootTable();
-	void	AddLootTable(uint32 ldid);
-	void	CheckGlobalLootTables();
-	void	DescribeAggro(Client *to_who, Mob *mob, bool verbose);
-	void	RemoveItem(uint32 item_id, uint16 quantity = 0, uint16 slot = 0);
-	void	CheckTrivialMinMaxLevelDrop(Mob *killer);
-	void	ClearItemList();
-	inline const ItemList &GetItemList() { return itemlist; }
-	ServerLootItem_Struct*	GetItem(int slot_id);
-	void	AddCash(uint16 in_copper, uint16 in_silver, uint16 in_gold, uint16 in_platinum);
-	void	RemoveCash();
-	void	QueryLoot(Client* to, bool is_pet_query = false);
-	bool	HasItem(uint32 item_id);
-	uint16	CountItem(uint32 item_id);
-	uint32	GetItemIDBySlot(uint16 loot_slot);
-	uint16	GetFirstSlotByItemID(uint32 item_id);
+	// loot
+	void AddItem(const EQ::ItemData *item, uint16 charges, bool equip_item = true);
+	void AddItem(
+		uint32 item_id,
+		uint16 charges,
+		bool equip_item = true,
+		uint32 augment_one = 0,
+		uint32 augment_two = 0,
+		uint32 augment_three = 0,
+		uint32 augment_four = 0,
+		uint32 augment_five = 0,
+		uint32 augment_six = 0
+	);
+	void AddLootTable();
+	void AddLootTable(uint32 loottable_id, bool is_global = false);
+	void AddLootDropTable(uint32 lootdrop_id, uint8 drop_limit, uint8 min_drop);
+	void CheckGlobalLootTables();
+	void RemoveItem(uint32 item_id, uint16 quantity = 0, uint16 slot = 0);
+	void CheckTrivialMinMaxLevelDrop(Mob *killer);
+	void ClearLootItems();
+	inline const LootItems &GetLootItems() { return m_loot_items; }
+	LootItem *GetItem(int slot_id);
+	void AddLootCash(uint32 in_copper, uint32 in_silver, uint32 in_gold, uint32 in_platinum);
+	void RemoveLootCash();
+	void QueryLoot(Client *to, bool is_pet_query = false);
+	bool HasItem(uint32 item_id);
+	uint32 CountItem(uint32 item_id);
+	uint32 GetLootItemIDBySlot(uint16 loot_slot);
+	uint16 GetFirstLootSlotByItemID(uint32 item_id);
 	std::vector<int> GetLootList();
-	uint32	CountLoot();
-	inline uint32	GetLoottableID()	const { return loottable_id; }
+	uint32 CountLoot();
+	inline uint32 GetLoottableID() const { return m_loottable_id; }
+	inline bool DropsGlobalLoot() const { return !m_skip_global_loot; }
+	inline uint32 GetCopper() const { return m_loot_copper; }
+	inline uint32 GetSilver() const { return m_loot_silver; }
+	inline uint32 GetGold() const { return m_loot_gold; }
+	inline uint32 GetPlatinum() const { return m_loot_platinum; }
+	inline void SetCopper(uint32 amt) { m_loot_copper = amt; }
+	inline void SetSilver(uint32 amt) { m_loot_silver = amt; }
+	inline void SetGold(uint32 amt) { m_loot_gold = amt; }
+	inline void SetPlatinum(uint32 amt) { m_loot_platinum = amt; }
+
+	void DescribeAggro(Client *to_who, Mob *mob, bool verbose);
 	virtual void UpdateEquipmentLight();
-	inline bool DropsGlobalLoot() const { return !skip_global_loot; }
-
-	inline uint32	GetCopper()		const { return copper; }
-	inline uint32	GetSilver()		const { return silver; }
-	inline uint32	GetGold()		const { return gold; }
-	inline uint32	GetPlatinum()	const { return platinum; }
-
-	inline void	SetCopper(uint32 amt)		{ copper = amt; }
-	inline void	SetSilver(uint32 amt)		{ silver = amt; }
-	inline void	SetGold(uint32 amt)			{ gold = amt; }
-	inline void	SetPlatinum(uint32 amt)		{ platinum = amt; }
-
-
 	virtual int64 CalcMaxMana();
 	void SetGrid(int32 grid_){ grid=grid_; }
 	void SetSpawnGroupId(uint32 sg2){ spawn_group_id =sg2; }
@@ -235,6 +248,7 @@ public:
 
 	uint16 GetWaypointMax() const { return wp_m; }
 	int32 GetGrid() const { return grid; }
+	Spawn2* GetSpawn() { return respawn2 ? respawn2 : nullptr; }
 	uint32 GetSpawnGroupId() const { return spawn_group_id; }
 	uint32 GetSpawnPointID() const;
 
@@ -255,6 +269,8 @@ public:
 	inline void	MerchantOpenShop() { merchant_open = true; }
 	inline void	MerchantCloseShop() { merchant_open = false; }
 	inline bool	IsMerchantOpen() { return merchant_open; }
+	inline uint8 GetGreedPercent() { return NPCTypedata->greed; }
+	inline bool GetParcelMerchant() { return NPCTypedata->is_parcel_merchant; }
 	void	Depop(bool start_spawn_timer = false);
 	void	Stun(int duration);
 	void	UnStun();
@@ -286,7 +302,7 @@ public:
 	void SetNPCFactionID(int32 in)
 	{
 		npc_faction_id = in;
-		content_db.GetFactionIdsForNPC(npc_faction_id, &faction_list, &primary_faction);
+		content_db.GetFactionIDsForNPC(npc_faction_id, &faction_list, &primary_faction);
 	}
 
     glm::vec4 m_SpawnPoint;
@@ -298,7 +314,7 @@ public:
 	float GetSlowMitigation() const { return slow_mitigation; }
 	float	GetAttackSpeed() const {return attack_speed;}
 	int		GetAttackDelay() const {return attack_delay;}
-	bool	IsAnimal() const { return(bodytype == BT_Animal); }
+	bool	IsAnimal() const { return(bodytype == BodyType::Animal); }
 	uint16	GetPetSpellID() const {return pet_spell_id;}
 	void	SetPetSpellID(uint16 amt) {pet_spell_id = amt;}
 	uint32	GetMaxDamage(uint8 tlevel);
@@ -311,18 +327,17 @@ public:
 
 	void AddLootDrop(
 		const EQ::ItemData *item2,
-		ItemList *itemlist,
-		LootDropEntries_Struct loot_drop,
+		LootdropEntriesRepository::LootdropEntries loot_drop,
 		bool wear_change = false,
-		uint32 aug1 = 0,
-		uint32 aug2 = 0,
-		uint32 aug3 = 0,
-		uint32 aug4 = 0,
-		uint32 aug5 = 0,
-		uint32 aug6 = 0
+		uint32 augment_one = 0,
+		uint32 augment_two = 0,
+		uint32 augment_three = 0,
+		uint32 augment_four = 0,
+		uint32 augment_five = 0,
+		uint32 augment_six = 0
 	);
 
-	bool MeetsLootDropLevelRequirements(LootDropEntries_Struct loot_drop, bool verbose=false);
+	bool MeetsLootDropLevelRequirements(LootdropEntriesRepository::LootdropEntries loot_drop, bool verbose=false);
 
 	void CheckSignal();
 
@@ -331,7 +346,7 @@ public:
 	int64 GetNPCHPRegen() const { return hp_regen + itembonuses.HPRegen + spellbonuses.HPRegen; }
 	inline const char* GetAmmoIDfile() const { return ammo_idfile; }
 
-	void ModifyStatsOnCharm(bool is_charm_removed);
+	void ModifyStatsOnCharm(bool remove_charm, Mob* charmer);
 
 	//waypoint crap
 	int					GetMaxWp() const { return max_wp; }
@@ -358,6 +373,8 @@ public:
 	inline bool			IsGuarding() const { return(m_GuardPoint.w != 0); }
 	void				SaveGuardSpotCharm();
 
+	void DescribeSpecialAbilities(Client* c);
+
 	uint16 GetMeleeTexture1() const;
 	uint16 GetMeleeTexture2() const;
 
@@ -373,18 +390,19 @@ public:
 	void				AI_SetRoambox(float distance, float max_x, float min_x, float max_y, float min_y, uint32 delay = 2500, uint32 min_delay = 2500);
 
 	//mercenary stuff
-	void	LoadMercTypes();
-	void	LoadMercs();
-	std::list<MercType> GetMercTypesList() {return mercTypeList; };
-	std::list<MercType> GetMercTypesList( uint32 expansion );
-	std::list<MercData> GetMercsList() {return mercDataList; };
-	std::list<MercData> GetMercsList( uint32 expansion );
-	int		GetNumMercTypes() { return static_cast<int>(mercTypeList.size()); };
-	int		GetNumMercTypes( uint32 expansion );
-	int		GetNumMercs() { return static_cast<int>(mercDataList.size()); };
-	int		GetNumMercs( uint32 expansion );
+	void	LoadMercenaryTypes();
+	void	LoadMercenaries();
+	std::list<MercType> GetMercenaryTypesList() {return mercTypeList; };
+	std::list<MercType> GetMercenaryTypesList( uint32 expansion );
+	std::list<MercData> GetMercenariesList() {return mercDataList; };
+	std::list<MercData> GetMercenariesList( uint32 expansion );
+	int		GetNumMercenaryTypes() { return static_cast<int>(mercTypeList.size()); };
+	int		GetNumMercenaryTypes( uint32 expansion );
+	int		GetNumberOfMercenaries() { return static_cast<int>(mercDataList.size()); };
+	int		GetNumberOfMercenaries( uint32 expansion );
 
-	inline bool WillAggroNPCs() const { return(npc_aggro); }
+	inline bool GetNPCAggro() const { return npc_aggro; }
+	inline void SetNPCAggro(bool in_npc_aggro) { npc_aggro = in_npc_aggro; }
 
 	inline void GiveNPCTypeData(NPCType *ours) { NPCTypedata_ours = ours; }
 	inline const uint32 GetNPCSpellsID()	const { return npc_spells_id; }
@@ -397,8 +415,6 @@ public:
 	float GetProximityMinZ();
 	float GetProximityMaxZ();
 	bool  IsProximitySet();
-
-	ItemList	itemlist; //kathgar - why is this public? Doing other things or I would check the code
 
 	NPCProximity* proximity;
 	Spawn2*	respawn2;
@@ -464,10 +480,11 @@ public:
 	Timer *GetRefaceTimer() const { return reface_timer; }
 	const uint32 GetAltCurrencyType() const { return NPCTypedata->alt_currency_type; }
 
-	NPC_Emote_Struct* GetNPCEmote(uint32 emoteid, uint8 event_);
-	void DoNPCEmote(uint8 event_, uint32 emoteid);
+	NPC_Emote_Struct* GetNPCEmote(uint32 emote_id, uint8 event_);
+	void DoNPCEmote(uint8 event_, uint32 emote_id, Mob* t = nullptr);
 	bool CanTalk();
-	void DoQuestPause(Mob *other);
+	void DoQuestPause(Mob* m);
+	bool FacesTarget();
 
 	inline void SetSpellScale(float amt)		{ spellscale = amt; }
 	inline float GetSpellScale()				{ return spellscale; }
@@ -525,24 +542,101 @@ public:
 	inline bool GetAlwaysAggro() { return always_aggro; }
 	inline bool GetNPCAggro() { return npc_aggro; }
 	inline bool GetIgnoreDespawn() { return ignore_despawn; }
-	inline bool GetSkipGlobalLoot() { return skip_global_loot; }
+	inline bool GetSkipGlobalLoot() { return m_skip_global_loot; }
 
 	std::unique_ptr<Timer> AIautocastspell_timer;
 
 	virtual int GetStuckBehavior() const { return NPCTypedata_ours ? NPCTypedata_ours->stuck_behavior : NPCTypedata->stuck_behavior; }
 
-	inline bool IsSkipAutoScale() const { return skip_auto_scale; }
+	inline bool IsSkipAutoScale() const { return m_skip_auto_scale; }
 
 	void ScaleNPC(uint8 npc_level, bool always_scale = false, bool override_special_abilities = false);
+
+	uint32 GetNPCTintIndex() { return m_npc_tint_id; }
+	void SetNPCTintIndex(uint32 index);
 
 	void RecalculateSkills();
 	void ReloadSpells();
 
 	void SendPositionToClients();
 
-	static LootDropEntries_Struct NewLootDropEntry();
-
 	bool CanPathTo(float x, float y, float z);
+
+	void DoNpcToNpcAggroScan();
+
+	// hand-ins
+	bool CanPetTakeItem(const EQ::ItemInstance *inst);
+
+	struct HandinEntry {
+		std::string      item_id            = "0";
+		uint32           count              = 0;
+		EQ::ItemInstance *item              = nullptr;
+		bool             is_multiquest_item = false; // state
+	};
+
+	struct HandinMoney {
+		uint32 platinum = 0;
+		uint32 gold     = 0;
+		uint32 silver   = 0;
+		uint32 copper   = 0;
+	};
+
+	struct Handin {
+		std::vector<HandinEntry> original_items = {}; // this is what the player originally handed in, never modified
+		std::vector<HandinEntry> items          = {}; // items can be removed from this set as successful handins are made
+		HandinMoney              original_money = {}; // this is what the player originally handed in, never modified
+		HandinMoney              money          = {}; // money can be removed from this set as successful handins are made
+	};
+
+	// NPC Hand-in
+	bool IsMultiQuestEnabled() { return m_multiquest_enabled; }
+	void MultiQuestEnable() { m_multiquest_enabled = true; }
+	bool IsGuildmasterForClient(Client *c);
+	bool CheckHandin(
+		Client *c,
+		std::map<std::string, uint32> handin,
+		std::map<std::string, uint32> required,
+		std::vector<EQ::ItemInstance *> items
+	);
+	Handin ReturnHandinItems(Client *c);
+	void ResetHandin();
+	void ResetMultiQuest();
+	bool HasProcessedHandinReturn() { return m_has_processed_handin_return; }
+	bool HandinStarted() { return m_handin_started; }
+
+	// zone state save
+	inline void SetQueuedToCorpse() { m_queued_for_corpse = true; }
+	inline bool IsQueuedForCorpse() const { return m_queued_for_corpse; }
+	inline void SetResumedFromZoneSuspend(bool state = true) { m_resumed_from_zone_suspend = state; }
+	inline bool IsResumedFromZoneSuspend() const { return m_resumed_from_zone_suspend; }
+
+	inline void LoadBuffsFromState(std::vector<Buffs_Struct> in_buffs) {
+		int i = 0;
+		for (auto &b: in_buffs) {
+			buffs[i].spellid     = b.spellid;
+			buffs[i].casterlevel = b.casterlevel;
+			buffs[i].casterid    = b.casterid;
+			strncpy(buffs[i].caster_name, b.caster_name, 64);
+			buffs[i].ticsremaining     = b.ticsremaining;
+			buffs[i].counters          = b.counters;
+			buffs[i].hit_number        = b.hit_number;
+			buffs[i].melee_rune        = b.melee_rune;
+			buffs[i].magic_rune        = b.magic_rune;
+			buffs[i].dot_rune          = b.dot_rune;
+			buffs[i].caston_x          = b.caston_x;
+			buffs[i].caston_y          = b.caston_y;
+			buffs[i].caston_z          = b.caston_z;
+			buffs[i].ExtraDIChance     = b.ExtraDIChance;
+			buffs[i].RootBreakChance   = b.RootBreakChance;
+			buffs[i].instrument_mod    = b.instrument_mod;
+			buffs[i].virus_spread_time = b.virus_spread_time;
+			buffs[i].persistant_buff   = b.persistant_buff;
+			buffs[i].client            = b.client;
+			buffs[i].UpdateClient      = b.UpdateClient;
+			i++;
+		}
+		CalcBonuses();
+	}
 
 protected:
 
@@ -553,14 +647,28 @@ protected:
 
 	friend class EntityList;
 	friend class Aura;
-	std::list<struct NPCFaction*> faction_list;
-	uint32                        copper;
-	uint32                        silver;
-	uint32                        gold;
-	uint32                        platinum;
-	int32                         grid;
-	uint32                        spawn_group_id;
-	uint16                        wp_m;
+
+	int32  grid;
+	uint32 spawn_group_id;
+	uint16 wp_m;
+
+	// loot
+	uint32    m_loot_copper;
+	uint32    m_loot_silver;
+	uint32    m_loot_gold;
+	uint32    m_loot_platinum;
+	LootItems m_loot_items;
+
+	// zone state
+	bool m_resumed_from_zone_suspend = false;
+	bool m_queued_for_corpse         = false; // this is to check for corpse creation on zone state restore
+
+	// this is a timer that protects a NPC from having double assignment of loot
+	// this is to prevent a player from killing a NPC and then zoning out and back in to get loot again
+	// if loot was to be assigned via script again, this protects double assignment for a short time
+	Timer m_resumed_from_zone_suspend_shutoff_timer = {};
+
+	std::list<NpcFactionEntriesRepository::NpcFactionEntries> faction_list;
 
 	int32	npc_faction_id;
 	int32	primary_faction;
@@ -680,11 +788,22 @@ protected:
 	bool raid_target;
 	bool ignore_despawn; //NPCs with this set to 1 will ignore the despawn value in spawngroup
 
+	// NPC Hand-in
+	bool m_multiquest_enabled          = false;
+	bool m_handin_started              = false;
+	bool m_has_processed_handin_return = false;
+
+	// this is the working handin data from the player
+	// items can be decremented from this as each successful
+	// check is ran in scripts, the remainder is what is returned
+	Handin m_hand_in = {};
+public:
+	const Handin GetHandin() { return m_hand_in; }
 
 private:
-	uint32              loottable_id;
-	bool                skip_global_loot;
-	bool                skip_auto_scale;
+	uint32              m_loottable_id;
+	bool                m_skip_global_loot;
+	bool                m_skip_auto_scale;
 	bool                p_depop;
 	bool                m_record_loot_stats;
 	std::vector<uint32> m_rolled_items = {};

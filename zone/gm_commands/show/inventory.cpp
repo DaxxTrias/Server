@@ -1,6 +1,22 @@
 #include "../../client.h"
 #include "../../object.h"
 
+void SendShowInventorySubCommands(Client* c) {
+	c->Message(Chat::White, "Usage: #show inventory equip - Shows items in Equipment slots");
+	c->Message(Chat::White, "Usage: #show inventory gen - Shows items in General slots");
+	c->Message(Chat::White, "Usage: #show inventory cursor - Shows items in Cursor slots");
+	c->Message(Chat::White, "Usage: #show inventory poss - Shows items in Equipment, General, and Cursor slots");
+	c->Message(Chat::White, "Usage: #show inventory limbo - Shows items in Limbo slots");
+	c->Message(Chat::White, "Usage: #show inventory curlim - Shows items in Cursor and Limbo slots");
+	c->Message(Chat::White, "Usage: #show inventory trib - Shows items in Tribute slots");
+	c->Message(Chat::White, "Usage: #show inventory bank - Shows items in Bank slots");
+	c->Message(Chat::White, "Usage: #show inventory shbank - Shows items in Shared Bank slots");
+	c->Message(Chat::White, "Usage: #show inventory allbank - Shows items in Bank and Shared Bank slots");
+	c->Message(Chat::White, "Usage: #show inventory trade - Shows items in Trade slots");
+	c->Message(Chat::White, "Usage: #show inventory world - Shows items in World slots");
+	c->Message(Chat::White, "Usage: #show inventory all - Shows items in all slots");
+}
+
 void ShowInventory(Client *c, const Seperator *sep)
 {
 	const auto arguments = sep->argnum;
@@ -160,22 +176,22 @@ void ShowInventory(Client *c, const Seperator *sep)
 
 			linker.SetItemInst(inst_main);
 
-			if (item_data) {
+			if (item_data && inst_main) {
+				//auto inst = c->GetInv().GetItem(scope_bit & peekWorld ? EQ::invslot::WORLD_BEGIN + index_main : index_main);
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"Slot {} | {} ({}){}",
-						((scope_bit & peekWorld) ? (EQ::invslot::WORLD_BEGIN + index_main) : index_main),
+						"Slot {} | {} ({}/{}){}",
+						scope_bit & peekWorld ? EQ::invslot::WORLD_BEGIN + index_main : index_main,
 						linker.GenerateLink(),
 						item_data->ID,
-						(
-							inst_main->IsStackable() && inst_main->GetCharges() > 0 ?
-							fmt::format(
-								" (Stack of {})",
-								inst_main->GetCharges()
-							) :
-							""
-						)
+						inst_main->GetSerialNumber(),
+						inst_main->IsStackable() && inst_main->GetCharges() > 0 ?
+						fmt::format(
+							" (Stack of {})",
+							inst_main->GetCharges()
+						) :
+						""
 					).c_str()
 				);
 			}
@@ -228,7 +244,7 @@ void ShowInventory(Client *c, const Seperator *sep)
 				c->Message(
 					Chat::White,
 					fmt::format(
-						"Slot {} Bag Slot {} | {} ({}){}",
+						"Slot {} Bag Slot {}/{} | {} ({}/{}){}",
 						(
 							(scope_bit & peekWorld) ?
 							INVALID_INDEX :
@@ -238,6 +254,7 @@ void ShowInventory(Client *c, const Seperator *sep)
 						sub_index,
 						linker.GenerateLink(),
 						item_data->ID,
+						inst_sub->GetSerialNumber(),
 						(
 							inst_sub->IsStackable() && inst_sub->GetCharges() > 0 ?
 							fmt::format(
@@ -309,7 +326,7 @@ void ShowInventory(Client *c, const Seperator *sep)
 						Chat::White,
 						fmt::format(
 							"Slot {} | {} ({}){}",
-							(8000 + limboIndex),
+							(14000 + limboIndex),
 							item_data->ID,
 							linker.GenerateLink(),
 							(
@@ -338,7 +355,7 @@ void ShowInventory(Client *c, const Seperator *sep)
 							Chat::White,
 							fmt::format(
 								"Slot {} (Augment Slot {}) | {} ({}){}",
-								(8000 + limboIndex),
+								(14000 + limboIndex),
 								augment_index,
 								linker.GenerateLink(),
 								item_data->ID,
@@ -374,7 +391,7 @@ void ShowInventory(Client *c, const Seperator *sep)
 							Chat::White,
 							fmt::format(
 								"Slot {} Bag Slot {} | {} ({}){}",
-								(8000 + limboIndex),
+								(14000 + limboIndex),
 								sub_index,
 								linker.GenerateLink(),
 								item_data->ID,
@@ -406,7 +423,7 @@ void ShowInventory(Client *c, const Seperator *sep)
 								Chat::White,
 								fmt::format(
 									"Slot {} Bag Slot {} (Augment Slot {}) | {} ({}){}",
-									(8000 + limboIndex),
+									(14000 + limboIndex),
 									sub_index,
 									augment_index,
 									linker.GenerateLink(),
@@ -431,20 +448,4 @@ void ShowInventory(Client *c, const Seperator *sep)
 	if (!found_items) {
 		c->Message(Chat::White, "No items found.");
 	}
-}
-
-void SendShowInventorySubCommands(Client* c) {
-	c->Message(Chat::White, "Usage: #show inventory equip - Shows items in Equipment slots");
-	c->Message(Chat::White, "Usage: #show inventory gen - Shows items in General slots");
-	c->Message(Chat::White, "Usage: #show inventory cursor - Shows items in Cursor slots");
-	c->Message(Chat::White, "Usage: #show inventory poss - Shows items in Equipment, General, and Cursor slots");
-	c->Message(Chat::White, "Usage: #show inventory limbo - Shows items in Limbo slots");
-	c->Message(Chat::White, "Usage: #show inventory curlim - Shows items in Cursor and Limbo slots");
-	c->Message(Chat::White, "Usage: #show inventory trib - Shows items in Tribute slots");
-	c->Message(Chat::White, "Usage: #show inventory bank - Shows items in Bank slots");
-	c->Message(Chat::White, "Usage: #show inventory shbank - Shows items in Shared Bank slots");
-	c->Message(Chat::White, "Usage: #show inventory allbank - Shows items in Bank and Shared Bank slots");
-	c->Message(Chat::White, "Usage: #show inventory trade - Shows items in Trade slots");
-	c->Message(Chat::White, "Usage: #show inventory world - Shows items in World slots");
-	c->Message(Chat::White, "Usage: #show inventory all - Shows items in all slots");
 }

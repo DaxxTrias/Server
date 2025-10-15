@@ -17,6 +17,7 @@ SET(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(CMAKE_CXX_EXTENSIONS OFF)
 
 OPTION(EQEMU_BUILD_STATIC "Build with static linking" OFF)
+OPTION(EQEMU_BUILD_PCH "Build with precompiled headers (Windows)" ON)
 
 IF (EQEMU_BUILD_STATIC)
 	SET(BUILD_SHARED_LIBS OFF)
@@ -30,7 +31,18 @@ IF (EQEMU_BUILD_STATIC)
 	ENDIF ()
 ENDIF (EQEMU_BUILD_STATIC)
 
+
+# Requires libgoogle-perftools-dev google-perftools packages for linux (debian)
+IF(EQEMU_ADD_PROFILER)
+	SET(CMAKE_EXE_LINKER_FLAGS "-Wl,--no-as-needed,-lprofiler,--as-needed")
+ENDIF(EQEMU_ADD_PROFILER)
+
+IF(USE_MAP_MMFS)
+	ADD_DEFINITIONS(-DUSE_MAP_MMFS)
+ENDIF (USE_MAP_MMFS)
+
 IF(MSVC)
+	add_compile_options(/bigobj)
 	ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
 	ADD_DEFINITIONS(-DNOMINMAX)
 	ADD_DEFINITIONS(-DCRASH_LOGGING)
@@ -350,6 +362,8 @@ MESSAGE(STATUS "**************************************************")
 
 #setup server libs and headers
 SET(SERVER_LIBS common ${DATABASE_LIBRARY_LIBS} ${ZLIB_LIBRARY_LIBS} ${Boost_LIBRARIES} uv_a fmt RecastNavigation::Detour)
+
+set(FMT_HEADER_ONLY OFF)
 
 INCLUDE_DIRECTORIES(SYSTEM "${DATABASE_LIBRARY_INCLUDE}")
 INCLUDE_DIRECTORIES(SYSTEM "${ZLIB_LIBRARY_INCLUDE}")

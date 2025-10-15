@@ -38,6 +38,24 @@
 #include "queryserv.h"
 #include "../common/discord/discord.h"
 #include "../common/repositories/dynamic_zone_templates_repository.h"
+#include "../common/repositories/npc_faction_repository.h"
+#include "../common/repositories/npc_faction_entries_repository.h"
+#include "../common/repositories/faction_association_repository.h"
+#include "../common/repositories/loottable_repository.h"
+#include "../common/repositories/loottable_entries_repository.h"
+#include "../common/repositories/lootdrop_repository.h"
+#include "../common/repositories/lootdrop_entries_repository.h"
+#include "../common/repositories/base_data_repository.h"
+#include "../common/repositories/skill_caps_repository.h"
+#include "../common/repositories/zone_state_spawns_repository.h"
+#include "../common/repositories/spawn2_disabled_repository.h"
+#include "../common/repositories/player_titlesets_repository.h"
+
+struct EXPModifier
+{
+	float aa_modifier;
+	float exp_modifier;
+};
 
 class DynamicZone;
 
@@ -77,16 +95,7 @@ struct ZoneEXPModInfo {
 	float AAExpMod;
 };
 
-struct item_tick_struct {
-	uint32      itemid;
-	uint32      chance;
-	uint32      level;
-	int16       bagslot;
-	std::string qglobal;
-};
-
 class Client;
-class Expedition;
 class Map;
 class Mob;
 class WaterMap;
@@ -98,7 +107,7 @@ class MobMovementManager;
 class Zone {
 public:
 	static bool Bootup(uint32 iZoneID, uint32 iInstanceID, bool is_static = false);
-	static void Shutdown(bool quiet = false);
+	void Shutdown(bool quiet = false);
 
 	Zone(uint32 in_zoneid, uint32 in_instanceid, const char *in_short_name);
 	~Zone();
@@ -107,13 +116,18 @@ public:
 	AA::Ability *GetAlternateAdvancementAbilityByRank(int rank_id);
 	AA::Rank *GetAlternateAdvancementRank(int rank_id);
 	bool is_zone_time_localized;
-	bool process_mobs_while_empty;
+	bool quest_idle_override;
+	bool IsIdleWhenEmpty() const;
+	void SetIdleWhenEmpty(bool idle_when_empty);
+	uint32 GetSecondsBeforeIdle() const;
+	void SetSecondsBeforeIdle(uint32 seconds_before_idle);
 	bool AggroLimitReached() { return (aggroedmobs > 10) ? true : false; }
 	bool AllowMercs() const { return (allow_mercs); }
 	bool CanBind() const { return (can_bind); }
 	bool CanCastOutdoor() const { return (can_castoutdoor); } //qadar
 	bool CanDoCombat() const { return (can_combat); }
 	bool CanLevitate() const { return (can_levitate); } // Magoth78
+	bool IsWaterZone(float z);
 	bool Depop(bool StartSpawnTimer = false);
 	bool did_adventure_actions;
 	bool GetAuth(
@@ -139,11 +153,11 @@ public:
 	bool LoadGroundSpawns();
 	bool LoadZoneCFG(const char *filename, uint16 instance_version);
 	bool LoadZoneObjects();
+	bool IsSpecialBindLocation(const glm::vec4& location);
 	bool Process();
 	bool SaveZoneCFG();
-
-	int GetNpcPositionUpdateDistance() const;
-	void SetNpcPositionUpdateDistance(int in_npc_position_update_distance);
+	bool DoesAlternateCurrencyExist(uint32 currency_id);
+	void DisableRespawnTimers();
 
 	char *adv_data;
 
@@ -184,8 +198,15 @@ public:
 	int32 MobsAggroCount() { return aggroedmobs; }
 	DynamicZone *GetDynamicZone();
 
+	bool ClearVariables();
+	bool DeleteVariable(const std::string& variable_name);
+	std::string GetVariable(const std::string& variable_name);
+	std::vector<std::string> GetVariables();
+	void SetVariable(const std::string& variable_name, const std::string& variable_value);
+	bool VariableExists(const std::string& variable_name);
+
 	IPathfinder                                   *pathing;
-	LinkedList<NPC_Emote_Struct *>                NPCEmoteList;
+	std::vector<NPC_Emote_Struct *>               npc_emote_list;
 	LinkedList<Spawn2 *>                          spawn2_list;
 	LinkedList<ZonePoint *>                       zone_point_list;
 	std::vector<ZonePointsRepository::ZonePoints> virtual_zone_point_list;
@@ -218,7 +239,6 @@ public:
 
 	std::pair<AA::Ability *, AA::Rank *> GetAlternateAdvancementAbilityAndRank(int id, int points_spent);
 
-	std::unordered_map<int, item_tick_struct>             tick_items;
 	std::unordered_map<int, std::unique_ptr<AA::Ability>> aa_abilities;
 	std::unordered_map<int, std::unique_ptr<AA::Rank>>    aa_ranks;
 
@@ -226,8 +246,13 @@ public:
 	std::vector<GridEntriesRepository::GridEntries> zone_grid_entries;
 
 	std::unordered_map<uint32, std::unique_ptr<DynamicZone>> dynamic_zone_cache;
-	std::unordered_map<uint32, std::unique_ptr<Expedition>>  expedition_cache;
 	std::unordered_map<uint32, DynamicZoneTemplatesRepository::DynamicZoneTemplates> dz_template_cache;
+
+	std::unordered_map<uint32, EXPModifier> exp_modifiers;
+
+	std::vector<uint32> discovered_items;
+
+	std::map<std::string, std::string> m_zone_variables;
 
 	time_t weather_timer;
 	Timer  spawn2_timer;
@@ -256,6 +281,17 @@ public:
 	std::string GetZoneDescription();
 	void SendReloadMessage(std::string reload_type);
 
+	void ClearEXPModifier(Client* c);
+	void ClearEXPModifierByCharacterID(const uint32 character_id);
+	float GetAAEXPModifier(Client* c);
+	float GetAAEXPModifierByCharacterID(const uint32 character_id);
+	float GetEXPModifier(Client* c);
+	float GetEXPModifierByCharacterID(const uint32 character_id);
+	void SetAAEXPModifier(Client* c, float aa_modifier);
+	void SetAAEXPModifierByCharacterID(const uint32 character_id, float aa_modifier);
+	void SetEXPModifier(Client* c, float exp_modifier);
+	void SetEXPModifierByCharacterID(const uint32 character_id, float exp_modifier);
+
 	void AddAggroMob() { aggroedmobs++; }
 	void AddAuth(ServerZoneIncomingClient_Struct *szic);
 	void ChangeWeather();
@@ -268,7 +304,7 @@ public:
 	void DoAdventureActions();
 	void DoAdventureAssassinationCountIncrease();
 	void DoAdventureCountIncrease();
-	void GetMerchantDataForZoneLoad();
+	void LoadMerchants();
 	void GetTimeSync();
 	void LoadAdventureFlavor();
 	void LoadAlternateAdvancement();
@@ -279,19 +315,17 @@ public:
 	void LoadLDoNTraps();
 	void LoadLevelEXPMods();
 	void LoadGrids();
-	void LoadMercSpells();
-	void LoadMercTemplates();
+	void LoadMercenarySpells();
+	void LoadMercenaryTemplates();
 	void LoadNewMerchantData(uint32 merchantid);
-	void LoadNPCEmotes(LinkedList<NPC_Emote_Struct *> *NPCEmoteList);
+	void LoadNPCEmotes(std::vector<NPC_Emote_Struct*>* v);
 	void LoadTempMerchantData();
-	void LoadTickItems();
 	void LoadVeteranRewards();
 	void LoadZoneDoors();
 	void ReloadStaticData();
-	void ReloadWorld(uint8 global_repop);
 	void RemoveAuth(const char *iCharName, const char *iLSKey);
 	void RemoveAuth(uint32 lsid);
-	void Repop();
+	void Repop(bool is_forced = false);
 	void RequestUCSServerStatus();
 	void ResetAuth();
 	void SetDate(uint16 year, uint8 month, uint8 day, uint8 hour, uint8 minute);
@@ -310,7 +344,7 @@ public:
 	bool IsQuestHotReloadQueued() const;
 	void SetQuestHotReloadQueued(bool in_quest_hot_reload_queued);
 
-	bool CompareDataBucket(uint8 bucket_comparison, const std::string& bucket_value, const std::string& player_value);
+	bool CompareDataBucket(uint8 comparison_type, const std::string& bucket, const std::string& value);
 
 	WaterMap *watermap;
 	ZonePoint *GetClosestZonePoint(const glm::vec3 &location, uint32 to, Client *client, float max_distance = 40000.0f);
@@ -319,6 +353,9 @@ public:
 	Timer GetInitgridsTimer();
 	uint32 GetInstanceTimeRemaining() const;
 	void SetInstanceTimeRemaining(uint32 instance_time_remaining);
+
+	inline bool GetSaveZoneState() const { return m_save_zone_state; }
+	inline void SetSaveZoneState(bool save_state) { m_save_zone_state = save_state; }
 
 	/**
 	 * GMSay Callback for LogSys
@@ -350,7 +387,7 @@ public:
 			entity_list.MessageStatus(
 				0,
 				AccountStatus::QuestTroupe,
-				LogSys.GetGMSayColorFromCategory(log_category),
+				EQEmuLogSys::Instance()->GetGMSayColorFromCategory(log_category),
 				message_split[0].c_str()
 			);
 
@@ -358,7 +395,7 @@ public:
 				entity_list.MessageStatus(
 					0,
 					AccountStatus::QuestTroupe,
-					LogSys.GetGMSayColorFromCategory(log_category),
+					EQEmuLogSys::Instance()->GetGMSayColorFromCategory(log_category),
 					fmt::format(
 						"--- {}",
 						message_split[iter]
@@ -370,7 +407,7 @@ public:
 			entity_list.MessageStatus(
 				0,
 				AccountStatus::QuestTroupe,
-				LogSys.GetGMSayColorFromCategory(log_category),
+				EQEmuLogSys::Instance()->GetGMSayColorFromCategory(log_category),
 				fmt::format("[{}] [{}] {}", Logs::LogCategoryName[log_category], func, message).c_str()
 			);
 		}
@@ -381,22 +418,93 @@ public:
 	static void DiscordWebhookMessageHandler(uint16 log_category, int webhook_id, const std::string &message)
 	{
 		std::string message_prefix;
-		if (!LogSys.origination_info.zone_short_name.empty()) {
+		if (!EQEmuLogSys::Instance()->origination_info.zone_short_name.empty()) {
 			message_prefix = fmt::format(
 				"[**{}**] **Zone** [**{}**] ",
 				Logs::LogCategoryName[log_category],
-				LogSys.origination_info.zone_short_name
+				EQEmuLogSys::Instance()->origination_info.zone_short_name
 			);
 		}
 
 		SendDiscordMessage(webhook_id, message_prefix + Discord::FormatDiscordMessage(log_category, message));
 	};
 
-	double GetMaxMovementUpdateRange() const { return max_movement_update_range; }
+	double GetClientUpdateRange() const { return m_client_update_range; }
 
 	void SetIsHotzone(bool is_hotzone);
 
 	void ReloadContentFlags();
+
+	void LoadNPCFaction(const uint32 npc_faction_id);
+	void LoadNPCFactions(const std::vector<uint32>& npc_faction_ids);
+	void ClearNPCFactions();
+	void ReloadNPCFactions();
+	NpcFactionRepository::NpcFaction* GetNPCFaction(const uint32 npc_faction_id);
+	std::vector<NpcFactionEntriesRepository::NpcFactionEntries> GetNPCFactionEntries(const uint32 npc_faction_id) const;
+
+	void LoadNPCFactionAssociation(const uint32 npc_faction_id);
+	void LoadNPCFactionAssociations(const std::vector<uint32>& npc_faction_ids);
+	void LoadFactionAssociation(const uint32 faction_id);
+	void LoadFactionAssociations(const std::vector<uint32>& faction_ids);
+	void ClearFactionAssociations();
+	void ReloadFactionAssociations();
+	FactionAssociationRepository::FactionAssociation* GetFactionAssociation(const uint32 faction_id);
+
+	// loot
+	void LoadLootTable(const uint32 loottable_id);
+	void LoadLootTables(const std::vector<uint32> in_loottable_ids);
+	void LoadLootDrops(const std::vector<uint32> in_lootdrop_ids);
+	void ClearLootTables();
+	void ReloadLootTables();
+	LoottableRepository::Loottable *GetLootTable(const uint32 loottable_id);
+	std::vector<LoottableEntriesRepository::LoottableEntries> GetLootTableEntries(const uint32 loottable_id) const;
+	LootdropRepository::Lootdrop GetLootdrop(const uint32 lootdrop_id) const;
+	std::vector<LootdropEntriesRepository::LootdropEntries> GetLootdropEntries(const uint32 lootdrop_id) const;
+
+	// Base Data
+	inline void ClearBaseData() { m_base_data.clear(); };
+	BaseDataRepository::BaseData GetBaseData(uint8 level, uint8 class_id);
+	void LoadBaseData();
+	void ReloadBaseData();
+
+	// data buckets
+	std::string GetBucket(const std::string& bucket_name);
+	void SetBucket(const std::string& bucket_name, const std::string& bucket_value, const std::string& expiration = "");
+	void DeleteBucket(const std::string& bucket_name);
+	std::string GetBucketExpires(const std::string& bucket_name);
+	std::string GetBucketRemaining(const std::string& bucket_name);
+	inline void SetZoneServerId(uint32 id) { m_zone_server_id = id; }
+	inline uint32 GetZoneServerId() const { return m_zone_server_id; }
+
+	// zone state
+	bool LoadZoneVariablesState();
+	bool LoadZoneState(
+		std::unordered_map<uint32, uint32> spawn_times,
+		std::vector<Spawn2DisabledRepository::Spawn2Disabled> disabled_spawns
+	);
+	void SaveZoneState();
+	static void ClearZoneState(uint32 zone_id, uint32 instance_id);
+	void ReloadMaps();
+
+	void Signal(int signal_id);
+	void SendPayload(int payload_id, std::string payload_value);
+
+	struct PausedZoneTimer {
+		std::string name;
+		uint32      remaining_time;
+	};
+
+	uint32 GetTimerDuration(std::string name);
+	uint32 GetTimerRemainingTime(std::string name);
+	bool HasTimer(std::string name);
+	bool IsPausedTimer(std::string name);
+	void PauseTimer(std::string name);
+	void ResumeTimer(std::string name);
+	void SetTimer(std::string name, uint32 duration);
+	void StopTimer(std::string name);
+	void StopAllTimers();
+	std::vector<std::string> GetPausedTimers();
+	std::vector<std::string> GetTimers();
 
 private:
 	bool      allow_mercs;
@@ -412,7 +520,7 @@ private:
 	bool      staticzone;
 	bool      zone_has_current_time;
 	bool      quest_hot_reload_queued;
-	double    max_movement_update_range;
+	double    m_client_update_range;
 	char      *long_name;
 	char      *map_name;
 	char      *short_name;
@@ -431,6 +539,9 @@ private:
 	uint32    m_max_clients;
 	uint32    zoneid;
 	uint32    m_last_ucss_update;
+	bool      m_idle_when_empty;
+	uint32    m_seconds_before_idle;
+	bool      m_save_zone_state;
 
 	GlobalLootManager                   m_global_loot;
 	LinkedList<ZoneClientAuth_Struct *> client_auth_list;
@@ -446,6 +557,33 @@ private:
 	Timer                               qglobal_purge_timer;
 	ZoneSpellsBlocked                   *blocked_spells;
 
+	// Factions
+	std::vector<NpcFactionRepository::NpcFaction>                 m_npc_factions         = { };
+	std::vector<NpcFactionEntriesRepository::NpcFactionEntries>   m_npc_faction_entries  = { };
+	std::vector<FactionAssociationRepository::FactionAssociation> m_faction_associations = { };
+
+	// loot
+	std::vector<LoottableRepository::Loottable>               m_loottables        = {};
+	std::vector<LoottableEntriesRepository::LoottableEntries> m_loottable_entries = {};
+	std::vector<LootdropRepository::Lootdrop>                 m_lootdrops         = {};
+	std::vector<LootdropEntriesRepository::LootdropEntries>   m_lootdrop_entries  = {};
+
+	// Base Data
+	std::vector<BaseDataRepository::BaseData> m_base_data = { };
+
+	uint32_t m_zone_server_id = 0;
+
+	class ZoneTimer {
+	public:
+		inline ZoneTimer(std::string _name, uint32 duration)
+			: name(_name), timer_(duration) { timer_.Start(duration, false); }
+		std::string name;
+		Timer       timer_;
+	};
+
+	std::vector<ZoneTimer> zone_timers;
+	std::vector<PausedZoneTimer> paused_zone_timers;
+	std::deque<int> m_zone_signals;
 };
 
 #endif

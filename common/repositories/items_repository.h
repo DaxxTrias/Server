@@ -7,43 +7,14 @@
 
 class ItemsRepository: public BaseItemsRepository {
 public:
+	struct Bazaar_Results {
+		uint32      item_id;
+		std::string name;
+		bool        stackable;
+		uint32      icon;
+		uint32      stats;
+	};
 
-    /**
-     * This file was auto generated and can be modified and extended upon
-     *
-     * Base repository methods are automatically
-     * generated in the "base" version of this repository. The base repository
-     * is immutable and to be left untouched, while methods in this class
-     * are used as extension methods for more specific persistence-layer
-     * accessors or mutators.
-     *
-     * Base Methods (Subject to be expanded upon in time)
-     *
-     * Note: Not all tables are designed appropriately to fit functionality with all base methods
-     *
-     * InsertOne
-     * UpdateOne
-     * DeleteOne
-     * FindOne
-     * GetWhere(std::string where_filter)
-     * DeleteWhere(std::string where_filter)
-     * InsertMany
-     * All
-     *
-     * Example custom methods in a repository
-     *
-     * ItemsRepository::GetByZoneAndVersion(int zone_id, int zone_version)
-     * ItemsRepository::GetWhereNeverExpires()
-     * ItemsRepository::GetWhereXAndY()
-     * ItemsRepository::DeleteWhereXAndY()
-     *
-     * Most of the above could be covered by base methods, but if you as a developer
-     * find yourself re-using logic for other parts of the code, its best to just make a
-     * method that can be re-used easily elsewhere especially if it can use a base repository
-     * method and encapsulate filters there
-     */
-
-	// Custom extended repository methods here
 	static std::vector<int32> GetItemIDsBySearchCriteria(
 		Database& db,
 		std::string search_string,
@@ -73,6 +44,53 @@ public:
 
 		return item_id_list;
 	}
+
+	static std::unordered_map<uint32, Bazaar_Results> GetItemsForBazaarSearch(
+		Database& db,
+		const std::vector<std::string> &search_ids,
+		const std::string &name,
+		const std::string &field_criteria_items,
+		const std::string &where_criteria_items,
+		const uint32       query_limit = 0
+	)
+	{
+		auto query = fmt::format(
+			"SELECT id, name, stackable, icon, {} "
+			"FROM items "
+			"WHERE `name` LIKE '%%{}%%' AND {} AND id IN({}) "
+			"ORDER BY id ASC",
+			field_criteria_items,
+			Strings::Escape(name),
+			where_criteria_items,
+			Strings::Implode(",", search_ids)
+		);
+
+		if (query_limit >= 1) {
+			query += fmt::format(" LIMIT {}", query_limit);
+		}
+
+		std::unordered_map<uint32, Bazaar_Results> item_list;
+
+		auto results = db.QueryDatabase(query);
+		if (!results.Success() || !results.RowCount()) {
+			return item_list;
+		}
+
+		item_list.reserve(results.RowCount());
+		for (auto row : results) {
+			Bazaar_Results br{};
+			br.item_id   = row[0]       ? static_cast<int32_t>(atoi(row[0])) : 0;
+			br.name      = row[1]       ? row[1]                             : "";
+			br.stackable = atoi(row[2]) ? true                               : false;
+			br.icon      = row[3]       ? static_cast<int32_t>(atoi(row[3])) : 0;
+			br.stats     = row[4]       ? static_cast<int32_t>(atoi(row[4])) : 0;
+
+			item_list.emplace(br.item_id, br);
+		}
+
+		return item_list;
+	}
+
 };
 
 #endif //EQEMU_ITEMS_REPOSITORY_H

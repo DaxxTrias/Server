@@ -29,22 +29,22 @@ void Perl_Group_CastGroupSpell(Group* self, Mob* caster, uint16 spell_id) // @ca
 
 void Perl_Group_SplitExp(Group* self, uint32_t exp, Mob* other) // @categories Account and Character, Script Utility, Group
 {
-	self->SplitExp(exp, other);
+	self->SplitExp(ExpSource::Quest, exp, other);
 }
 
 void Perl_Group_GroupMessage(Group* self, Mob* sender, const char* message) // @categories Script Utility, Group
 {
 	// if no language is specificed, send it in common
-	self->GroupMessage(sender, 0, 100, message);
+	self->GroupMessage(sender, Language::CommonTongue, Language::MaxValue, message);
 }
 
 void Perl_Group_GroupMessage(Group* self, Mob* sender, uint8_t language, const char* message) // @categories Script Utility, Group
 {
-	if (!EQ::ValueWithin(language, 0, (MAX_PP_LANGUAGE - 1))) {
-		language = 0;
+	if (!EQ::ValueWithin(language, Language::CommonTongue, Language::Unknown27)) {
+		language = Language::CommonTongue;
 	}
 
-	self->GroupMessage(sender, language, 100, message);
+	self->GroupMessage(sender, language, Language::MaxValue, message);
 }
 
 uint32_t Perl_Group_GetTotalGroupDamage(Group* self, Mob* other) // @categories Script Utility, Group
@@ -127,14 +127,24 @@ Client* Perl_Group_GetMember(Group* self, int member_index) // @categories Accou
 	return member ? member->CastToClient() : nullptr;
 }
 
+uint8_t Perl_Group_GetMemberRole(Group* self, Mob* member) // @categories Account and Character, Script Utility, Group
+{
+	return self->GetMemberRole(member);
+}
+
+uint8_t Perl_Group_GetMemberRole(Group* self, const char* name) // @categories Account and Character, Script Utility, Group
+{
+	return self->GetMemberRole(name);
+}
+
 bool Perl_Group_DoesAnyMemberHaveExpeditionLockout(Group* self, std::string expedition_name, std::string event_name)
 {
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name);
 }
 
 bool Perl_Group_DoesAnyMemberHaveExpeditionLockout(Group* self, std::string expedition_name, std::string event_name, int max_check_count)
 {
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name, max_check_count);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name); // max_check_count deprecated
 }
 
 uint32_t Perl_Group_GetLowestLevel(Group* self) // @categories Script Utility, Group
@@ -163,6 +173,8 @@ void perl_register_group()
 	package.add("GetLeaderName", &Perl_Group_GetLeaderName);
 	package.add("GetLowestLevel", &Perl_Group_GetLowestLevel);
 	package.add("GetMember", &Perl_Group_GetMember);
+	package.add("GetMemberRole", (uint8_t(*)(Group*, Mob*))&Perl_Group_GetMemberRole);
+	package.add("GetMemberRole", (uint8_t(*)(Group*, const char*))&Perl_Group_GetMemberRole);
 	package.add("GetTotalGroupDamage", &Perl_Group_GetTotalGroupDamage);
 	package.add("GroupCount", &Perl_Group_GroupCount);
 	package.add("GroupMessage", (void(*)(Group*, Mob*, const char*))&Perl_Group_GroupMessage);

@@ -34,17 +34,17 @@ void Lua_Group::CastGroupSpell(Lua_Mob caster, int spell_id) {
 
 void Lua_Group::SplitExp(uint64 exp, Lua_Mob other) {
 	Lua_Safe_Call_Void();
-	self->SplitExp(exp, other);
+	self->SplitExp(ExpSource::Quest, exp, other);
 }
 
 void Lua_Group::GroupMessage(Lua_Mob sender, const char* message) {
 	Lua_Safe_Call_Void();
-	self->GroupMessage(sender, 0, 100, message);
+	self->GroupMessage(sender, Language::CommonTongue, Language::MaxValue, message);
 }
 
-void Lua_Group::GroupMessage(Lua_Mob sender, int language, const char* message) {
+void Lua_Group::GroupMessage(Lua_Mob sender, uint8 language, const char* message) {
 	Lua_Safe_Call_Void();
-	self->GroupMessage(sender, language, 100, message);
+	self->GroupMessage(sender, language, Language::MaxValue, message);
 }
 
 uint32 Lua_Group::GetTotalGroupDamage(Lua_Mob other) {
@@ -72,7 +72,7 @@ Lua_Mob Lua_Group::GetLeader() {
 	return self->GetLeader();
 }
 
-const char *Lua_Group::GetLeaderName() {
+std::string Lua_Group::GetLeaderName() {
 	Lua_Safe_Call_String();
 	return self->GetLeaderName();
 }
@@ -122,16 +122,26 @@ Lua_Mob Lua_Group::GetMember(int member_index) {
 	return self->members[member_index];
 }
 
+uint8 Lua_Group::GetMemberRole(Lua_Mob member) {
+	Lua_Safe_Call_Int();
+	return self->GetMemberRole(member);
+}
+
+uint8 Lua_Group::GetMemberRole(const char* name) {
+	Lua_Safe_Call_Int();
+	return self->GetMemberRole(name);
+}
+
 bool Lua_Group::DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name)
 {
 	Lua_Safe_Call_Bool();
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name);
 }
 
 bool Lua_Group::DoesAnyMemberHaveExpeditionLockout(std::string expedition_name, std::string event_name, int max_check_count)
 {
 	Lua_Safe_Call_Bool();
-	return self->DoesAnyMemberHaveExpeditionLockout(expedition_name, event_name, max_check_count);
+	return self->AnyMemberHasDzLockout(expedition_name, event_name); // max_check_count deprecated
 }
 
 uint32 Lua_Group::GetAverageLevel() {
@@ -155,10 +165,12 @@ luabind::scope lua_register_group() {
 	.def("GetLeaderName", (const char*(Lua_Group::*)(void))&Lua_Group::GetLeaderName)
 	.def("GetLowestLevel", (uint32(Lua_Group::*)(void))&Lua_Group::GetLowestLevel)
 	.def("GetMember", (Lua_Mob(Lua_Group::*)(int))&Lua_Group::GetMember)
+	.def("GetMemberRole", (uint8(Lua_Group::*)(Lua_Mob))&Lua_Group::GetMemberRole)
+	.def("GetMemberRole", (uint8(Lua_Group::*)(const char*))&Lua_Group::GetMemberRole)
 	.def("GetTotalGroupDamage", (uint32(Lua_Group::*)(Lua_Mob))&Lua_Group::GetTotalGroupDamage)
 	.def("GroupCount", (int(Lua_Group::*)(void))&Lua_Group::GroupCount)
 	.def("GroupMessage", (void(Lua_Group::*)(Lua_Mob,const char*))&Lua_Group::GroupMessage)
-	.def("GroupMessage", (void(Lua_Group::*)(Lua_Mob,int,const char*))&Lua_Group::GroupMessage)
+	.def("GroupMessage", (void(Lua_Group::*)(Lua_Mob,uint8,const char*))&Lua_Group::GroupMessage)
 	.def("IsGroupMember", (bool(Lua_Group::*)(const char*))&Lua_Group::IsGroupMember)
 	.def("IsGroupMember", (bool(Lua_Group::*)(Lua_Mob))&Lua_Group::IsGroupMember)
 	.def("IsLeader", (bool(Lua_Group::*)(const char*))&Lua_Group::IsLeader)

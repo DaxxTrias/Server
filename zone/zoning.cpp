@@ -21,7 +21,7 @@
 #include "../common/rulesys.h"
 #include "../common/strings.h"
 
-#include "expedition.h"
+#include "dynamic_zone.h"
 #include "queryserv.h"
 #include "quest_parser_collection.h"
 #include "string_ids.h"
@@ -35,6 +35,7 @@ extern WorldServer worldserver;
 extern Zone* zone;
 
 #include "../common/repositories/character_peqzone_flags_repository.h"
+#include "../common/repositories/zone_flags_repository.h"
 #include "../common/events/player_event_logs.h"
 
 
@@ -71,6 +72,8 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		int(zone_mode)
 	);
 
+	WorldContentService::Instance()->HandleZoneRoutingMiddleware(zc);
+
 	uint16 target_zone_id = 0;
 	auto target_instance_id = zc->instanceID;
 	ZonePoint* zone_point = nullptr;
@@ -88,6 +91,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 				target_zone_id = zone->GetZoneID();
 				break;
 			case GMSummon:
+			case GMHiddenSummon:
 			case ZoneSolicited: //we told the client to zone somewhere, so we know where they are going.
 				target_zone_id = zonesummon_id;
 				break;
@@ -165,6 +169,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 					target_instance_id
 				).c_str()
 			);
+			LogZoning("Client [{}] Invalid zone instance request to zone id [{}]", GetCleanName(), target_zone_id);
 			SendZoneCancel(zc);
 			return;
 		}
@@ -178,6 +183,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 					target_zone_id
 				).c_str()
 			);
+			LogZoning("Client [{}] Invalid zone instance request to zone id [{}]", GetCleanName(), target_zone_id);
 			SendZoneCancel(zc);
 			return;
 		}
@@ -235,7 +241,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		}
 	}
 
-	if (player_event_logs.IsEventEnabled(PlayerEvent::ZONING)) {
+	if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::ZONING)) {
 		auto e = PlayerEvent::ZoningEvent{};
 		e.from_zone_long_name   = zone->GetLongName();
 		e.from_zone_short_name  = zone->GetShortName();
@@ -276,6 +282,7 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 			target_heading = safe_heading;
 			break;
 		case GMSummon:
+		case GMHiddenSummon:
 			target_x = m_ZoneSummonLocation.x;
 			target_y = m_ZoneSummonLocation.y;
 			target_z = m_ZoneSummonLocation.z;
@@ -342,19 +349,19 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 	//TODO: ADVENTURE ENTRANCE CHECK
 
 	// Expansion checks and routing
-	if (content_service.GetCurrentExpansion() >= Expansion::Classic && !GetGM()) {
+	if (WorldContentService::Instance()->GetCurrentExpansion() >= Expansion::Classic && !GetGM()) {
 		bool meets_zone_expansion_check = false;
 
-		auto z = zone_store.GetZoneWithFallback(ZoneID(target_zone_name), 0);
-		if (z->expansion <= content_service.GetCurrentExpansion() || z->bypass_expansion_check) {
+		auto z = ZoneStore::Instance()->GetZoneWithFallback(ZoneID(target_zone_name), 0);
+		if (z->expansion <= WorldContentService::Instance()->GetCurrentExpansion() || z->bypass_expansion_check) {
 			meets_zone_expansion_check = true;
 		}
 
 		LogZoning(
 			"Checking zone request [{}] for expansion [{}] ({}) success [{}]",
 			target_zone_name,
-			(content_service.GetCurrentExpansion()),
-			content_service.GetCurrentExpansionName(),
+			(WorldContentService::Instance()->GetCurrentExpansion()),
+			WorldContentService::Instance()->GetCurrentExpansionName(),
 			meets_zone_expansion_check ? "true" : "false"
 		);
 
@@ -363,9 +370,9 @@ void Client::Handle_OP_ZoneChange(const EQApplicationPacket *app) {
 		}
 	}
 
-	if (content_service.GetCurrentExpansion() >= Expansion::Classic && GetGM()) {
-		LogInfo("[{}] Bypassing Expansion zone checks because GM status is set", GetCleanName());
-		Message(Chat::Yellow, "Bypassing Expansion zone checks because GM status is set");
+	if (WorldContentService::Instance()->GetCurrentExpansion() >= Expansion::Classic && GetGM()) {
+		LogInfo("[{}] Bypassing zone expansion checks because GM flag is set", GetCleanName());
+		Message(Chat::White, "Your GM flag allows you to bypass zone expansion checks.");
 	}
 
 	if (zoning_message == ZoningMessage::ZoneSuccess) {
@@ -398,11 +405,23 @@ void Client::SendZoneCancel(ZoneChange_Struct *zc) {
 		zc->success
 	);
 
-	strcpy(zc2->char_name, zc->char_name);
+	strn0cpy(zc2->char_name, zc->char_name, 64);
 	zc2->zoneID = zone->GetZoneID();
 	zc2->success = 1;
-	outapp->priority = 6;
-	FastQueuePacket(&outapp);
+	zc2->instanceID = zone->GetInstanceID();
+
+	// this fixes an issue where when we do a zone cancel what often ends up happening is we are sending
+	// the client the wrong coordinates to zone back to. Often times it is the x,y,z of the destination zone
+	// because we saved the destination x,y,z on the client profile before we rejected the zone request.
+	// we're using rewind location because it should be where the client relatively was before we rejected the zone request.
+	// it also prevents the client from getting caught up in a zone loop because if we sent them exactly back to where they
+	// originated the request we could end up in a situation where the client is caught in a zone loop.
+	m_Position.x = m_RewindLocation.x;
+	m_Position.y = m_RewindLocation.y;
+	m_Position.z = m_RewindLocation.z;
+	zc2->x       = m_Position.x;
+	zc2->y       = m_Position.y;
+	zc2->z       = m_Position.z;
 
 	LogZoning(
 		"(zc2) Client [{}] char_name [{}] zoning to [{}] ({}) cancelled instance_id [{}] x [{}] y [{}] z [{}] zone_reason [{}] success [{}]",
@@ -417,6 +436,9 @@ void Client::SendZoneCancel(ZoneChange_Struct *zc) {
 		zc2->zone_reason,
 		zc2->success
 	);
+
+	outapp->priority = 6;
+	FastQueuePacket(&outapp);
 
 	//reset to unsolicited.
 	zone_mode = ZoneUnsolicited;
@@ -467,25 +489,18 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
 
 	SendLogoutPackets();
 
-	/* QS: PlayerLogZone */
-	if (RuleB(QueryServ, PlayerLogZone)){
-		std::string event_desc = StringFormat("Zoning :: zoneid:%u instid:%u x:%4.2f y:%4.2f z:%4.2f h:%4.2f zonemode:%d from zoneid:%u instid:%i", zone_id, instance_id, dest_x, dest_y, dest_z, dest_h, zone_mode, GetZoneID(), GetInstanceID());
-		QServ->PlayerLogEvent(Player_Log_Zoning, CharacterID(), event_desc);
-	}
-
 	/* Dont clear aggro until the zone is successful */
 	entity_list.RemoveFromHateLists(this);
 
 	if(GetPet())
 		entity_list.RemoveFromHateLists(GetPet());
 
-	if (GetPendingExpeditionInviteID() != 0)
+	if (GetPendingDzInviteID() != 0)
 	{
 		// live re-invites if client zoned with a pending invite, save pending invite info in world
-		auto expedition = Expedition::FindCachedExpeditionByID(GetPendingExpeditionInviteID());
-		if (expedition)
+		if (auto dz = DynamicZone::FindDynamicZoneByID(GetPendingDzInviteID(), DynamicZoneType::Expedition))
 		{
-			expedition->SendWorldPendingInvite(m_pending_expedition_invite, GetName());
+			dz->SendWorldPendingInvite(m_dz_invite, GetName());
 		}
 	}
 
@@ -513,8 +528,12 @@ void Client::DoZoneSuccess(ZoneChange_Struct *zc, uint16 zone_id, uint32 instanc
 	m_pp.zone_id = zone_id;
 	m_pp.zoneInstance = instance_id;
 
-	//Force a save so its waiting for them when they zone
-	Save(2);
+	// save character position
+	m_pp.x       = m_Position.x;
+	m_pp.y       = m_Position.y;
+	m_pp.z       = m_Position.z;
+	m_pp.heading = m_Position.w;
+	SaveCharacterData();
 
 	m_lock_save_position = true;
 
@@ -662,8 +681,19 @@ void Client::MoveZoneInstanceRaid(uint16 instance_id, const glm::vec4 &location)
 
 void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, float z, float heading, uint8 ignorerestrictions, ZoneMode zm)
 {
-	// From what I have read, dragged corpses should stay with the player for Intra-zone summons etc, but we can implement that later.
+	// From what I have read, dragged corpses should stay with the player for Intra-zone summons etc, but we can
+	// implement that later.
 	ClearDraggedCorpses();
+
+	// Added to ensure that if a player is moved (ported, gmmove, etc) and they are an active trader or buyer, they will
+	// be removed from future transactions.
+	if (IsTrader()) {
+		TraderEndTrader();
+	}
+
+	if (IsBuyer()) {
+		ToggleBuyerMode(false);
+	}
 
 	if(zoneID == 0)
 		zoneID = zone->GetZoneID();
@@ -679,7 +709,7 @@ void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, 
 			//if they have a pet and they are staying in zone, move with them
 			Mob *p = GetPet();
 			if(p != nullptr){
-				p->SetPetOrder(SPO_Follow);
+				p->SetPetOrder(PetOrder::Follow);
 				p->GMMove(x+15, y, z);	//so it dosent have to run across the map.
 			}
 		}
@@ -697,6 +727,9 @@ void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, 
 			Message(Chat::Yellow, "You have been summoned by a GM!");
 			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
 			break;
+		case GMHiddenSummon:
+			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
+			break;
 		case ZoneToBindPoint:
 			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
 			break;
@@ -704,7 +737,7 @@ void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, 
 			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
 			break;
 		case SummonPC:
-			Message(Chat::Yellow, "You have been summoned!");
+			MessageString(Chat::Yellow, PLAYER_SUMMONED);
 			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
 			break;
 		case Rewind:
@@ -712,7 +745,7 @@ void Client::ProcessMovePC(uint32 zoneID, uint32 instance_id, float x, float y, 
 			ZonePC(zoneID, instance_id, x, y, z, heading, ignorerestrictions, zm);
 			break;
 		default:
-			LogError("Client::ProcessMovePC received a reguest to perform an unsupported client zone operation");
+			LogError("Received a request to perform an unsupported client zone operation");
 			break;
 	}
 }
@@ -730,16 +763,100 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 		pZoneName = strcpy(new char[zd->long_name.length() + 1], zd->long_name.c_str());
 	}
 
+	auto r = WorldContentService::Instance()->FindZone(zoneID, instance_id);
+	if (r.zone_id) {
+		zoneID      = r.zone_id;
+		instance_id = r.instance.id;
+		LogZoning(
+			"Client caught HandleZoneRoutingMiddleware [{}] zone_id [{}] instance_id [{}] x [{}] y [{}] z [{}] heading [{}] ignorerestrictions [{}] zone_mode [{}]",
+			GetCleanName(),
+			zoneID,
+			instance_id,
+			x,
+			y,
+			z,
+			heading,
+			ignorerestrictions,
+			static_cast<int>(zm)
+		);
+
+		// If we are zoning to the same zone, we need to use the current instance ID if it is not specified.
+		if (WorldContentService::Instance()->IsInPublicStaticInstance(instance_id) && zoneID == zone->GetZoneID() && instance_id == 0) {
+			instance_id = zone->GetInstanceID();
+		}
+	}
+
+	// zone sharding
+	if (zoneID == zd->zoneidnumber &&
+		instance_id == 0 &&
+		zd->shard_at_player_count > 0) {
+
+		bool found_shard = false;
+		auto results     = CharacterDataRepository::GetInstanceZonePlayerCounts(database, zoneID);
+
+		LogZoning("Zone sharding results count [{}]", results.size());
+
+		uint64_t shard_instance_duration = 3155760000;
+
+		for (auto &e: results) {
+			LogZoning(
+				"Zone sharding results [{}] ({}) instance_id [{}] player_count [{}]",
+				ZoneName(e.zone_id) ? ZoneName(e.zone_id) : "Unknown",
+				e.zone_id,
+				e.instance_id,
+				e.player_count
+			);
+
+			if (e.player_count < zd->shard_at_player_count) {
+				instance_id = e.instance_id;
+
+				database.AddClientToInstance(instance_id, CharacterID());
+
+				LogZoning(
+					"Client [{}] attempting zone to sharded zone > instance_id [{}] zone [{}] ({})",
+					GetCleanName(),
+					instance_id,
+					ZoneName(zoneID) ? ZoneName(zoneID) : "Unknown",
+					zoneID
+				);
+
+				found_shard = true;
+				break;
+			}
+		}
+
+		if (!found_shard) {
+			uint16 new_instance_id = 0;
+			database.GetUnusedInstanceID(new_instance_id);
+			database.CreateInstance(new_instance_id, zoneID, zd->version, shard_instance_duration);
+			database.AddClientToInstance(new_instance_id, CharacterID());
+			instance_id = new_instance_id;
+			LogZoning(
+				"Client [{}] creating new sharded zone > instance_id [{}] zone [{}] ({})",
+				GetCleanName(),
+				new_instance_id,
+				ZoneName(zoneID) ? ZoneName(zoneID) : "Unknown",
+				zoneID
+			);
+		}
+	}
+
+	// passed from zone shard request to normal zone
+	if (instance_id == -1) {
+		instance_id = 0;
+	}
+
 	LogInfo(
-		"Client [{}] zone_id [{}] x [{}] y [{}] z [{}] heading [{}] ignorerestrictions [{}] zone_mode [{}]",
+		"Client [{}] zone_id [{}] instance_id [{}] x [{}] y [{}] z [{}] heading [{}] ignorerestrictions [{}] zone_mode [{}]",
 		GetCleanName(),
 		zoneID,
+		instance_id,
 		x,
 		y,
 		z,
 		heading,
 		ignorerestrictions,
-		zm
+		static_cast<int>(zm)
 	);
 
 	cheat_manager.SetExemptStatus(Port, true);
@@ -761,6 +878,7 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 			heading = zone_safe_point.w;
 			break;
 		case GMSummon:
+		case GMHiddenSummon:
 			m_Position = glm::vec4(x, y, z, heading);
 			m_ZoneSummonLocation = m_Position;
 			zonesummon_id = zoneID;
@@ -856,9 +974,8 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 			outapp->priority = 6;
 			FastQueuePacket(&outapp);
 		}
-		else if(zm == ZoneSolicited || zm == ZoneToSafeCoords) {
-			auto outapp =
-			    new EQApplicationPacket(OP_RequestClientZoneChange, sizeof(RequestClientZoneChange_Struct));
+		else if (zm == ZoneSolicited || zm == ZoneToSafeCoords) {
+			auto outapp = new EQApplicationPacket(OP_RequestClientZoneChange, sizeof(RequestClientZoneChange_Struct));
 			RequestClientZoneChange_Struct* gmg = (RequestClientZoneChange_Struct*) outapp->pBuffer;
 
 			gmg->zone_id = zoneID;
@@ -868,6 +985,17 @@ void Client::ZonePC(uint32 zoneID, uint32 instance_id, float x, float y, float z
 			gmg->heading = heading;
 			gmg->instance_id = instance_id;
 			gmg->type = 0x01;				//an observed value, not sure of meaning
+
+			LogZoning(
+				"Player [{}] has requested zoning to zone_id [{}] instance_id [{}] x [{}] y [{}] z [{}] heading [{}]",
+				GetCleanName(),
+				zoneID,
+				instance_id,
+				x,
+				y,
+				z,
+				heading
+			);
 
 			outapp->priority = 6;
 			FastQueuePacket(&outapp);
@@ -1059,53 +1187,48 @@ void Client::GoToDeath() {
 	MovePC(m_pp.binds[0].zone_id, m_pp.binds[0].instance_id, 0.0f, 0.0f, 0.0f, 0.0f, 1, ZoneToBindPoint);
 }
 
-void Client::ClearZoneFlag(uint32 zone_id) {
+void Client::ClearZoneFlag(uint32 zone_id)
+{
 	if (!HasZoneFlag(zone_id)) {
 		return;
 	}
 
 	zone_flags.erase(zone_id);
 
-	std::string query = fmt::format(
-		"DELETE FROM zone_flags WHERE charID = {} AND zoneID = {}",
-		CharacterID(),
-		zone_id
+	ZoneFlagsRepository::DeleteWhere(
+		database,
+		fmt::format(
+			"`charID` = {} AND `zoneID` = {}",
+			CharacterID(),
+			zone_id
+		)
 	);
-	auto results = database.QueryDatabase(query);
-
-	if (!results.Success()) {
-		LogError("MySQL Error while trying to clear zone flag for [{}]: [{}]", GetName(), results.ErrorMessage().c_str());
-	}
 }
 
-bool Client::HasZoneFlag(uint32 zone_id) const {
+bool Client::HasZoneFlag(uint32 zone_id) const
+{
 	return zone_flags.find(zone_id) != zone_flags.end();
 }
 
-void Client::LoadZoneFlags() {
-	const auto query = fmt::format(
-		"SELECT zoneID from zone_flags WHERE charID = {}",
-		CharacterID()
+void Client::LoadZoneFlags()
+{
+	const auto& l = ZoneFlagsRepository::GetWhere(
+		database,
+		fmt::format(
+			"`charID` = {}",
+			CharacterID()
+		)
 	);
-	auto results = database.QueryDatabase(query);
-
-	if (!results.Success()) {
-		LogError("MySQL Error while trying to load zone flags for [{}]: [{}]", GetName(), results.ErrorMessage().c_str());
-		return;
-	}
-
-	if (!results.RowCount()) {
-		return;
-	}
 
 	zone_flags.clear();
 
-	for (auto row : results) {
-		zone_flags.insert(Strings::ToUnsignedInt(row[0]));
+	for (const auto& e : l) {
+		zone_flags.insert(e.zoneID);
 	}
 }
 
-void Client::SendZoneFlagInfo(Client *to) const {
+void Client::SendZoneFlagInfo(Client* to) const
+{
 	if (zone_flags.empty()) {
 		to->Message(
 			Chat::White,
@@ -1170,23 +1293,21 @@ void Client::SendZoneFlagInfo(Client *to) const {
 	);
 }
 
-void Client::SetZoneFlag(uint32 zone_id) {
+void Client::SetZoneFlag(uint32 zone_id)
+{
 	if (HasZoneFlag(zone_id)) {
 		return;
 	}
 
 	zone_flags.insert(zone_id);
 
-	const auto query = fmt::format(
-		"INSERT INTO zone_flags (charID, zoneID) VALUES ({}, {})",
-		CharacterID(),
-		zone_id
+	ZoneFlagsRepository::InsertOne(
+		database,
+		ZoneFlagsRepository::ZoneFlags{
+			.charID = static_cast<int32_t>(CharacterID()),
+			.zoneID = static_cast<int32_t>(zone_id)
+		}
 	);
-	auto results = database.QueryDatabase(query);
-
-	if (!results.Success()) {
-		LogError("MySQL Error while trying to set zone flag for [{}]: [{}]", GetName(), results.ErrorMessage().c_str());
-	}
 }
 
 void Client::ClearPEQZoneFlag(uint32 zone_id) {
@@ -1312,7 +1433,7 @@ bool Client::CanEnterZone(const std::string& zone_short_name, int16 instance_ver
 		return false;
 	}
 
-	if (GetLevel() < z->min_level) {
+	if (!GetGM() && GetLevel() < z->min_level) {
 		LogInfo(
 			"Character [{}] does not meet minimum level requirement ([{}] < [{}])!",
 			GetCleanName(),
@@ -1322,7 +1443,7 @@ bool Client::CanEnterZone(const std::string& zone_short_name, int16 instance_ver
 		return false;
 	}
 
-	if (GetLevel() > z->max_level) {
+	if (!GetGM() && GetLevel() > z->max_level) {
 		LogInfo(
 			"Character [{}] does not meet maximum level requirement ([{}] > [{}])!",
 			GetCleanName(),
@@ -1342,15 +1463,19 @@ bool Client::CanEnterZone(const std::string& zone_short_name, int16 instance_ver
 		return false;
 	}
 
-	if (!z->flag_needed.empty() && Strings::IsNumber(z->flag_needed) && Strings::ToBool(z->flag_needed)) {
-		if (Admin() < minStatusToIgnoreZoneFlags && !HasZoneFlag(z->zoneidnumber)) {
-			LogInfo(
-				"Character [{}] does not have the flag to be in this zone [{}]!",
-				GetCleanName(),
-				z->flag_needed
-			);
-			return false;
-		}
+	if (
+		!GetGM() &&
+		!z->flag_needed.empty() &&
+		Strings::IsNumber(z->flag_needed) &&
+		Strings::ToBool(z->flag_needed) &&
+		!HasZoneFlag(z->zoneidnumber)
+	) {
+		LogInfo(
+			"Character [{}] does not have the flag to be in this zone [{}]!",
+			GetCleanName(),
+			z->flag_needed
+		);
+		return false;
 	}
 
 	return true;

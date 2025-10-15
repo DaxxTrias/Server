@@ -57,11 +57,9 @@ EQ::Net::WebsocketLoginStatus CheckLogin(
 		return ret;
 	}
 
-	char account_name[64];
-	database.GetAccountName(static_cast<uint32>(ret.account_id), account_name);
-	ret.account_name = account_name;
+	ret.account_name = database.GetAccountName(static_cast<uint32>(ret.account_id));
 	ret.logged_in    = true;
-	ret.status       = database.CheckStatus(ret.account_id);
+	ret.status       = database.GetAccountStatus(ret.account_id);
 	return ret;
 }
 
@@ -84,7 +82,7 @@ Json::Value ApiGetPacketStatistics(EQ::Net::WebsocketServerConnection *connectio
 		auto connection            = client->Connection();
 		auto opts                  = connection->GetManager()->GetOptions();
 		auto eqs_stats             = connection->GetStats();
-		auto &stats                = eqs_stats.DaybreakStats;
+		auto &stats                = eqs_stats.ReliableStreamStats;
 		auto now                   = EQ::Net::Clock::now();
 		auto sec_since_stats_reset = std::chrono::duration_cast<std::chrono::duration<double>>(
 			now - stats.created
@@ -220,8 +218,8 @@ Json::Value ApiGetNpcListDetail(EQ::Net::WebsocketServerConnection *connection, 
 		row["npc_spells_effects_id"]         = npc->GetNPCSpellsEffectsID();
 		row["npc_spells_id"]                 = npc->GetNPCSpellsID();
 		row["npchp_regen"]                   = npc->GetNPCHPRegen();
-		row["num_merc_types"]                = npc->GetNumMercTypes();
-		row["num_mercs"]                     = npc->GetNumMercs();
+		row["num_merc_types"]                = npc->GetNumMercenaryTypes();
+		row["num_mercs"]                     = npc->GetNumberOfMercenaries();
 		row["number_of_attacks"]             = npc->GetNumberOfAttacks();
 		row["pet_spell_id"]                  = npc->GetPetSpellID();
 		row["platinum"]                      = npc->GetPlatinum();
@@ -245,7 +243,7 @@ Json::Value ApiGetNpcListDetail(EQ::Net::WebsocketServerConnection *connection, 
 		row["swarm_owner"]     = npc->GetSwarmOwner();
 		row["swarm_target"]    = npc->GetSwarmTarget();
 		row["waypoint_max"]    = npc->GetWaypointMax();
-		row["will_aggro_npcs"] = npc->WillAggroNPCs();
+		row["npc_aggro"]       = npc->GetNPCAggro();
 
 		response.append(row);
 	}
@@ -653,7 +651,6 @@ Json::Value ApiGetClientListDetail(EQ::Net::WebsocketServerConnection *connectio
 		row["base_wis"]                                = client->GetBaseWIS();
 		row["become_npc_level"]                        = client->GetBecomeNPCLevel();
 		row["boat_id"]                                 = client->GetBoatID();
-		row["buyer_welcome_message"]                   = client->GetBuyerWelcomeMessage();
 		row["calc_atk"]                                = client->CalcATK();
 		row["calc_base_mana"]                          = client->CalcBaseMana();
 		row["calc_current_weight"]                     = client->CalcCurrentWeight();
@@ -734,11 +731,11 @@ Json::Value ApiGetClientListDetail(EQ::Net::WebsocketServerConnection *connectio
 		row["ls_account_id"]                           = client->LSAccountID();
 		row["max_endurance"]                           = client->GetMaxEndurance();
 		row["max_x_tars"]                              = client->GetMaxXTargets();
-		row["merc_id"]                                 = client->GetMercID();
+		row["merc_id"]                                 = client->GetMercenaryID();
 		row["merc_only_or_no_group"]                   = client->MercOnlyOrNoGroup();
 		row["merc_slot"]                               = client->GetMercSlot();
 		row["next_inv_snapshot_time"]                  = client->GetNextInvSnapshotTime();
-		row["num_mercs"]                               = client->GetNumMercs();
+		row["num_mercs"]                               = client->GetNumberOfMercenaries();
 		row["pending_adventure_create"]                = client->GetPendingAdventureCreate();
 		row["pending_adventure_door_click"]            = client->GetPendingAdventureDoorClick();
 		row["pending_adventure_leave"]                 = client->GetPendingAdventureLeave();
@@ -838,9 +835,9 @@ Json::Value ApiGetLogsysCategories(EQ::Net::WebsocketServerConnection *connectio
 
 		row["log_category_id"]          = i;
 		row["log_category_description"] = Logs::LogCategoryName[i];
-		row["log_to_console"]           = LogSys.log_settings[i].log_to_console;
-		row["log_to_file"]              = LogSys.log_settings[i].log_to_file;
-		row["log_to_gmsay"]             = LogSys.log_settings[i].log_to_gmsay;
+		row["log_to_console"]           = EQEmuLogSys::Instance()->log_settings[i].log_to_console;
+		row["log_to_file"]              = EQEmuLogSys::Instance()->log_settings[i].log_to_file;
+		row["log_to_gmsay"]             = EQEmuLogSys::Instance()->log_settings[i].log_to_gmsay;
 
 		response.append(row);
 	}
@@ -869,15 +866,15 @@ Json::Value ApiSetLoggingLevel(EQ::Net::WebsocketServerConnection *connection, J
 	if (logging_category < Logs::LogCategory::MaxCategoryID &&
 		logging_category > Logs::LogCategory::None
 		) {
-		LogSys.log_settings[logging_category].log_to_console = logging_level;
+		EQEmuLogSys::Instance()->log_settings[logging_category].log_to_console = logging_level;
 		response["status"] = "Category log level updated";
 	}
 
 	if (logging_level > 0) {
-		LogSys.log_settings[logging_category].is_category_enabled = 1;
+		EQEmuLogSys::Instance()->log_settings[logging_category].is_category_enabled = 1;
 	}
 	else {
-		LogSys.log_settings[logging_category].is_category_enabled = 0;
+		EQEmuLogSys::Instance()->log_settings[logging_category].is_category_enabled = 0;
 	}
 
 	return response;
@@ -885,7 +882,7 @@ Json::Value ApiSetLoggingLevel(EQ::Net::WebsocketServerConnection *connection, J
 
 void RegisterApiLogEvent(std::unique_ptr<EQ::Net::WebsocketServer> &server)
 {
-	LogSys.SetConsoleHandler(
+	EQEmuLogSys::Instance()->SetConsoleHandler(
 		[&](uint16 log_category, const std::string &msg) {
 			Json::Value data;
 			data["log_category"] = log_category;

@@ -75,6 +75,7 @@ struct ActivityInformation {
 	std::string      zones; // IDs ; separated, ZoneID is the first in this list for older clients -- default empty string, max length 64
 	int              zone_version;
 	bool             optional;
+	uint8_t          list_group; // element group in window list (groups separated by dividers), valid values are 0-19
 	bool             has_area; // non-database field
 
 	inline bool CheckZone(int zone_id, int version) const
@@ -82,7 +83,8 @@ struct ActivityInformation {
 		if (zone_ids.empty()) {
 			return true;
 		}
-		bool found_zone = std::find(zone_ids.begin(), zone_ids.end(), zone_id) != zone_ids.end();
+		bool found_zone = std::any_of(zone_ids.begin(), zone_ids.end(),
+			[zone_id](int id) { return id <= 0 || id == zone_id; });
 
 		return found_zone && (zone_version == version || zone_version == -1);
 	}
@@ -99,7 +101,7 @@ struct ActivityInformation {
 			out.WriteInt32(activity_type == TaskActivityType::GiveCash ? 1 : goal_count);
 			out.WriteLengthString(skill_list); // used in SkillOn objective type string, "-1" for none
 			out.WriteLengthString(spell_list); // used in CastOn objective type string, "0" for none
-			out.WriteString(zones);            // used in objective zone column and task select "begins in" (may have multiple, "0" for "unknown zone", empty for "ALL")
+			out.WriteString(zones);            // used in ui zone columns and task select "begins in" (may have multiple, invalid id for "Unknown Zone", empty for "ALL")
 		}
 		else
 		{
@@ -113,7 +115,7 @@ struct ActivityInformation {
 		out.WriteString(description_override);
 
 		if (client_version >= EQ::versions::ClientVersion::RoF) {
-			out.WriteString(zones); // serialized again after description (seems unused)
+			out.WriteString(zones); // target zone version internal id (unused client side)
 		}
 	}
 
@@ -215,6 +217,8 @@ struct TaskInformation {
 	uint32_t            request_timer_group;
 	uint32_t            request_timer_seconds;
 	ActivityInformation activity_information[MAXACTIVITIESPERTASK];
+	std::vector<int>    selector_ids; // initial active elements for task select window
+	int                 selector_step = std::numeric_limits<int>::max();
 
 	void SerializeSelector(SerializeBuffer& out, EQ::versions::ClientVersion client_version) const
 	{
@@ -231,12 +235,14 @@ struct TaskInformation {
 			out.WriteUInt8(0); // 0: no rewards 1: enables "Reward Preview" button
 		}
 
-		// selector only needs to send the first objective to fill description starting zone
-		out.WriteUInt32(std::min(activity_count, 1)); // number of task objectives
-		if (activity_count > 0)
+		// live only sends the initial active elements to the select window
+		// element index 0 fills the description starting zone
+		// bracket descriptions are appended if all their elements are sent
+		out.WriteUInt32(static_cast<uint32_t>(selector_ids.size())); // element count
+		for (int id : selector_ids)
 		{
-			out.WriteUInt32(0); // objective index
-			activity_information[0].SerializeSelector(out, client_version);
+			out.WriteInt32(id); // element index
+			activity_information[id].SerializeSelector(out, client_version);
 		}
 	}
 };
@@ -246,6 +252,8 @@ typedef enum {
 	ActivityActive    = 1,
 	ActivityCompleted = 2
 }                  ActivityState;
+
+constexpr int format_as(ActivityState state) { return static_cast<int>(state); }
 
 struct ClientActivityInformation {
 	int           activity_id;
@@ -359,9 +367,11 @@ namespace Tasks {
 			if (activity_states[i].activity_state != ActivityCompleted)
 			{
 				completed_ids[i] = false;
-				current_step = std::min(current_step, el.step);
+
+				// step system advances to next step if only optionals active
 				if (!el.optional)
 				{
+					current_step = std::min(current_step, el.step);
 					result.is_task_complete = false;
 				}
 			}

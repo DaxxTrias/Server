@@ -36,7 +36,6 @@ namespace DatabaseSchema {
 	{
 		return {
 			{"adventure_stats",                "player_id"},
-			{"buyer",                          "charid"},
 			{"char_recipe_list",               "char_id"},
 			{"character_activities",           "charid"},
 			{"character_alt_currency",         "char_id"},
@@ -52,6 +51,7 @@ namespace DatabaseSchema {
 			{"character_enabledtasks",         "charid"},
 			{"character_expedition_lockouts",  "character_id"},
 			{"character_exp_modifiers",        "character_id"},
+			{"character_evolving_items",       "character_id"},
 			{"character_inspect_messages",     "id"},
 			{"character_instance_safereturns", "character_id"},
 			{"character_item_recast",          "id"},
@@ -59,9 +59,12 @@ namespace DatabaseSchema {
 			{"character_leadership_abilities", "id"},
 			{"character_material",             "id"},
 			{"character_memmed_spells",        "id"},
+			{"character_parcels",              "char_id"},
+			{"character_parcels_containers",   "id"},
 			{"character_pet_buffs",            "char_id"},
 			{"character_pet_info",             "char_id"},
 			{"character_pet_inventory",        "char_id"},
+			{"character_pet_name",             "character_id"},
 			{"character_peqzone_flags",        "id"},
 			{"character_potionbelt",           "id"},
 			{"character_skills",               "id"},
@@ -71,13 +74,13 @@ namespace DatabaseSchema {
 			{"character_tasks",                "charid"},
 			{"character_tribute",              "character_id"},
 			{"completed_tasks",                "charid"},
-			{"data_buckets",                   "id"},
+			{"data_buckets",                   "character_id"},
 			{"faction_values",                 "char_id"},
 			{"friends",                        "charid"},
 			{"guild_members",                  "char_id"},
 			{"guilds",                         "id"},
 			{"instance_list_player",           "id"},
-			{"inventory",                      "charid"},
+			{"inventory",                      "character_id"},
 			{"inventory_snapshots",            "charid"},
 			{"keyring",                        "char_id"},
 			{"mail",                           "charid"},
@@ -105,6 +108,8 @@ namespace DatabaseSchema {
 			"adventure_details",
 			"adventure_stats",
 			"buyer",
+			"buyer_buy_lines",
+			"buyer_trade_items",
 			"char_recipe_list",
 			"character_activities",
 			"character_alt_currency",
@@ -121,6 +126,7 @@ namespace DatabaseSchema {
 			"character_enabledtasks",
 			"character_expedition_lockouts",
 			"character_exp_modifiers",
+			"character_evolving_items",
 			"character_inspect_messages",
 			"character_instance_safereturns",
 			"character_item_recast",
@@ -128,9 +134,12 @@ namespace DatabaseSchema {
 			"character_leadership_abilities",
 			"character_material",
 			"character_memmed_spells",
+			"character_parcels",
+			"character_parcels_containers",
 			"character_pet_buffs",
 			"character_pet_info",
 			"character_pet_inventory",
+			"character_pet_name",
 			"character_peqzone_flags",
 			"character_potionbelt",
 			"character_skills",
@@ -146,8 +155,10 @@ namespace DatabaseSchema {
 			"friends",
 			"guild_bank",
 			"guild_members",
+			"guild_permissions",
 			"guild_ranks",
 			"guild_relations",
+			"guild_tributes",
 			"guilds",
 			"instance_list_player",
 			"inventory",
@@ -205,6 +216,7 @@ namespace DatabaseSchema {
 			"ground_spawns",
 			"horses",
 			"items",
+			"items_evolving_details",
 			"ldon_trap_entries",
 			"ldon_trap_templates",
 			"lootdrop",
@@ -281,32 +293,6 @@ namespace DatabaseSchema {
 	}
 
 	/**
-	 * Gets QueryServer tables
-	 *
-	 * @return
-	 */
-	static std::vector<std::string> GetQueryServerTables()
-	{
-		return {
-			"qs_merchant_transaction_record",
-			"qs_merchant_transaction_record_entries",
-			"qs_player_aa_rate_hourly",
-			"qs_player_delete_record",
-			"qs_player_delete_record_entries",
-			"qs_player_events",
-			"qs_player_handin_record",
-			"qs_player_handin_record_entries",
-			"qs_player_move_record",
-			"qs_player_move_record_entries",
-			"qs_player_npc_kill_record",
-			"qs_player_npc_kill_record_entries",
-			"qs_player_speech",
-			"qs_player_trade_record",
-			"qs_player_trade_record_entries",
-		};
-	}
-
-	/**
 	 * Gets state tables
 	 * Tables that keep track of server state
 	 *
@@ -319,20 +305,21 @@ namespace DatabaseSchema {
 			"banned_ips",
 			"bug_reports",
 			"bugs",
+			"buyer",
+			"buyer_buy_lines",
+			"buyer_trade_items",
 			"completed_shared_task_activity_state",
 			"completed_shared_task_members",
 			"completed_shared_tasks",
 			"discord_webhooks",
+			"dynamic_zone_lockouts",
 			"dynamic_zone_members",
 			"dynamic_zones",
-			"expedition_lockouts",
-			"expeditions",
 			"gm_ips",
 			"group_id",
 			"group_leaders",
 			"instance_list",
 			"ip_exemptions",
-			"item_tick",
 			"lfguild",
 			"merc_buffs",
 			"merchantlist_temp",
@@ -346,12 +333,25 @@ namespace DatabaseSchema {
 			"saylink",
 			"server_scheduled_events",
 			"spawn2_disabled",
+			"player_event_aa_purchase",
+			"player_event_killed_npc",
+			"player_event_killed_named_npc",
+			"player_event_killed_raid_npc",
 			"player_event_log_settings",
 			"player_event_logs",
+			"player_event_loot_items",
+			"player_event_merchant_purchase",
+			"player_event_merchant_sell",
+			"player_event_npc_handin",
+			"player_event_npc_handin_entries",
+			"player_event_speech",
+			"player_event_trade",
+			"player_event_trade_entries",
 			"shared_task_activity_state",
 			"shared_task_dynamic_zones",
 			"shared_task_members",
 			"shared_tasks",
+			"zone_state_spawns",
 		};
 	}
 
@@ -393,6 +393,7 @@ namespace DatabaseSchema {
 	static std::vector<std::string> GetBotTables()
 	{
 		return {
+			"bot_blocked_buffs",
 			"bot_buffs",
 			"bot_command_settings",
 			"bot_create_combinations",
@@ -406,6 +407,7 @@ namespace DatabaseSchema {
 			"bot_pet_buffs",
 			"bot_pet_inventories",
 			"bot_pets",
+			"bot_settings",
 			"bot_spell_casting_chances",
 			"bot_spell_settings",
 			"bot_spells_entries",

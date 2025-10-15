@@ -46,13 +46,13 @@ public:
 	Lua_Mob GetOwner();
 	int16 HasBotItem(uint32 item_id);
 	void OwnerMessage(std::string message);
+	void RaidGroupSay(const char* message);
 	bool ReloadBotDataBuckets();
 	bool ReloadBotOwnerDataBuckets();
 	bool ReloadBotSpells();
 	void ReloadBotSpellSettings();
 	void RemoveBotItem(uint32 item_id);
 	void SetExpansionBitmask(int expansion_bitmask);
-	void SetExpansionBitmask(int expansion_bitmask, bool save);
 	void Signal(int signal_id);
 	bool HasBotSpellEntry(uint16 spellid);
 	void SendPayload(int payload_id);
@@ -60,6 +60,7 @@ public:
 	uint32 GetBotID();
 	void Camp();
 	void Camp(bool save_to_database);
+	void DeleteBot();
 	Lua_ItemInst GetAugmentAt(int16 slot_id, uint8 augment_index);
 	int GetAugmentIDAt(int16 slot_id, uint8 augment_index);
 	luabind::object GetAugmentIDsBySlotID(lua_State* L, int16 slot_id) const;
@@ -107,8 +108,27 @@ public:
 	void SetSpellDurationRaid(int spell_id, int duration, int level, bool allow_pets);
 	void SetSpellDurationRaid(int spell_id, int duration, int level, bool allow_pets, bool is_raid_group_only);
 
-	int CountAugmentEquippedByID(uint32 item_id);
-	int CountItemEquippedByID(uint32 item_id);
+	void ClearDisciplineReuseTimer();
+	void ClearDisciplineReuseTimer(uint16 spell_id);
+	void ClearItemReuseTimer();
+	void ClearItemReuseTimer(uint32 item_id);
+	void ClearSpellRecastTimer();
+	void ClearSpellRecastTimer(uint16 spell_id);
+	uint32 GetDisciplineReuseTimer();
+	uint32 GetDisciplineReuseTimer(uint16 spell_id);
+	uint32 GetItemReuseTimer();
+	uint32 GetItemReuseTimer(uint32 item_id);
+	uint32 GetSpellRecastTimer();
+	uint32 GetSpellRecastTimer(uint16 spell_id);
+	void SetDisciplineReuseTimer(uint16 spell_id);
+	void SetDisciplineReuseTimer(uint16 spell_id, uint32 reuse_timer);
+	void SetItemReuseTimer(uint32 item_id);
+	void SetItemReuseTimer(uint32 item_id, uint32 reuse_timer);
+	void SetSpellRecastTimer(uint16 spell_id);
+	void SetSpellRecastTimer(uint16 spell_id, uint32 reuse_timer);
+
+	uint32 CountAugmentEquippedByID(uint32 item_id);
+	uint32 CountItemEquippedByID(uint32 item_id);
 	bool HasAugmentEquippedByID(uint32 item_id);
 	bool HasItemEquippedByID(uint32 item_id);
 	int GetHealAmount();
