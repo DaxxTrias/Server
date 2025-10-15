@@ -137,6 +137,22 @@ void bot_command_cast(Client* c, const Seperator* sep)
 		return;
 	}
 
+	// Pet Resist Buffs help
+	if (!arg1.compare("petresistbuffs") && !arg2.compare("help")) {
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Available options for {} are: {}, {}, {}.",
+				sep->arg[0],
+				Saylink::Silent("^cast petresistbuffs single", "single"),
+				Saylink::Silent("^cast petresistbuffs group", "group"),
+				Saylink::Silent("^cast petresistbuffs ae", "ae")
+			).c_str()
+		);
+
+		return;
+	}
+
 	// Levitate help
 	if (!arg1.compare("levitate") && !arg2.compare("help")) {
 		c->Message(
@@ -146,6 +162,21 @@ void bot_command_cast(Client* c, const Seperator* sep)
 				sep->arg[0],
 				Saylink::Silent("^cast levitate single", "single"),
 				Saylink::Silent("^cast levitate group", "group")
+			).c_str()
+		);
+
+		return;
+	}
+
+	// Water Breathing help
+	if (!arg1.compare("waterbreathing") && !arg2.compare("help")) {
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Available options for {} are: {}, {}.",
+				sep->arg[0],
+				Saylink::Silent("^cast waterbreathing single", "single"),
+				Saylink::Silent("^cast waterbreathing group", "group")
 			).c_str()
 		);
 
