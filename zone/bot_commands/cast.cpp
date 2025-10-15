@@ -121,6 +121,68 @@ void bot_command_cast(Client* c, const Seperator* sep)
 		return;
 	}
 
+	// Resist Buffs help
+	if (!arg1.compare("resistbuffs") && !arg2.compare("help")) {
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Available options for {} are: {}, {}, {}.",
+				sep->arg[0],
+				Saylink::Silent("^cast resistbuffs single", "single"),
+				Saylink::Silent("^cast resistbuffs group", "group"),
+				Saylink::Silent("^cast resistbuffs ae", "ae")
+			).c_str()
+		);
+
+		return;
+	}
+
+	// Levitate help
+	if (!arg1.compare("levitate") && !arg2.compare("help")) {
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Available options for {} are: {}, {}.",
+				sep->arg[0],
+				Saylink::Silent("^cast levitate single", "single"),
+				Saylink::Silent("^cast levitate group", "group")
+			).c_str()
+		);
+
+		return;
+	}
+
+	// Rune help
+	if (!arg1.compare("rune") && !arg2.compare("help")) {
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Available options for {} are: {}, {}.",
+				sep->arg[0],
+				Saylink::Silent("^cast rune single", "single"),
+				Saylink::Silent("^cast rune group", "group")
+			).c_str()
+		);
+
+		return;
+	}
+
+	// Dispel (Purge Magic) help
+	if ((!arg1.compare("dispels") || !arg1.compare("dispel")) && !arg2.compare("help")) {
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Available options for {} are: {}, {}, {}.",
+				sep->arg[0],
+				Saylink::Silent("^cast dispels single", "single"),
+				Saylink::Silent("^cast dispels group", "group"),
+				Saylink::Silent("^cast dispels ae", "ae")
+			).c_str()
+		);
+
+		return;
+	}
+
 	if (!arg1.compare("size") && !arg2.compare("help")) {
 		c->Message(
 			Chat::Yellow,
@@ -183,7 +245,7 @@ void bot_command_cast(Client* c, const Seperator* sep)
 			aa_id = Strings::ToInt(arg2);
 		}
 
-		aa_type = true;		
+		aa_type = true;
 	}
 
 	if (!arg1.compare("spellid")) {
@@ -358,9 +420,9 @@ void bot_command_cast(Client* c, const Seperator* sep)
 			case BotSpellTypes::Resurrect:
 				if (!tar->IsCorpse() || !tar->CastToCorpse()->IsPlayerCorpse()) {
 					c->Message(
-						Chat::Yellow, 
+						Chat::Yellow,
 						fmt::format(
-							"[{}] is not a player's corpse.", 
+							"[{}] is not a player's corpse.",
 							tar->GetCleanName()
 						).c_str()
 					);
@@ -377,7 +439,7 @@ void bot_command_cast(Client* c, const Seperator* sep)
 					c->Message(
 						Chat::Yellow,
 						fmt::format(
-							"[{}] is an invalid target. Only players in your group or raid are eligible targets.", 
+							"[{}] is an invalid target. Only players in your group or raid are eligible targets.",
 							tar->GetCleanName()
 						).c_str()
 					);
@@ -401,7 +463,7 @@ void bot_command_cast(Client* c, const Seperator* sep)
 					c->Message(
 						Chat::Yellow,
 						fmt::format(
-							"You cannot attack [{}].", 
+							"You cannot attack [{}].",
 							tar->GetCleanName()
 						).c_str()
 					);
