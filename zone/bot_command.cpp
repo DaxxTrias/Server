@@ -895,6 +895,7 @@ void SendSpellTypeWindow(Client* c, const Seperator* sep) {
 #include "bot_commands/name.cpp"
 #include "bot_commands/owner_option.cpp"
 #include "bot_commands/pet.cpp"
+#include "bot_commands/aa_count.cpp"
 #include "bot_commands/pick_lock.cpp"
 #include "bot_commands/pickpocket.cpp"
 #include "bot_commands/precombat.cpp"
