@@ -82,11 +82,6 @@ void ShowZoneData(Client *c, const Seperator *sep)
 	);
 
 	popup_table += DialogueWindow::TableRow(
-		DialogueWindow::TableCell("Time Type") +
-		DialogueWindow::TableCell(std::to_string(zone->newzone_data.time_type))
-	);
-
-	popup_table += DialogueWindow::TableRow(
 		DialogueWindow::TableCell("Experience Multiplier") +
 		DialogueWindow::TableCell(
 			fmt::format(
@@ -100,10 +95,11 @@ void ShowZoneData(Client *c, const Seperator *sep)
 		DialogueWindow::TableCell("Safe Coordinates") +
 		DialogueWindow::TableCell(
 			fmt::format(
-				"{:.2f}, {:.2f}, {:.2f}",
+				"{:.2f}, {:.2f}, {:.2f} Heading: {:.2f}",
 				zone->newzone_data.safe_x,
 				zone->newzone_data.safe_y,
-				zone->newzone_data.safe_z
+				zone->newzone_data.safe_z,
+				zone->newzone_data.safe_heading
 			)
 		)
 	);

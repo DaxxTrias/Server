@@ -45,6 +45,8 @@
 #include "../common/misc.h"
 #include "client.h"
 #include "worlddb.h"
+#include "wguild_mgr.h"
+#include "../common/evolving_items.h"
 
 #ifdef _WINDOWS
 #include <process.h>
@@ -74,10 +76,10 @@
 #include "web_interface.h"
 #include "console.h"
 #include "dynamic_zone_manager.h"
-#include "expedition_database.h"
 
 #include "world_server_cli.h"
 #include "../common/content/world_content_service.h"
+#include "../common/repositories/character_expedition_lockouts_repository.h"
 #include "../common/repositories/character_task_timers_repository.h"
 #include "../common/zone_store.h"
 #include "world_event_scheduler.h"
@@ -85,29 +87,16 @@
 #include "world_boot.h"
 #include "../common/path_manager.h"
 #include "../common/events/player_event_logs.h"
+#include "../common/skill_caps.h"
+#include "../common/repositories/character_parcels_repository.h"
+#include "../common/ip_util.h"
 
-
-ZoneStore           zone_store;
-ClientList          client_list;
 GroupLFPList        LFPGroupList;
-ZSList              zoneserver_list;
-LoginServerList     loginserverlist;
-UCSConnection       UCSLink;
-QueryServConnection QSLink;
 LauncherList        launcher_list;
-AdventureManager    adventure_manager;
-WorldEventScheduler event_scheduler;
-SharedTaskManager   shared_task_manager;
-EQ::Random          emu_random;
 volatile bool       RunLoops   = true;
 uint32              numclients = 0;
 uint32              numzones   = 0;
 const WorldConfig   *Config;
-EQEmuLogSys         LogSys;
-WorldContentService content_service;
-WebInterfaceList    web_interface;
-PathManager         path;
-PlayerEventLogs     player_event_logs;
 
 void CatchSignal(int sig_num);
 
@@ -129,20 +118,18 @@ inline void UpdateWindowTitle(std::string new_title)
 int main(int argc, char **argv)
 {
 	RegisterExecutablePlatform(ExePlatformWorld);
-	LogSys.LoadLogSettingsDefaults();
+	EQEmuLogSys::Instance()->LoadLogSettingsDefaults();
 	set_exception_handler();
 
 	if (WorldBoot::HandleCommandInput(argc, argv)) {
 		return 0;
 	}
 
-	path.LoadPaths();
+	PathManager::Instance()->Init();
 
 	if (!WorldBoot::LoadServerConfig()) {
 		return 0;
 	}
-
-	WorldBoot::CheckForXMLConfigUpgrade();
 
 	Config = WorldConfig::get();
 
@@ -176,11 +163,20 @@ int main(int argc, char **argv)
 	PurgeInstanceTimer.Start(450000);
 	Timer EQTimeTimer(600000);
 	EQTimeTimer.Start(600000);
+	Timer parcel_prune_timer(86400000);
+	parcel_prune_timer.Start(86400000);
+	Timer player_event_log_process(1000);
+	player_event_log_process.Start(1000);
 
 	// global loads
 	LogInfo("Loading launcher list");
 	launcher_list.LoadList();
-	zoneserver_list.Init();
+	ZSList::Instance()->Init();
+
+	if (IpUtil::IsPortInUse(Config->WorldIP, Config->WorldTCPPort)) {
+		LogError("World port [{}] already in use", Config->WorldTCPPort);
+		return 1;
+	}
 
 	std::unique_ptr<EQ::Net::ConsoleServer> console;
 	if (Config->TelnetEnabled) {
@@ -188,6 +184,13 @@ int main(int argc, char **argv)
 		console = std::make_unique<EQ::Net::ConsoleServer>(Config->TelnetIP, Config->TelnetTCPPort);
 		RegisterConsoleFunctions(console);
 	}
+
+	WorldContentService::Instance()->SetDatabase(&database)
+		->SetContentDatabase(&content_db)
+		->SetExpansionContext()
+		->ReloadContentFlags();
+
+	SkillCaps::Instance()->SetContentDatabase(&content_db)->LoadSkillCaps();
 
 	std::unique_ptr<EQ::Net::ServertalkServer> server_connection;
 	server_connection = std::make_unique<EQ::Net::ServertalkServer>();
@@ -202,7 +205,7 @@ int main(int argc, char **argv)
 	server_connection->OnConnectionIdentified(
 		"Zone", [&console](std::shared_ptr<EQ::Net::ServertalkServerConnection> connection) {
 			numzones++;
-			zoneserver_list.Add(new ZoneServer(connection, console.get()));
+			ZSList::Instance()->Add(new ZoneServer(connection, console.get()));
 
 			LogInfo(
 				"New Zone Server connection from [{}] at [{}:{}] zone_count [{}]",
@@ -217,7 +220,7 @@ int main(int argc, char **argv)
 	server_connection->OnConnectionRemoved(
 		"Zone", [](std::shared_ptr<EQ::Net::ServertalkServerConnection> connection) {
 			numzones--;
-			zoneserver_list.Remove(connection->GetUUID());
+			ZSList::Instance()->Remove(connection->GetUUID());
 
 			LogInfo(
 				"Removed Zone Server connection from [{}] total zone_count [{}]",
@@ -259,7 +262,7 @@ int main(int argc, char **argv)
 				connection->Handle()->RemotePort(),
 				connection->GetUUID());
 
-			QSLink.AddConnection(connection);
+			QueryServConnection::Instance()->AddConnection(connection);
 		}
 	);
 
@@ -270,7 +273,7 @@ int main(int argc, char **argv)
 				connection->GetUUID()
 			);
 
-			QSLink.RemoveConnection(connection);
+			QueryServConnection::Instance()->RemoveConnection(connection);
 		}
 	);
 
@@ -283,9 +286,9 @@ int main(int argc, char **argv)
 				connection->GetUUID()
 			);
 
-			UCSLink.SetConnection(connection);
+			UCSConnection::Instance()->SetConnection(connection);
 
-			zoneserver_list.UpdateUCSServerAvailable();
+			ZSList::Instance()->UpdateUCSServerAvailable();
 		}
 	);
 
@@ -293,12 +296,12 @@ int main(int argc, char **argv)
 		"UCS", [](std::shared_ptr<EQ::Net::ServertalkServerConnection> connection) {
 			LogInfo("Connection lost from UCS Server [{}]", connection->GetUUID());
 
-			auto ucs_connection = UCSLink.GetConnection();
+			auto ucs_connection = UCSConnection::Instance()->GetConnection();
 
 			if (ucs_connection->GetUUID() == connection->GetUUID()) {
 				LogInfo("Removing currently active UCS connection");
-				UCSLink.SetConnection(nullptr);
-				zoneserver_list.UpdateUCSServerAvailable(false);
+				UCSConnection::Instance()->SetConnection(nullptr);
+				ZSList::Instance()->UpdateUCSServerAvailable(false);
 			}
 		}
 	);
@@ -312,7 +315,7 @@ int main(int argc, char **argv)
 				connection->GetUUID()
 			);
 
-			web_interface.AddConnection(connection);
+			WebInterfaceList::Instance()->AddConnection(connection);
 		}
 	);
 
@@ -323,28 +326,28 @@ int main(int argc, char **argv)
 				connection->GetUUID()
 			);
 
-			web_interface.RemoveConnection(connection);
+			WebInterfaceList::Instance()->RemoveConnection(connection);
 		}
 	);
 
 	WorldBoot::CheckForPossibleConfigurationIssues();
 
 	EQStreamManagerInterfaceOptions opts(9000, false, false);
-	opts.daybreak_options.resend_delay_ms     = RuleI(Network, ResendDelayBaseMS);
-	opts.daybreak_options.resend_delay_factor = RuleR(Network, ResendDelayFactor);
-	opts.daybreak_options.resend_delay_min    = RuleI(Network, ResendDelayMinMS);
-	opts.daybreak_options.resend_delay_max    = RuleI(Network, ResendDelayMaxMS);
-	opts.daybreak_options.outgoing_data_rate  = RuleR(Network, ClientDataRate);
+	opts.reliable_stream_options.resend_delay_ms     = RuleI(Network, ResendDelayBaseMS);
+	opts.reliable_stream_options.resend_delay_factor = RuleR(Network, ResendDelayFactor);
+	opts.reliable_stream_options.resend_delay_min    = RuleI(Network, ResendDelayMinMS);
+	opts.reliable_stream_options.resend_delay_max    = RuleI(Network, ResendDelayMaxMS);
+	opts.reliable_stream_options.outgoing_data_rate  = RuleR(Network, ClientDataRate);
 
 	EQ::Net::EQStreamManager eqsm(opts);
 
 	//register all the patches we have avaliable with the stream identifier.
 	EQStreamIdentifier stream_identifier;
 	RegisterAllPatches(stream_identifier);
-	zoneserver_list.shutdowntimer = new Timer(60000);
-	zoneserver_list.shutdowntimer->Disable();
-	zoneserver_list.reminder = new Timer(20000);
-	zoneserver_list.reminder->Disable();
+	ZSList::Instance()->shutdowntimer = new Timer(60000);
+	ZSList::Instance()->shutdowntimer->Disable();
+	ZSList::Instance()->reminder = new Timer(20000);
+	ZSList::Instance()->reminder->Disable();
 	Timer InterserverTimer(INTERSERVER_TIMER); // does MySQL pings and auto-reconnect
 	InterserverTimer.Trigger();
 	uint8                              ReconnectCounter = 100;
@@ -362,8 +365,9 @@ int main(int argc, char **argv)
 		}
 	);
 
-	Timer player_event_process_timer(1000);
-	player_event_logs.SetDatabase(&database)->Init();
+	if (PlayerEventLogs::Instance()->LoadDatabaseConnection()) {
+		PlayerEventLogs::Instance()->Init();
+	}
 
 	auto loop_fn = [&](EQ::Timer* t) {
 		Timer::SetCurrentTime();
@@ -389,7 +393,7 @@ int main(int argc, char **argv)
 					LogInfo("Connection [{}] PASSED banned IPs check. Processing connection", inet_ntoa(in));
 					auto client = new Client(eqsi);
 					// @merth: client->zoneattempt=0;
-					client_list.Add(client);
+					ClientList::Instance()->Add(client);
 				}
 				else {
 					LogInfo("Connection from [{}] failed banned IPs check. Closing connection", inet_ntoa(in));
@@ -404,28 +408,39 @@ int main(int argc, char **argv)
 				);
 				auto client = new Client(eqsi);
 				// @merth: client->zoneattempt=0;
-				client_list.Add(client);
+				ClientList::Instance()->Add(client);
 			}
 		}
 
-		event_scheduler.Process(&zoneserver_list);
+		WorldEventScheduler::Instance()->Process(ZSList::Instance());
 
-		client_list.Process();
+		ClientList::Instance()->Process();
+		guild_mgr.Process();
 
-		if (player_event_process_timer.Check()) {
-			player_event_logs.Process();
+		if (parcel_prune_timer.Check()) {
+			if (RuleB(Parcel, EnableParcelMerchants) && RuleB(Parcel, EnablePruning)) {
+				LogTrading(
+					"Parcel Prune process running for parcels over <red>[{}] days",
+					RuleI(Parcel, ParcelPruneDelay)
+				);
+
+				auto out = std::make_unique<ServerPacket>(ServerOP_ParcelPrune);
+				ZSList::Instance()->SendPacketToBootedZones(out.get());
+
+				database.PurgeCharacterParcels();
+			}
 		}
 
 		if (PurgeInstanceTimer.Check()) {
 			database.PurgeExpiredInstances();
 			database.PurgeAllDeletedDataBuckets();
-			ExpeditionDatabase::PurgeExpiredCharacterLockouts();
+			CharacterExpeditionLockoutsRepository::DeleteWhere(database, "expire_time <= NOW()");
 			CharacterTaskTimersRepository::DeleteWhere(database, "expire_time <= NOW()");
 		}
 
 		if (EQTimeTimer.Check()) {
 			TimeOfDay_Struct tod{};
-			zoneserver_list.worldclock.GetCurrentEQTimeOfDay(time(nullptr), &tod);
+			ZSList::Instance()->worldclock.GetCurrentEQTimeOfDay(time(nullptr), &tod);
 			if (!database.SaveTime(tod.minute, tod.hour, tod.day, tod.month, tod.year)) {
 				LogEqTime("Failed to save eqtime");
 			}
@@ -434,18 +449,24 @@ int main(int argc, char **argv)
 					tod.year,
 					tod.month,
 					tod.day,
-					tod.hour,
+					tod.hour - 1,
 					tod.minute
 				);
 			}
 		}
 
-		zoneserver_list.Process();
+		ZSList::Instance()->Process();
 		launcher_list.Process();
 		LFPGroupList.Process();
-		adventure_manager.Process();
-		shared_task_manager.Process();
+		AdventureManager::Instance()->Process();
+		SharedTaskManager::Instance()->Process();
 		dynamic_zone_manager.Process();
+
+		if (!RuleB(Logging, PlayerEventsQSProcess)) {
+			if (player_event_log_process.Check()) {
+				PlayerEventLogs::Instance()->Process();
+			}
+		}
 
 		if (InterserverTimer.Check()) {
 			InterserverTimer.Start();
@@ -455,7 +476,7 @@ int main(int argc, char **argv)
 			std::string window_title = fmt::format(
 				"World [{}] Clients [{}]",
 				Config->LongName,
-				client_list.GetClientCount()
+				ClientList::Instance()->GetClientCount()
 			);
 			UpdateWindowTitle(window_title);
 		}
@@ -468,10 +489,10 @@ int main(int argc, char **argv)
 
 	LogInfo("World main loop completed");
 	LogInfo("Shutting down zone connections (if any)");
-	zoneserver_list.KillAll();
+	ZSList::Instance()->KillAll();
 	LogInfo("Zone (TCP) listener stopped");
 	LogInfo("Signaling HTTP service to stop");
-	LogSys.CloseFileLogs();
+	EQEmuLogSys::Instance()->CloseFileLogs();
 
 	WorldBoot::Shutdown();
 

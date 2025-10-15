@@ -32,8 +32,10 @@
 #include "../strings.h"
 #include "../item_instance.h"
 #include "titanium_structs.h"
+#include "../rulesys.h"
 #include "../path_manager.h"
 #include "../raid.h"
+#include "../guilds.h"
 
 #include <sstream>
 
@@ -71,7 +73,7 @@ namespace Titanium
 		auto Config = EQEmuConfig::get();
 		//create our opcode manager if we havent already
 		if (opcodes == nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			//load up the opcode manager.
 			//TODO: figure out how to support shared memory with multiple patches...
 			opcodes = new RegularOpcodeManager();
@@ -112,7 +114,7 @@ namespace Titanium
 		//we need to go to every stream and replace it's manager.
 
 		if (opcodes != nullptr) {
-			std::string opfile = fmt::format("{}/patch_{}.conf", path.GetPatchPath(), name);
+			std::string opfile = fmt::format("{}/patch_{}.conf", PathManager::Instance()->GetPatchPath(), name);
 			if (!opcodes->ReloadOpcodes(opfile.c_str())) {
 				LogNetcode("[OPCODES] Error reloading opcodes file [{}] for patch [{}]", opfile.c_str(), name);
 				return;
@@ -196,64 +198,135 @@ namespace Titanium
 
 	ENCODE(OP_BazaarSearch)
 	{
-		if (((*p)->size == sizeof(BazaarReturnDone_Struct)) || ((*p)->size == sizeof(BazaarWelcome_Struct))) {
-
-			EQApplicationPacket *in = *p;
-			*p = nullptr;
-			dest->FastQueuePacket(&in, ack_req);
-			return;
-		}
-
-		//consume the packet
 		EQApplicationPacket *in = *p;
 		*p = nullptr;
 
-		//store away the emu struct
-		unsigned char *__emu_buffer = in->pBuffer;
-		BazaarSearchResults_Struct *emu = (BazaarSearchResults_Struct *)__emu_buffer;
+		uint32 action = *(uint32 *)in->pBuffer;
 
-		//determine and verify length
-		int entrycount = in->size / sizeof(BazaarSearchResults_Struct);
-		if (entrycount == 0 || (in->size % sizeof(BazaarSearchResults_Struct)) != 0) {
-			Log(Logs::General, Logs::Netcode, "[STRUCTS] Wrong size on outbound %s: Got %d, expected multiple of %d",
-				opcodes->EmuToName(in->GetOpcode()), in->size, sizeof(BazaarSearchResults_Struct));
-			delete in;
-			return;
+		switch (action) {
+			case BazaarSearch: {
+				LogTrading(
+					"Encode OP_BazaarSearch(Ti) BazaarSearch action <green>[{}]",
+					action
+				);
+				std::vector<BazaarSearchResultsFromDB_Struct> results {};
+				auto bsms = (BazaarSearchMessaging_Struct *)in->pBuffer;
+				EQ::Util::MemoryStreamReader ss(
+					reinterpret_cast<char *>(bsms->payload),
+					in->size - sizeof(BazaarSearchMessaging_Struct)
+				);
+				cereal::BinaryInputArchive ar(ss);
+				ar(results);
+
+				auto  size    = results.size() * sizeof(structs::BazaarSearchResults_Struct);
+				auto  buffer  = new uchar[size];
+				uchar *bufptr = buffer;
+				memset(buffer, 0, size);
+
+				for (auto row = results.begin(); row != results.end(); ++row) {
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, structs::TiBazaarTraderBuyerActions::BazaarSearch);
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, row->trader_entity_id);
+					bufptr += 4;
+					VARSTRUCT_ENCODE_TYPE(int32, bufptr, row->item_id);
+					VARSTRUCT_ENCODE_TYPE(int32, bufptr, row->serial_number);
+					bufptr += 4;
+					if (row->stackable) {
+						strn0cpy(
+							reinterpret_cast<char *>(bufptr),
+							fmt::format("{}({})", row->item_name.c_str(), row->charges).c_str(),
+							64
+						);
+					}
+					else {
+						strn0cpy(
+							reinterpret_cast<char *>(bufptr),
+							fmt::format("{}({})", row->item_name.c_str(), row->count).c_str(),
+							64
+						);
+					}
+					bufptr += 64;
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, row->cost);
+					VARSTRUCT_ENCODE_TYPE(uint32, bufptr, row->item_stat);
+				}
+
+				auto outapp = new EQApplicationPacket(OP_BazaarSearch, size);
+				memcpy(outapp->pBuffer, buffer, size);
+				dest->FastQueuePacket(&outapp);
+
+				safe_delete(outapp);
+				safe_delete_array(buffer);
+				safe_delete(in);
+				break;
+			}
+			case BazaarInspect:
+			case WelcomeMessage: {
+				LogTrading(
+					"Encode OP_BazaarSearch(Ti) BazaarInspect/WelcomeMessage action <green>[{}]",
+					action
+				);
+				dest->FastQueuePacket(&in, ack_req);
+				break;
+			}
+			default: {
+				LogTrading(
+					"Encode OP_BazaarSearch(Ti) unhandled action <red>[{}]",
+					action
+				);
+				dest->FastQueuePacket(&in, ack_req);
+			}
 		}
-
-		//make the EQ struct.
-		in->size = sizeof(structs::BazaarSearchResults_Struct)*entrycount;
-		in->pBuffer = new unsigned char[in->size];
-		structs::BazaarSearchResults_Struct *eq = (structs::BazaarSearchResults_Struct *) in->pBuffer;
-
-		//zero out the packet. We could avoid this memset by setting all fields (including unknowns) in the loop.
-		memset(in->pBuffer, 0, in->size);
-
-		for (int i = 0; i < entrycount; i++, eq++, emu++) {
-			eq->Beginning.Action = emu->Beginning.Action;
-			eq->Beginning.Unknown001 = emu->Beginning.Unknown001;
-			eq->Beginning.Unknown002 = emu->Beginning.Unknown002;
-			eq->NumItems = emu->NumItems;
-			eq->SerialNumber = emu->SerialNumber;
-			eq->SellerID = emu->SellerID;
-			eq->Cost = emu->Cost;
-			eq->ItemStat = emu->ItemStat;
-			strcpy(eq->ItemName, emu->ItemName);
-		}
-
-		delete[] __emu_buffer;
-		dest->FastQueuePacket(&in, ack_req);
 	}
 
 	ENCODE(OP_BecomeTrader)
 	{
-		ENCODE_LENGTH_EXACT(BecomeTrader_Struct);
-		SETUP_DIRECT_ENCODE(BecomeTrader_Struct, structs::BecomeTrader_Struct);
+		uint32 action = *(uint32 *)(*p)->pBuffer;
 
-		OUT(ID);
-		OUT(Code);
-
-		FINISH_ENCODE();
+		switch (action)
+		{
+			case TraderOff:
+			{
+				ENCODE_LENGTH_EXACT(BecomeTrader_Struct);
+				SETUP_DIRECT_ENCODE(BecomeTrader_Struct, structs::BecomeTrader_Struct);
+				LogTrading(
+					"Encode OP_BecomeTrader(Ti) TraderOff action <green>[{}] entity_id <green>[{}] trader_name "
+					"<green>[{}]",
+					emu->action,
+					emu->entity_id,
+					emu->trader_name
+				);
+				eq->action    = structs::TiBazaarTraderBuyerActions::Zero;
+				eq->entity_id = emu->entity_id;
+				FINISH_ENCODE();
+				break;
+			}
+			case TraderOn:
+			{
+				ENCODE_LENGTH_EXACT(BecomeTrader_Struct);
+				SETUP_DIRECT_ENCODE(BecomeTrader_Struct, structs::BecomeTrader_Struct);
+				LogTrading(
+					"Encode OP_BecomeTrader(Ti) TraderOn action <green>[{}] entity_id <green>[{}] trader_name "
+					"<green>[{}]",
+					emu->action,
+					emu->entity_id,
+					emu->trader_name
+				);
+				eq->action    = structs::TiBazaarTraderBuyerActions::BeginTraderMode;
+				eq->entity_id = emu->entity_id;
+				strn0cpy(eq->trader_name, emu->trader_name, sizeof(eq->trader_name));
+				FINISH_ENCODE();
+				break;
+			}
+			default:
+			{
+				LogTrading(
+					"Encode OP_BecomeTrader(Ti) unhandled action <red>[{}] Sending packet as is.",
+					action
+				);
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+				dest->FastQueuePacket(&in, ack_req);
+			}
+		}
 	}
 
 	ENCODE(OP_Buff)
@@ -664,6 +737,177 @@ namespace Titanium
 		dest->FastQueuePacket(&in, ack_req);
 	}
 
+	ENCODE(OP_SetGuildRank)
+	{
+		ENCODE_LENGTH_EXACT(GuildSetRank_Struct);
+		SETUP_DIRECT_ENCODE(GuildSetRank_Struct, structs::GuildSetRank_Struct);
+
+		eq->unknown00 = 0;
+		eq->unknown04 = 0;
+
+		//Translate older ranks to new values* /
+		switch (emu->rank) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				eq->rank = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
+
+		memcpy(eq->member_name, emu->member_name, sizeof(eq->member_name));
+		OUT(banker);
+
+		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_SpawnAppearance)
+	{
+		ENCODE_LENGTH_EXACT(SpawnAppearance_Struct);
+		SETUP_DIRECT_ENCODE(SpawnAppearance_Struct, structs::SpawnAppearance_Struct);
+
+		OUT(spawn_id);
+		OUT(type);
+		OUT(parameter);
+		switch (emu->type) {
+			case AppearanceType::GuildRank: {
+				//Translate new ranks to old values* /
+				switch (emu->parameter) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						eq->parameter = GUILD_MEMBER_TI;
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						eq->parameter = GUILD_OFFICER_TI;
+						break;
+					}
+					case GUILD_LEADER: {
+						eq->parameter = GUILD_LEADER_TI;
+						break;
+					}
+				}
+				break;
+			}
+			case AppearanceType::GuildShow: {
+				FAIL_ENCODE();
+				return;
+			}
+			default: {
+				break;
+			}
+		}
+
+		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_GuildsList)
+	{
+		EQApplicationPacket* in = *p;
+		*p = nullptr;
+
+		GuildsListMessaging_Struct   glms{};
+		EQ::Util::MemoryStreamReader ss(reinterpret_cast<char *>(in->pBuffer), in->size);
+		cereal::BinaryInputArchive   ar(ss);
+		ar(glms);
+
+		auto outapp = new EQApplicationPacket(OP_GuildsList, sizeof(structs::GuildsList_Struct));
+		auto out    = (structs::GuildsList_Struct *) outapp->pBuffer;
+
+		for (auto const& g : glms.guild_detail) {
+			if (g.guild_id < Titanium::constants::MAX_GUILD_ID) {
+				strn0cpy(out->Guilds[g.guild_id].name, g.guild_name.c_str(), sizeof(out->Guilds[g.guild_id].name));
+			}
+		}
+
+		dest->FastQueuePacket(&outapp);
+	}
+
+	ENCODE(OP_GuildMemberAdd)
+	{
+		ENCODE_LENGTH_EXACT(GuildMemberAdd_Struct)
+		SETUP_DIRECT_ENCODE(GuildMemberAdd_Struct, structs::GuildMemberAdd_Struct)
+
+		OUT(guild_id)
+		OUT(level)
+		OUT(class_)
+		switch (emu->rank_) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank_ = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank_ = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank_ = GUILD_LEADER_TI;
+				break;
+			}
+		}
+		OUT(zone_id)
+		OUT(last_on)
+		OUT_str(player_name)
+
+		FINISH_ENCODE()
+	}
+
+	ENCODE(OP_GuildMemberRankAltBanker)
+	{
+		ENCODE_LENGTH_EXACT(GuildMemberRank_Struct)
+		SETUP_DIRECT_ENCODE(GuildMemberRank_Struct, structs::GuildMemberRank_Struct)
+
+		OUT(guild_id)
+		OUT(alt_banker)
+		OUT_str(player_name)
+
+		switch (emu->rank_) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->rank_ = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->rank_ = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->rank_ = GUILD_LEADER_TI;
+				break;
+			}
+		}
+
+		FINISH_ENCODE()
+	}
+
 	ENCODE(OP_GuildMemberList)
 	{
 		//consume the packet
@@ -727,12 +971,34 @@ namespace Titanium
 				str += sl + 1; \
 			}
 #define PutFieldN(field) e->field = htonl(emu_e->field)
-
+				/* Translate new ranks to older values */
 				SlideStructString(name, emu_name);
 				PutFieldN(level);
 				PutFieldN(banker);
 				PutFieldN(class_);
-				PutFieldN(rank);
+				switch (emu_e->rank) {
+					case GUILD_SENIOR_MEMBER:
+					case GUILD_MEMBER:
+					case GUILD_JUNIOR_MEMBER:
+					case GUILD_INITIATE:
+					case GUILD_RECRUIT: {
+						e->rank = htonl(GUILD_MEMBER_TI);
+						break;
+					}
+					case GUILD_OFFICER:
+					case GUILD_SENIOR_OFFICER: {
+						e->rank = htonl(GUILD_OFFICER_TI);
+						break;
+					}
+					case GUILD_LEADER: {
+						e->rank = htonl(GUILD_LEADER_TI);
+						break;
+					}
+					default: {
+						e->rank = htonl(GUILD_MEMBER_TI);
+						break;
+					}
+				}
 				PutFieldN(time_last_on);
 				PutFieldN(tribute_enable);
 				PutFieldN(total_tribute);
@@ -753,6 +1019,38 @@ namespace Titanium
 		dest->FastQueuePacket(&in, ack_req);
 	}
 
+	ENCODE(OP_SendGuildTributes)
+	{
+		ENCODE_LENGTH_ATLEAST(structs::GuildTributeAbility_Struct);
+		SETUP_VAR_ENCODE(GuildTributeAbility_Struct);
+		ALLOC_VAR_ENCODE(structs::GuildTributeAbility_Struct, sizeof(GuildTributeAbility_Struct) + strlen(emu->ability.name));
+
+		eq->guild_id = emu->guild_id;;
+		strncpy(eq->ability.name, emu->ability.name, strlen(emu->ability.name));
+		eq->ability.tribute_id = emu->ability.tribute_id;
+		eq->ability.tier_count = emu->ability.tier_count;
+		for (int i = 0; i < ntohl(emu->ability.tier_count); i++) {
+			eq->ability.tiers[i].cost = emu->ability.tiers[i].cost;
+			eq->ability.tiers[i].level = emu->ability.tiers[i].level;
+			eq->ability.tiers[i].tribute_item_id = emu->ability.tiers[i].tribute_item_id;
+		}
+		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_GuildTributeDonateItem)
+	{
+		SETUP_DIRECT_ENCODE(GuildTributeDonateItemReply_Struct, structs::GuildTributeDonateItemReply_Struct);
+
+		Log(Logs::Detail, Logs::Netcode, "UF::ENCODE(OP_GuildTributeDonateItem)");
+
+		OUT(quantity);
+		OUT(favor);
+		eq->unknown8 = 0;
+		eq->slot = ServerToTitaniumSlot(emu->slot);
+
+		FINISH_ENCODE();
+	}
+
 	ENCODE(OP_Illusion)
 	{
 		ENCODE_LENGTH_EXACT(Illusion_Struct);
@@ -761,7 +1059,7 @@ namespace Titanium
 		OUT(spawnid);
 		OUT_str(charname);
 
-		if (emu->race > 473)
+		if (emu->race > 474)
 			eq->race = 1;
 		else
 			OUT(race);
@@ -867,11 +1165,60 @@ namespace Titanium
 
 	ENCODE(OP_LFGuild)
 	{
+		struct bit_mask_conversion {
+			uint32	titanium_mask;
+			uint32	rof2_mask;
+		};
+
+		std::vector<bit_mask_conversion> bit_mask = {
+			{.titanium_mask = 2, .rof2_mask = 256},
+			{.titanium_mask = 4, .rof2_mask = 32768},
+			{.titanium_mask = 8, .rof2_mask = 65536},
+			{.titanium_mask = 16, .rof2_mask = 4},
+			{.titanium_mask = 32, .rof2_mask = 64},
+			{.titanium_mask = 64, .rof2_mask = 16384},
+			{.titanium_mask = 128, .rof2_mask = 8192},
+			{.titanium_mask = 256, .rof2_mask = 128},
+			{.titanium_mask = 512, .rof2_mask = 2048},
+			{.titanium_mask = 1024, .rof2_mask = 8},
+			{.titanium_mask = 2048, .rof2_mask = 16},
+			{.titanium_mask = 4096, .rof2_mask = 512},
+			{.titanium_mask = 8192, .rof2_mask = 32},
+			{.titanium_mask = 16384, .rof2_mask = 1024},
+			{.titanium_mask = 32768, .rof2_mask = 2},
+			{.titanium_mask = 65536, .rof2_mask = 4096},
+		};
+
 		EQApplicationPacket *in = *p;
-		*p = nullptr;
 
 		uint32 Command = in->ReadUInt32();
 
+		if (Command == 1) {
+			ENCODE_LENGTH_EXACT(LFGuild_GuildToggle_Struct);
+			SETUP_DIRECT_ENCODE(LFGuild_GuildToggle_Struct, structs::LFGuild_GuildToggle_Struct);
+
+			OUT(Command);
+			OUT_str(Comment);
+			OUT(FromLevel);
+			OUT(ToLevel);
+			OUT(AACount);
+			OUT(TimeZone);
+			OUT(Toggle);
+			OUT(TimePosted);
+			OUT_str(Name);
+
+			uint32 emu_bitmask = emu->Classes;
+			uint32 ti_bitmask = 0;
+			for (auto const& b : bit_mask) {
+				(emu_bitmask & b.rof2_mask) != 0 ? ti_bitmask |= b.titanium_mask : ti_bitmask &= ~b.titanium_mask;
+			}
+			eq->Classes = ti_bitmask;
+
+			FINISH_ENCODE();
+			return;
+		}
+
+		*p = nullptr;
 		if (Command != 0)
 		{
 			dest->FastQueuePacket(&in, ack_req);
@@ -1149,7 +1496,29 @@ namespace Titanium
 		OUT(pvp);
 		OUT(anon);
 		OUT(gm);
-		OUT(guildrank);
+		switch (emu->guildrank) {
+			case GUILD_SENIOR_MEMBER:
+			case GUILD_MEMBER:
+			case GUILD_JUNIOR_MEMBER:
+			case GUILD_INITIATE:
+			case GUILD_RECRUIT: {
+				eq->guildrank = GUILD_MEMBER_TI;
+				break;
+			}
+			case GUILD_OFFICER:
+			case GUILD_SENIOR_OFFICER: {
+				eq->guildrank = GUILD_OFFICER_TI;
+				break;
+			}
+			case GUILD_LEADER: {
+				eq->guildrank = GUILD_LEADER_TI;
+				break;
+			}
+			default: {
+				eq->guildrank = GUILD_RANK_NONE_TI;
+				break;
+			}
+		}
 		OUT(guildbanker);
 		//	OUT(unknown13054[8]);
 		OUT(exp);
@@ -1250,7 +1619,7 @@ namespace Titanium
 	{
 		ENCODE_LENGTH_EXACT(MarkNPC_Struct);
 		SETUP_DIRECT_ENCODE(MarkNPC_Struct, MarkNPC_Struct);
-	
+
 		EQApplicationPacket* outapp = new EQApplicationPacket(OP_MarkNPC, sizeof(MarkNPC_Struct));
 		MarkNPC_Struct* mnpcs = (MarkNPC_Struct*)outapp->pBuffer;
 		mnpcs->TargetID = emu->TargetID;
@@ -1267,10 +1636,10 @@ namespace Titanium
 		*p = nullptr;
 		unsigned char* __emu_buffer = inapp->pBuffer;
 		RaidGeneral_Struct* raid_gen = (RaidGeneral_Struct*)__emu_buffer;
-		
+
 		switch (raid_gen->action)
 		{
-		case raidAdd: 
+		case raidAdd:
 		{
 			RaidAddMember_Struct* emu = (RaidAddMember_Struct*)__emu_buffer;
 
@@ -1340,7 +1709,7 @@ namespace Titanium
 			dest->QueuePacket(inapp);
 			break;
 		}
-		default: 
+		default:
 		{
 			RaidGeneral_Struct* emu = (RaidGeneral_Struct*)__emu_buffer;
 
@@ -1471,7 +1840,7 @@ namespace Titanium
 			emu_cse = (CharacterSelectEntry_Struct *)emu_ptr;
 
 			eq->Race[char_index] = emu_cse->Race;
-			if (eq->Race[char_index] > 473)
+			if (eq->Race[char_index] > 474)
 				eq->Race[char_index] = 1;
 
 			for (int index = 0; index < EQ::textures::materialCount; ++index) {
@@ -1579,6 +1948,19 @@ namespace Titanium
 		eq->itemslot = ServerToTitaniumSlot(emu->itemslot);
 		OUT(quantity);
 		OUT(price);
+
+		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_ShopRequest)
+	{
+		ENCODE_LENGTH_EXACT(MerchantClick_Struct);
+		SETUP_DIRECT_ENCODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		OUT(npc_id);
+		OUT(player_id);
+		OUT(command);
+		OUT(rate);
 
 		FINISH_ENCODE();
 	}
@@ -1700,30 +2082,168 @@ namespace Titanium
 
 	ENCODE(OP_Trader)
 	{
-		if ((*p)->size != sizeof(TraderBuy_Struct)) {
-			EQApplicationPacket *in = *p;
-			*p = nullptr;
-			dest->FastQueuePacket(&in, ack_req);
-			return;
-		}
+		auto action = *(uint32 *) (*p)->pBuffer;
 
-		ENCODE_FORWARD(OP_TraderBuy);
+		switch (action) {
+			case TraderOn: {
+				ENCODE_LENGTH_EXACT(Trader_ShowItems_Struct);
+				SETUP_DIRECT_ENCODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
+				LogTrading(
+					"Encode OP_Trader BeginTraderMode action <green>[{}]",
+					action
+				);
+
+				eq->action = structs::TiBazaarTraderBuyerActions::BeginTraderMode;
+				OUT(entity_id);
+
+				FINISH_ENCODE();
+				break;
+			}
+			case TraderOff: {
+				ENCODE_LENGTH_EXACT(Trader_ShowItems_Struct);
+				SETUP_DIRECT_ENCODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
+				LogTrading(
+					"Encode OP_Trader EndTraderMode action <green>[{}]",
+					action
+				);
+
+				eq->action = structs::TiBazaarTraderBuyerActions::EndTraderMode;
+				OUT(entity_id);
+
+				FINISH_ENCODE();
+				break;
+			}
+			case ListTraderItems: {
+				ENCODE_LENGTH_EXACT(Trader_Struct);
+				SETUP_DIRECT_ENCODE(Trader_Struct, structs::Trader_Struct);
+				LogTrading(
+					"Encode OP_Trader ListTraderItems action <green>[{}]",
+					action
+				);
+
+				eq->action = structs::TiBazaarTraderBuyerActions::ListTraderItems;
+				std::copy_n(emu->items, UF::invtype::BAZAAR_SIZE, eq->item_id);
+				std::copy_n(emu->item_cost, UF::invtype::BAZAAR_SIZE, eq->item_cost);
+
+				FINISH_ENCODE();
+				break;
+			}
+			case BuyTraderItem: {
+				ENCODE_LENGTH_EXACT(TraderBuy_Struct);
+				SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
+				LogTrading(
+					"Encode OP_Trader item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+					eq->item_id,
+					eq->price,
+					eq->quantity,
+					eq->trader_id
+				);
+
+				eq->action = structs::TiBazaarTraderBuyerActions::BuyTraderItem;
+				OUT(price);
+				OUT(trader_id);
+				OUT(item_id);
+				OUT(already_sold);
+				OUT(quantity);
+				strn0cpy(eq->item_name, emu->item_name, sizeof(eq->item_name));
+
+				FINISH_ENCODE();
+				break;
+			}
+			case ItemMove: {
+				LogTrading(
+					"Encode OP_Trader ItemMove action <green>[{}]",
+					action
+				);
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+				dest->FastQueuePacket(&in, ack_req);
+				break;
+			}
+			default: {
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+
+				dest->FastQueuePacket(&in, ack_req);
+				LogError("Unknown Encode OP_Trader action <red>{} received.  Unhandled.", action);
+			}
+		}
 	}
 
 	ENCODE(OP_TraderBuy)
 	{
 		ENCODE_LENGTH_EXACT(TraderBuy_Struct);
 		SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
+		LogTrading(
+			"Encode OP_TraderBuy item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+			emu->item_id,
+			emu->price,
+			emu->quantity,
+			emu->trader_id
+		);
 
-		OUT(Action);
-		OUT(Price);
-		OUT(TraderID);
-		memcpy(eq->ItemName, emu->ItemName, sizeof(eq->ItemName));
-		OUT(ItemID);
-		OUT(Quantity);
-		OUT(AlreadySold);
+		OUT(action);
+		OUT(price);
+		OUT(trader_id);
+		OUT(item_id);
+		OUT(already_sold);
+		OUT(quantity);
+		OUT_str(item_name);
 
 		FINISH_ENCODE();
+	}
+
+	ENCODE(OP_TraderShop)
+	{
+		auto action = *(uint32 *)(*p)->pBuffer;
+
+		switch (action) {
+			case ClickTrader: {
+				ENCODE_LENGTH_EXACT(TraderClick_Struct);
+				SETUP_DIRECT_ENCODE(TraderClick_Struct, structs::TraderClick_Struct);
+				LogTrading(
+					"ClickTrader action <green>[{}] trader_id <green>[{}]",
+					action,
+					emu->TraderID
+				);
+
+				eq->action    = 0;
+				eq->trader_id = emu->TraderID;
+				eq->approval  = emu->Approval;
+
+				FINISH_ENCODE();
+				break;
+			}
+			case BuyTraderItem: {
+				ENCODE_LENGTH_EXACT(TraderBuy_Struct);
+				SETUP_DIRECT_ENCODE(TraderBuy_Struct, structs::TraderBuy_Struct);
+				LogTrading(
+					"Encode OP_TraderShop item_id <green>[{}] price <green>[{}] quantity <green>[{}] trader_id <green>[{}]",
+					eq->item_id,
+					eq->price,
+					eq->quantity,
+					eq->trader_id
+				);
+
+				eq->action = structs::TiBazaarTraderBuyerActions::BuyTraderItem;
+				OUT(price);
+				OUT(trader_id);
+				OUT(item_id);
+				OUT(already_sold);
+				OUT(quantity);
+				strn0cpy(eq->item_name, emu->item_name, sizeof(eq->item_name));
+
+				FINISH_ENCODE();
+				break;
+			}
+			default: {
+				EQApplicationPacket *in = *p;
+				*p = nullptr;
+
+				dest->FastQueuePacket(&in, ack_req);
+				LogError("Unknown Encode OP_TraderShop action <red>[{}] received.  Unhandled.", action);
+			}
+		}
 	}
 
 	ENCODE(OP_TributeItem)
@@ -1864,7 +2384,28 @@ namespace Titanium
 			eq->beard = emu->beard;
 			strcpy(eq->suffix, emu->suffix);
 			eq->petOwnerId = emu->petOwnerId;
-			eq->guildrank = emu->guildrank;
+			switch (emu->guildrank) {
+				case GUILD_SENIOR_MEMBER:
+				case GUILD_MEMBER:
+				case GUILD_JUNIOR_MEMBER:
+				case GUILD_INITIATE:
+				case GUILD_RECRUIT: {
+					eq->guildrank = GUILD_MEMBER_TI;
+					break;
+				}
+				case GUILD_OFFICER:
+				case GUILD_SENIOR_OFFICER: {
+					eq->guildrank = GUILD_OFFICER_TI;
+					break;
+				}
+				case GUILD_LEADER: {
+					eq->guildrank = GUILD_LEADER_TI;
+					break;
+				}
+				default: {
+					break;
+				}
+			}
 			//		eq->unknown0194[3] = emu->unknown0194[3];
 			for (k = EQ::textures::textureBegin; k < EQ::textures::materialCount; k++) {
 				eq->equipment.Slot[k].Material = emu->equipment.Slot[k].Material;
@@ -1880,7 +2421,7 @@ namespace Titanium
 			strcpy(eq->title, emu->title);
 			//		eq->unknown0274 = emu->unknown0274;
 			eq->helm = emu->helm;
-			if (emu->race > 473)
+			if (emu->race > 474)
 				eq->race = 1;
 			else
 				eq->race = emu->race;
@@ -1955,6 +2496,53 @@ namespace Titanium
 		FINISH_DIRECT_DECODE();
 	}
 
+	DECODE(OP_BazaarSearch)
+	{
+		uint32 action = *(uint32 *) __packet->pBuffer;
+
+		switch (action) {
+			case structs::TiBazaarTraderBuyerActions::BazaarSearch: {
+				DECODE_LENGTH_EXACT(structs::BazaarSearch_Struct);
+				SETUP_DIRECT_DECODE(BazaarSearchCriteria_Struct, structs::BazaarSearch_Struct);
+
+				emu->action           = eq->Beginning.Action;
+				emu->item_stat        = eq->ItemStat;
+				emu->max_cost         = eq->MaxPrice;
+				emu->min_cost         = eq->MinPrice;
+				emu->max_level        = eq->MaxLlevel;
+				emu->min_level        = eq->Minlevel;
+				emu->race             = eq->Race;
+				emu->slot             = eq->Slot;
+				emu->type             = eq->Type == UINT32_MAX ? UINT8_MAX : eq->Type;
+				emu->trader_entity_id = eq->TraderID;
+				emu->trader_id        = 0;
+				emu->_class           = eq->Class_;
+				emu->search_scope     = eq->TraderID > 0 ? NonRoFBazaarSearchScope : Local_Scope;
+				emu->max_results      = RuleI(Bazaar, MaxSearchResults);
+				strn0cpy(emu->item_name, eq->Name, sizeof(emu->item_name));
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::TiBazaarTraderBuyerActions::BazaarInspect: {
+				SETUP_DIRECT_DECODE(BazaarInspect_Struct, structs::BazaarInspect_Struct);
+
+				IN(action);
+				memcpy(emu->player_name, eq->player_name, sizeof(emu->player_name));
+				IN(serial_number);
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::TiBazaarTraderBuyerActions::WelcomeMessage: {
+				break;
+			}
+			default: {
+				LogTrading("(Ti) Unhandled action <red>[{}]", action);
+			}
+		}
+	}
+
 	DECODE(OP_Buff)
 	{
 		DECODE_LENGTH_EXACT(structs::SpellBuffPacket_Struct);
@@ -1979,7 +2567,7 @@ namespace Titanium
 		DECODE_LENGTH_EXACT(structs::BugReport_Struct);
 		SETUP_DIRECT_DECODE(BugReport_Struct, structs::BugReport_Struct);
 
-		emu->category_id = EQ::bug::CategoryNameToCategoryID(eq->category_name);
+		emu->category_id = Bug::GetID(eq->category_name);
 		memcpy(emu->category_name, eq, sizeof(structs::BugReport_Struct));
 
 		FINISH_DIRECT_DECODE();
@@ -2205,6 +2793,34 @@ namespace Titanium
 		FINISH_DIRECT_DECODE();
 	}
 
+	DECODE(OP_GuildDemote)
+	{
+		DECODE_LENGTH_EXACT(structs::GuildDemoteStruct);
+		SETUP_DIRECT_DECODE(GuildDemoteStruct, structs::GuildDemoteStruct);
+
+		memcpy(emu->name, eq->name, sizeof(emu->name));
+		memcpy(emu->target, eq->target, sizeof(emu->target));
+		emu->rank = GUILD_MEMBER;
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_GuildTributeDonateItem)
+	{
+		DECODE_LENGTH_EXACT(structs::GuildTributeDonateItemRequest_Struct);
+		SETUP_DIRECT_DECODE(GuildTributeDonateItemRequest_Struct, structs::GuildTributeDonateItemRequest_Struct);
+
+		Log(Logs::Detail, Logs::Netcode, "UF::DECODE(OP_GuildTributeDonateItem)");
+
+		IN(quantity);
+		IN(tribute_master_id);
+		IN(guild_id);
+
+		emu->slot = TitaniumToServerSlot(eq->slot);
+
+		FINISH_DIRECT_DECODE();
+	}
+
 	DECODE(OP_InspectAnswer)
 	{
 		DECODE_LENGTH_EXACT(structs::InspectResponse_Struct);
@@ -2260,7 +2876,76 @@ namespace Titanium
 
 	DECODE(OP_LFGuild)
 	{
+		struct bit_mask_conversion {
+			uint32	titanium_mask;
+			uint32	rof2_mask;
+		};
+
+		std::vector<bit_mask_conversion> bit_mask = {
+			{.titanium_mask = 2, .rof2_mask = 256},
+			{.titanium_mask = 4, .rof2_mask = 32768},
+			{.titanium_mask = 8, .rof2_mask = 65536},
+			{.titanium_mask = 16, .rof2_mask = 4},
+			{.titanium_mask = 32, .rof2_mask = 64},
+			{.titanium_mask = 64, .rof2_mask = 16384},
+			{.titanium_mask = 128, .rof2_mask = 8192},
+			{.titanium_mask = 256, .rof2_mask = 128},
+			{.titanium_mask = 512, .rof2_mask = 2048},
+			{.titanium_mask = 1024, .rof2_mask = 8},
+			{.titanium_mask = 2048, .rof2_mask = 16},
+			{.titanium_mask = 4096, .rof2_mask = 512},
+			{.titanium_mask = 8192, .rof2_mask = 32},
+			{.titanium_mask = 16384, .rof2_mask = 1024},
+			{.titanium_mask = 32768, .rof2_mask = 2},
+			{.titanium_mask = 65536, .rof2_mask = 4096},
+		};
+
 		uint32 Command = __packet->ReadUInt32();
+
+		if (Command == 3) {
+			DECODE_LENGTH_EXACT(structs::LFGuild_SearchPlayer_Struct);
+			SETUP_DIRECT_DECODE(LFGuild_SearchPlayer_Struct, structs::LFGuild_SearchPlayer_Struct);
+
+			IN(Command);
+			IN(Unknown04);
+			IN(FromLevel);
+			IN(ToLevel);
+			IN(MinAA);
+			IN(TimeZone);
+
+			uint32 new_bitmask = 0;
+			uint32 ti_bitmask = eq->Classes;
+			for (auto const& b : bit_mask) {
+				(ti_bitmask & b.titanium_mask) != 0 ? new_bitmask |= b.rof2_mask : new_bitmask &= ~b.rof2_mask;
+			}
+			emu->Classes = new_bitmask;
+			FINISH_DIRECT_DECODE();
+			return;
+		}
+
+		if (Command == 1) {
+			DECODE_LENGTH_EXACT(structs::LFGuild_GuildToggle_Struct);
+			SETUP_DIRECT_DECODE(LFGuild_GuildToggle_Struct, structs::LFGuild_GuildToggle_Struct);
+
+			IN(Command);
+			IN_str(Comment);
+			IN(FromLevel);
+			IN(ToLevel);
+			IN(AACount);
+			IN(TimeZone);
+			IN(Toggle);
+			IN(TimePosted);
+			IN_str(Name);
+
+			uint32 new_bitmask = 0;
+			uint32 ti_bitmask = eq->Classes;
+			for (auto const& b : bit_mask) {
+				(ti_bitmask & b.titanium_mask) != 0 ? new_bitmask |= b.rof2_mask : new_bitmask &= ~b.rof2_mask;
+			}
+			emu->Classes = new_bitmask;
+			FINISH_DIRECT_DECODE();
+			return;
+		}
 
 		if (Command != 0)
 			return;
@@ -2401,7 +3086,7 @@ namespace Titanium
 			IN(general.parameter);
 			IN_str(general.leader_name);
 			IN_str(general.player_name);
-			
+
 			auto len = 0;
 			if (__packet->size < sizeof(structs::RaidMOTD_Struct)) {
 				len = __packet->size - sizeof(structs::RaidGeneral_Struct);
@@ -2409,8 +3094,8 @@ namespace Titanium
 			else {
 				len = sizeof(eq->motd);
 			}
-			
-			strn0cpy(emu->motd, eq->motd, len > 1024 ? 1024 : len); 
+
+			strn0cpy(emu->motd, eq->motd, len > 1024 ? 1024 : len);
 			emu->motd[len - 1] = '\0';
 
 			FINISH_VAR_DECODE();
@@ -2428,7 +3113,7 @@ namespace Titanium
 
 			FINISH_VAR_DECODE();
 			break;
-		}		
+		}
 		default:
 		{
 			SETUP_DIRECT_DECODE(RaidGeneral_Struct, structs::RaidGeneral_Struct);
@@ -2482,18 +3167,105 @@ namespace Titanium
 		FINISH_DIRECT_DECODE();
 	}
 
+	DECODE(OP_ShopRequest)
+	{
+		DECODE_LENGTH_EXACT(structs::MerchantClick_Struct);
+		SETUP_DIRECT_DECODE(MerchantClick_Struct, structs::MerchantClick_Struct);
+
+		IN(npc_id);
+		IN(player_id);
+		IN(command);
+		IN(rate);
+		emu->tab_display = 0;
+		emu->unknown020 = 0;
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_Trader)
+	{
+		auto action = (uint32) __packet->pBuffer[0];
+
+		switch (action) {
+			case structs::TiBazaarTraderBuyerActions::BeginTraderMode: {
+				DECODE_LENGTH_EXACT(structs::BeginTrader_Struct);
+				SETUP_DIRECT_DECODE(ClickTrader_Struct, structs::BeginTrader_Struct);
+				LogTrading(
+					"Decode OP_Trader BeginTraderMode action <red>[{}]",
+					action
+				);
+
+				emu->action      = TraderOn;
+				emu->unknown_004 = 0;
+				std::copy_n(eq->serial_number, Titanium::invtype::BAZAAR_SIZE, emu->serial_number);
+				std::copy_n(eq->cost, Titanium::invtype::BAZAAR_SIZE, emu->item_cost);
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::TiBazaarTraderBuyerActions::EndTraderMode: {
+				DECODE_LENGTH_EXACT(structs::Trader_ShowItems_Struct);
+				SETUP_DIRECT_DECODE(Trader_ShowItems_Struct, structs::Trader_ShowItems_Struct);
+				LogTrading(
+					"Decode OP_Trader(Ti) EndTraderMode action <red>[{}]",
+					action
+				);
+
+				emu->action = TraderOff;
+				IN(entity_id);
+
+				FINISH_DIRECT_DECODE();
+				break;
+			}
+			case structs::TiBazaarTraderBuyerActions::PriceUpdate:
+			case structs::TiBazaarTraderBuyerActions::ItemMove:
+			case structs::TiBazaarTraderBuyerActions::EndTransaction:
+			case structs::TiBazaarTraderBuyerActions::ListTraderItems: {
+				LogTrading(
+					"Decode OP_Trader(Ti) Price/ItemMove/EndTransaction/ListTraderItems action <red>[{}]",
+					action
+				);
+				break;
+			}
+			case structs::TiBazaarTraderBuyerActions::ReconcileItems: {
+				break;
+			}
+			default: {
+				LogError("Unhandled(Ti) action <red>[{}] received.", action);
+			}
+		}
+	}
+
 	DECODE(OP_TraderBuy)
 	{
 		DECODE_LENGTH_EXACT(structs::TraderBuy_Struct);
 		SETUP_DIRECT_DECODE(TraderBuy_Struct, structs::TraderBuy_Struct);
 		MEMSET_IN(TraderBuy_Struct);
 
-		IN(Action);
-		IN(Price);
-		IN(TraderID);
-		memcpy(emu->ItemName, eq->ItemName, sizeof(emu->ItemName));
-		IN(ItemID);
-		IN(Quantity);
+		IN(action);
+		IN(price);
+		IN(trader_id);
+		memcpy(emu->item_name, eq->item_name, sizeof(emu->item_name));
+		IN(item_id);
+		IN(quantity);
+
+		FINISH_DIRECT_DECODE();
+	}
+
+	DECODE(OP_TraderShop)
+	{
+		DECODE_LENGTH_EXACT(structs::TraderClick_Struct);
+		SETUP_DIRECT_DECODE(TraderClick_Struct, structs::TraderClick_Struct);
+		LogTrading(
+			"(Ti) action <green>[{}] trader_id <green>[{}] approval <green>[{}]",
+			eq->action,
+			eq->trader_id,
+			eq->approval
+		);
+
+		emu->Code     = ClickTrader;
+		emu->TraderID = eq->trader_id;
+		emu->Approval = eq->approval;
 
 		FINISH_DIRECT_DECODE();
 	}
@@ -2824,12 +3596,12 @@ namespace Titanium
 		else if (server_slot == (EQ::invslot::POSSESSIONS_COUNT + EQ::invslot::slotAmmo)) {
 			titanium_slot = server_slot - 4;
 		}
-		else if (server_slot <= EQ::invbag::GENERAL_BAGS_8_END &&
+		else if (server_slot <= EQ::invbag::GENERAL_BAGS_END &&
 				 server_slot >= EQ::invbag::GENERAL_BAGS_BEGIN) {
-			titanium_slot = server_slot;
+			titanium_slot = server_slot - (EQ::invbag::GENERAL_BAGS_BEGIN - invbag::GENERAL_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((server_slot - EQ::invbag::GENERAL_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));
 		}
 		else if (server_slot <= EQ::invbag::CURSOR_BAG_END && server_slot >= EQ::invbag::CURSOR_BAG_BEGIN) {
-			titanium_slot = server_slot - 20;
+			titanium_slot = server_slot - (EQ::invbag::CURSOR_BAG_BEGIN - invbag::CURSOR_BAG_BEGIN);
 		}
 		else if (server_slot <= EQ::invslot::TRIBUTE_END && server_slot >= EQ::invslot::TRIBUTE_BEGIN) {
 			titanium_slot = server_slot;
@@ -2844,21 +3616,21 @@ namespace Titanium
 		else if (server_slot <= EQ::invslot::BANK_END && server_slot >= EQ::invslot::BANK_BEGIN) {
 			titanium_slot = server_slot;
 		}
-		else if (server_slot <= EQ::invbag::BANK_BAGS_16_END && server_slot >= EQ::invbag::BANK_BAGS_BEGIN) {
-			titanium_slot = server_slot;
+		else if (server_slot <= EQ::invbag::BANK_BAGS_END && server_slot >= EQ::invbag::BANK_BAGS_BEGIN) {
+			titanium_slot = server_slot - (EQ::invbag::BANK_BAGS_BEGIN - invbag::BANK_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((server_slot - EQ::invbag::BANK_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));
 		}
 		else if (server_slot <= EQ::invslot::SHARED_BANK_END && server_slot >= EQ::invslot::SHARED_BANK_BEGIN) {
 			titanium_slot = server_slot;
 		}
 		else if (server_slot <= EQ::invbag::SHARED_BANK_BAGS_END &&
 				 server_slot >= EQ::invbag::SHARED_BANK_BAGS_BEGIN) {
-			titanium_slot = server_slot;
+			titanium_slot = server_slot - (EQ::invbag::SHARED_BANK_BAGS_BEGIN - invbag::SHARED_BANK_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((server_slot - EQ::invbag::SHARED_BANK_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));
 		}
 		else if (server_slot <= EQ::invslot::TRADE_END && server_slot >= EQ::invslot::TRADE_BEGIN) {
 			titanium_slot = server_slot;
 		}
 		else if (server_slot <= EQ::invbag::TRADE_BAGS_END && server_slot >= EQ::invbag::TRADE_BAGS_BEGIN) {
-			titanium_slot = server_slot;
+			titanium_slot = server_slot - (EQ::invbag::TRADE_BAGS_BEGIN - invbag::TRADE_BAGS_BEGIN) - ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((server_slot - EQ::invbag::TRADE_BAGS_BEGIN) / EQ::invbag::SLOT_COUNT));
 		}
 		else if (server_slot <= EQ::invslot::WORLD_END && server_slot >= EQ::invslot::WORLD_BEGIN) {
 			titanium_slot = server_slot;
@@ -2915,10 +3687,10 @@ namespace Titanium
 			server_slot = titanium_slot + 4;
 		}
 		else if (titanium_slot <= invbag::GENERAL_BAGS_END && titanium_slot >= invbag::GENERAL_BAGS_BEGIN) {
-			server_slot = titanium_slot;
+			server_slot = titanium_slot + (EQ::invbag::GENERAL_BAGS_BEGIN - invbag::GENERAL_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((titanium_slot - invbag::GENERAL_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 		else if (titanium_slot <= invbag::CURSOR_BAG_END && titanium_slot >= invbag::CURSOR_BAG_BEGIN) {
-			server_slot = titanium_slot + 20;
+			server_slot = titanium_slot + (EQ::invbag::CURSOR_BAG_BEGIN - invbag::CURSOR_BAG_BEGIN);
 		}
 		else if (titanium_slot <= invslot::TRIBUTE_END && titanium_slot >= invslot::TRIBUTE_BEGIN) {
 			server_slot = titanium_slot;
@@ -2933,19 +3705,19 @@ namespace Titanium
 			server_slot = titanium_slot;
 		}
 		else if (titanium_slot <= invbag::BANK_BAGS_END && titanium_slot >= invbag::BANK_BAGS_BEGIN) {
-			server_slot = titanium_slot;
+			server_slot = titanium_slot + (EQ::invbag::BANK_BAGS_BEGIN - invbag::BANK_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((titanium_slot - invbag::BANK_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 		else if (titanium_slot <= invslot::SHARED_BANK_END && titanium_slot >= invslot::SHARED_BANK_BEGIN) {
 			server_slot = titanium_slot;
 		}
 		else if (titanium_slot <= invbag::SHARED_BANK_BAGS_END && titanium_slot >= invbag::SHARED_BANK_BAGS_BEGIN) {
-			server_slot = titanium_slot;
+			server_slot = titanium_slot + (EQ::invbag::SHARED_BANK_BAGS_BEGIN - invbag::SHARED_BANK_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((titanium_slot - invbag::SHARED_BANK_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 		else if (titanium_slot <= invslot::TRADE_END && titanium_slot >= invslot::TRADE_BEGIN) {
 			server_slot = titanium_slot;
 		}
 		else if (titanium_slot <= invbag::TRADE_BAGS_END && titanium_slot >= invbag::TRADE_BAGS_BEGIN) {
-			server_slot = titanium_slot;
+			server_slot = titanium_slot + (EQ::invbag::TRADE_BAGS_BEGIN - invbag::TRADE_BAGS_BEGIN) + ((EQ::invbag::SLOT_COUNT - invbag::SLOT_COUNT) * ((titanium_slot - invbag::TRADE_BAGS_BEGIN) / invbag::SLOT_COUNT));
 		}
 		else if (titanium_slot <= invslot::WORLD_END && titanium_slot >= invslot::WORLD_BEGIN) {
 			server_slot = titanium_slot;

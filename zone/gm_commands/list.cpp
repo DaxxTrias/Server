@@ -2,6 +2,7 @@
 #include "../corpse.h"
 #include "../object.h"
 #include "../doors.h"
+#include "../command.h"
 
 struct UniqueEntity {
 	uint16      entity_id;
@@ -12,13 +13,16 @@ struct UniqueEntity {
 
 void command_list(Client *c, const Seperator *sep)
 {
-	const int arguments = sep->argnum;
+	const uint16 arguments = sep->argnum;
 	if (!arguments) {
-		c->Message(Chat::White, "Usage: #list [corpses|doors|npcs|objects|players] [search]");
+		c->Message(Chat::White, "Usage: #list [bots|corpses|doors|npcs|objects|players] [search]");
 		c->Message(Chat::White, "Example: #list npcs (Blank for all)");
 		return;
 	}
 
+	const bool can_kill = c->Admin() >= GetCommandStatus("kill");
+
+	const bool is_bots    = !strcasecmp(sep->arg[1], "bots");
 	const bool is_corpses = !strcasecmp(sep->arg[1], "corpses");
 	const bool is_doors   = !strcasecmp(sep->arg[1], "doors");
 	const bool is_npcs    = !strcasecmp(sep->arg[1], "npcs");
@@ -26,13 +30,14 @@ void command_list(Client *c, const Seperator *sep)
 	const bool is_players = !strcasecmp(sep->arg[1], "players");
 
 	if (
+		!is_bots &&
 		!is_corpses &&
 		!is_doors &&
 		!is_npcs &&
 		!is_objects &&
 		!is_players
 	) {
-		c->Message(Chat::White, "Usage: #list [npcs|players|corpses|doors|objects] [search]");
+		c->Message(Chat::White, "Usage: #list [bots|corpses|doors|npcs|objects|players] [search]");
 		c->Message(Chat::White, "Example: #list npcs (Blank for all)");
 		return;
 	}
@@ -40,7 +45,10 @@ void command_list(Client *c, const Seperator *sep)
 	std::string search_type;
 	std::string unique_type;
 
-	if (is_corpses) {
+	if (is_bots) {
+		search_type = "bot";
+		unique_type = "Bot ID";
+	} else if (is_corpses) {
 		search_type = "corpse";
 		unique_type = "Corpse ID";
 	} else if (is_doors) {
@@ -64,16 +72,40 @@ void command_list(Client *c, const Seperator *sep)
 
 	std::vector<UniqueEntity> unique_entities;
 
-	if (is_corpses) {
-		const auto &l = entity_list.GetCorpseList();
+	if (is_bots) {
+		const auto& l = entity_list.GetBotList();
 
-		for (const auto &e : l) {
-			Corpse *entity = e.second;
+		for (const auto& e : l) {
+			Bot* entity = e.second;
 
 			entity_count++;
 
-			const std::string &entity_name = Strings::ToLower(entity->GetName());
-			if (!search_string.empty() && entity_name.find(search_string) == std::string::npos) {
+			const std::string& entity_name = Strings::ToLower(entity->GetName());
+			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
+				continue;
+			}
+
+			unique_entities.emplace_back(
+				UniqueEntity{
+					.entity_id = entity->GetID(),
+					.entity_name = entity->GetName(),
+					.unique_id = entity->GetBotID(),
+					.position = entity->GetPosition()
+				}
+			);
+
+			found_count++;
+		}
+	} else if (is_corpses) {
+		const auto& l = entity_list.GetCorpseList();
+
+		for (const auto& e: l) {
+			Corpse* entity = e.second;
+
+			entity_count++;
+
+			const std::string& entity_name = Strings::ToLower(entity->GetName());
+			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
 				continue;
 			}
 
@@ -89,15 +121,15 @@ void command_list(Client *c, const Seperator *sep)
 			found_count++;
 		}
 	} else if (is_doors) {
-		const auto &l = entity_list.GetDoorsList();
+		const auto& l = entity_list.GetDoorsList();
 
-		for (const auto &e : l) {
-			Doors *entity = e.second;
+		for (const auto& e: l) {
+			Doors* entity = e.second;
 
 			entity_count++;
 
-			const std::string &entity_name = Strings::ToLower(entity->GetDoorName());
-			if (!search_string.empty() && entity_name.find(search_string) == std::string::npos) {
+			const std::string& entity_name = Strings::ToLower(entity->GetDoorName());
+			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
 				continue;
 			}
 
@@ -113,18 +145,18 @@ void command_list(Client *c, const Seperator *sep)
 			found_count++;
 		}
 	} else if (is_npcs) {
-		const auto &l = entity_list.GetMobList();
+		const auto& l = entity_list.GetMobList();
 
-		for (const auto &e : l) {
-			Mob *entity = e.second;
+		for (const auto& e: l) {
+			Mob* entity = e.second;
 			if (!entity->IsNPC()) {
 				continue;
 			}
 
 			entity_count++;
 
-			const std::string &entity_name = Strings::ToLower(entity->GetName());
-			if (!search_string.empty() && entity_name.find(search_string) == std::string::npos) {
+			const std::string& entity_name = Strings::ToLower(entity->GetName());
+			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
 				continue;
 			}
 
@@ -140,15 +172,15 @@ void command_list(Client *c, const Seperator *sep)
 			found_count++;
 		}
 	} else if (is_objects) {
-		const auto &l = entity_list.GetObjectList();
+		const auto& l = entity_list.GetObjectList();
 
-		for (const auto &e : l) {
-			Object *entity = e.second;
+		for (const auto& e: l) {
+			Object* entity = e.second;
 
 			entity_count++;
 
-			const std::string &entity_name = Strings::ToLower(entity->GetModelName());
-			if (!search_string.empty() && entity_name.find(search_string) == std::string::npos) {
+			const std::string& entity_name = Strings::ToLower(entity->GetModelName());
+			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
 				continue;
 			}
 
@@ -164,15 +196,15 @@ void command_list(Client *c, const Seperator *sep)
 			found_count++;
 		}
 	} else if (is_players) {
-		const auto &l = entity_list.GetClientList();
+		const auto& l = entity_list.GetClientList();
 
-		for (const auto &e : l) {
-			Client *entity = e.second;
+		for (const auto& e: l) {
+			Client* entity = e.second;
 
 			entity_count++;
 
-			const std::string &entity_name = Strings::ToLower(entity->GetName());
-			if (!search_string.empty() && entity_name.find(search_string) == std::string::npos) {
+			const std::string& entity_name = Strings::ToLower(entity->GetName());
+			if (!search_string.empty() && !Strings::Contains(entity_name, search_string)) {
 				continue;
 			}
 
@@ -197,27 +229,31 @@ void command_list(Client *c, const Seperator *sep)
 				search_type,
 				(
 					!search_string.empty() ?
-					fmt::format(
-						" matching '{}'",
-						search_string
-					) :
-					""
+						fmt::format(
+							" matching '{}'",
+							search_string
+						) :
+						""
 				)
 			).c_str()
 		);
 		return;
 	}
 
-	std::sort(unique_entities.begin(), unique_entities.end(), [](UniqueEntity a, UniqueEntity b) {
-		if (a.entity_id && b.entity_id) {
-			return a.entity_id < b.entity_id;
-		} else {
-			return a.unique_id < b.unique_id;
+	std::sort(
+		unique_entities.begin(),
+		unique_entities.end(),
+		[](UniqueEntity a, UniqueEntity b) {
+			if (a.entity_id && b.entity_id) {
+				return a.entity_id < b.entity_id;
+			} else {
+				return a.unique_id < b.unique_id;
+			}
 		}
-	});
+	);
 
 	for (const auto& e : unique_entities) {
-		const std::string &saylink = Saylink::Silent(
+		const std::string& saylink = Saylink::Silent(
 			fmt::format(
 				"#goto {:.2f} {:.2f} {:.2f}",
 				e.position.x,
@@ -230,7 +266,7 @@ void command_list(Client *c, const Seperator *sep)
 		c->Message(
 			Chat::White,
 			fmt::format(
-				"| {}{}{} | {} |",
+				"| {}{}{} | {} |{}",
 				saylink,
 				(
 					e.entity_id ?
@@ -249,7 +285,21 @@ void command_list(Client *c, const Seperator *sep)
 					) :
 					""
 				),
-				e.entity_name
+				e.entity_name,
+				(
+					(can_kill && (is_bots || is_npcs || is_players)) ?
+					fmt::format(
+						" {} |",
+						Saylink::Silent(
+							fmt::format(
+								"#kill {}",
+								e.entity_id
+							),
+							"Kill"
+						)
+					) :
+					""
+				)
 			).c_str()
 		);
 	}

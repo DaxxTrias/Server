@@ -6,7 +6,7 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_DATA_BUCKETS_REPOSITORY_H
@@ -16,7 +16,6 @@
 #include "../../strings.h"
 #include <ctime>
 #include <cereal/cereal.hpp>
-
 class BaseDataBucketsRepository {
 public:
 	struct DataBuckets {
@@ -24,9 +23,12 @@ public:
 		std::string key_;
 		std::string value;
 		uint32_t    expires;
-		int64_t     character_id;
-		int64_t     npc_id;
-		int64_t     bot_id;
+		uint64_t    account_id;
+		uint64_t    character_id;
+		uint32_t    npc_id;
+		uint32_t    bot_id;
+		uint16_t    zone_id;
+		uint16_t    instance_id;
 
 		// cereal
 		template<class Archive>
@@ -37,9 +39,12 @@ public:
 				CEREAL_NVP(key_),
 				CEREAL_NVP(value),
 				CEREAL_NVP(expires),
+				CEREAL_NVP(account_id),
 				CEREAL_NVP(character_id),
 				CEREAL_NVP(npc_id),
-				CEREAL_NVP(bot_id)
+				CEREAL_NVP(bot_id),
+				CEREAL_NVP(zone_id),
+				CEREAL_NVP(instance_id)
 			);
 		}
 	};
@@ -56,9 +61,12 @@ public:
 			"`key`",
 			"value",
 			"expires",
+			"account_id",
 			"character_id",
 			"npc_id",
 			"bot_id",
+			"zone_id",
+			"instance_id",
 		};
 	}
 
@@ -69,9 +77,12 @@ public:
 			"`key`",
 			"value",
 			"expires",
+			"account_id",
 			"character_id",
 			"npc_id",
 			"bot_id",
+			"zone_id",
+			"instance_id",
 		};
 	}
 
@@ -116,9 +127,12 @@ public:
 		e.key_         = "";
 		e.value        = "";
 		e.expires      = 0;
+		e.account_id   = 0;
 		e.character_id = 0;
 		e.npc_id       = 0;
 		e.bot_id       = 0;
+		e.zone_id      = 0;
+		e.instance_id  = 0;
 
 		return e;
 	}
@@ -155,13 +169,16 @@ public:
 		if (results.RowCount() == 1) {
 			DataBuckets e{};
 
-			e.id           = strtoull(row[0], nullptr, 10);
+			e.id           = row[0] ? strtoull(row[0], nullptr, 10) : 0;
 			e.key_         = row[1] ? row[1] : "";
 			e.value        = row[2] ? row[2] : "";
-			e.expires      = static_cast<uint32_t>(strtoul(row[3], nullptr, 10));
-			e.character_id = strtoll(row[4], nullptr, 10);
-			e.npc_id       = strtoll(row[5], nullptr, 10);
-			e.bot_id       = strtoll(row[6], nullptr, 10);
+			e.expires      = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.account_id   = row[4] ? strtoull(row[4], nullptr, 10) : 0;
+			e.character_id = row[5] ? strtoull(row[5], nullptr, 10) : 0;
+			e.npc_id       = row[6] ? static_cast<uint32_t>(strtoul(row[6], nullptr, 10)) : 0;
+			e.bot_id       = row[7] ? static_cast<uint32_t>(strtoul(row[7], nullptr, 10)) : 0;
+			e.zone_id      = row[8] ? static_cast<uint16_t>(strtoul(row[8], nullptr, 10)) : 0;
+			e.instance_id  = row[9] ? static_cast<uint16_t>(strtoul(row[9], nullptr, 10)) : 0;
 
 			return e;
 		}
@@ -198,9 +215,12 @@ public:
 		v.push_back(columns[1] + " = '" + Strings::Escape(e.key_) + "'");
 		v.push_back(columns[2] + " = '" + Strings::Escape(e.value) + "'");
 		v.push_back(columns[3] + " = " + std::to_string(e.expires));
-		v.push_back(columns[4] + " = " + std::to_string(e.character_id));
-		v.push_back(columns[5] + " = " + std::to_string(e.npc_id));
-		v.push_back(columns[6] + " = " + std::to_string(e.bot_id));
+		v.push_back(columns[4] + " = " + std::to_string(e.account_id));
+		v.push_back(columns[5] + " = " + std::to_string(e.character_id));
+		v.push_back(columns[6] + " = " + std::to_string(e.npc_id));
+		v.push_back(columns[7] + " = " + std::to_string(e.bot_id));
+		v.push_back(columns[8] + " = " + std::to_string(e.zone_id));
+		v.push_back(columns[9] + " = " + std::to_string(e.instance_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -226,9 +246,12 @@ public:
 		v.push_back("'" + Strings::Escape(e.key_) + "'");
 		v.push_back("'" + Strings::Escape(e.value) + "'");
 		v.push_back(std::to_string(e.expires));
+		v.push_back(std::to_string(e.account_id));
 		v.push_back(std::to_string(e.character_id));
 		v.push_back(std::to_string(e.npc_id));
 		v.push_back(std::to_string(e.bot_id));
+		v.push_back(std::to_string(e.zone_id));
+		v.push_back(std::to_string(e.instance_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -262,9 +285,12 @@ public:
 			v.push_back("'" + Strings::Escape(e.key_) + "'");
 			v.push_back("'" + Strings::Escape(e.value) + "'");
 			v.push_back(std::to_string(e.expires));
+			v.push_back(std::to_string(e.account_id));
 			v.push_back(std::to_string(e.character_id));
 			v.push_back(std::to_string(e.npc_id));
 			v.push_back(std::to_string(e.bot_id));
+			v.push_back(std::to_string(e.zone_id));
+			v.push_back(std::to_string(e.instance_id));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -298,13 +324,16 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			DataBuckets e{};
 
-			e.id           = strtoull(row[0], nullptr, 10);
+			e.id           = row[0] ? strtoull(row[0], nullptr, 10) : 0;
 			e.key_         = row[1] ? row[1] : "";
 			e.value        = row[2] ? row[2] : "";
-			e.expires      = static_cast<uint32_t>(strtoul(row[3], nullptr, 10));
-			e.character_id = strtoll(row[4], nullptr, 10);
-			e.npc_id       = strtoll(row[5], nullptr, 10);
-			e.bot_id       = strtoll(row[6], nullptr, 10);
+			e.expires      = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.account_id   = row[4] ? strtoull(row[4], nullptr, 10) : 0;
+			e.character_id = row[5] ? strtoull(row[5], nullptr, 10) : 0;
+			e.npc_id       = row[6] ? static_cast<uint32_t>(strtoul(row[6], nullptr, 10)) : 0;
+			e.bot_id       = row[7] ? static_cast<uint32_t>(strtoul(row[7], nullptr, 10)) : 0;
+			e.zone_id      = row[8] ? static_cast<uint16_t>(strtoul(row[8], nullptr, 10)) : 0;
+			e.instance_id  = row[9] ? static_cast<uint16_t>(strtoul(row[9], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -329,13 +358,16 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			DataBuckets e{};
 
-			e.id           = strtoull(row[0], nullptr, 10);
+			e.id           = row[0] ? strtoull(row[0], nullptr, 10) : 0;
 			e.key_         = row[1] ? row[1] : "";
 			e.value        = row[2] ? row[2] : "";
-			e.expires      = static_cast<uint32_t>(strtoul(row[3], nullptr, 10));
-			e.character_id = strtoll(row[4], nullptr, 10);
-			e.npc_id       = strtoll(row[5], nullptr, 10);
-			e.bot_id       = strtoll(row[6], nullptr, 10);
+			e.expires      = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.account_id   = row[4] ? strtoull(row[4], nullptr, 10) : 0;
+			e.character_id = row[5] ? strtoull(row[5], nullptr, 10) : 0;
+			e.npc_id       = row[6] ? static_cast<uint32_t>(strtoul(row[6], nullptr, 10)) : 0;
+			e.bot_id       = row[7] ? static_cast<uint32_t>(strtoul(row[7], nullptr, 10)) : 0;
+			e.zone_id      = row[8] ? static_cast<uint16_t>(strtoul(row[8], nullptr, 10)) : 0;
+			e.instance_id  = row[9] ? static_cast<uint16_t>(strtoul(row[9], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -394,6 +426,80 @@ public:
 		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
 	}
 
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const DataBuckets &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.id));
+		v.push_back("'" + Strings::Escape(e.key_) + "'");
+		v.push_back("'" + Strings::Escape(e.value) + "'");
+		v.push_back(std::to_string(e.expires));
+		v.push_back(std::to_string(e.account_id));
+		v.push_back(std::to_string(e.character_id));
+		v.push_back(std::to_string(e.npc_id));
+		v.push_back(std::to_string(e.bot_id));
+		v.push_back(std::to_string(e.zone_id));
+		v.push_back(std::to_string(e.instance_id));
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<DataBuckets> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.id));
+			v.push_back("'" + Strings::Escape(e.key_) + "'");
+			v.push_back("'" + Strings::Escape(e.value) + "'");
+			v.push_back(std::to_string(e.expires));
+			v.push_back(std::to_string(e.account_id));
+			v.push_back(std::to_string(e.character_id));
+			v.push_back(std::to_string(e.npc_id));
+			v.push_back(std::to_string(e.bot_id));
+			v.push_back(std::to_string(e.zone_id));
+			v.push_back(std::to_string(e.instance_id));
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_DATA_BUCKETS_REPOSITORY_H

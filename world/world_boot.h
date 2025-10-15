@@ -4,8 +4,7 @@
 #include <string>
 #include "../common/types.h"
 #include "../common/discord/discord.h"
-
-extern UCSConnection UCSLink;
+#include "ucs.h"
 
 class WorldBoot {
 public:
@@ -13,8 +12,6 @@ public:
 	static bool HandleCommandInput(int argc, char **argv);
 	static bool LoadServerConfig();
 	static bool LoadDatabaseConnections();
-	static void CheckForServerScript(bool force_download = false);
-	static void CheckForXMLConfigUpgrade();
 	static void RegisterLoginservers();
 	static bool DatabaseLoadRoutines(int argc, char **argv);
 	static void CheckForPossibleConfigurationIssues();

@@ -6,7 +6,7 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_GROUP_ID_REPOSITORY_H
@@ -19,34 +19,37 @@
 class BaseGroupIdRepository {
 public:
 	struct GroupId {
-		int32_t     groupid;
-		int32_t     charid;
+		uint32_t    group_id;
 		std::string name;
-		int8_t      ismerc;
+		uint32_t    character_id;
+		uint32_t    bot_id;
+		uint32_t    merc_id;
 	};
 
 	static std::string PrimaryKey()
 	{
-		return std::string("groupid");
+		return std::string("group_id");
 	}
 
 	static std::vector<std::string> Columns()
 	{
 		return {
-			"groupid",
-			"charid",
+			"group_id",
 			"name",
-			"ismerc",
+			"character_id",
+			"bot_id",
+			"merc_id",
 		};
 	}
 
 	static std::vector<std::string> SelectColumns()
 	{
 		return {
-			"groupid",
-			"charid",
+			"group_id",
 			"name",
-			"ismerc",
+			"character_id",
+			"bot_id",
+			"merc_id",
 		};
 	}
 
@@ -87,10 +90,11 @@ public:
 	{
 		GroupId e{};
 
-		e.groupid = 0;
-		e.charid  = 0;
-		e.name    = "";
-		e.ismerc  = 0;
+		e.group_id     = 0;
+		e.name         = "";
+		e.character_id = 0;
+		e.bot_id       = 0;
+		e.merc_id      = 0;
 
 		return e;
 	}
@@ -101,7 +105,7 @@ public:
 	)
 	{
 		for (auto &group_id : group_ids) {
-			if (group_id.groupid == group_id_id) {
+			if (group_id.group_id == group_id_id) {
 				return group_id;
 			}
 		}
@@ -116,8 +120,9 @@ public:
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
-				"{} WHERE id = {} LIMIT 1",
+				"{} WHERE {} = {} LIMIT 1",
 				BaseSelect(),
+				PrimaryKey(),
 				group_id_id
 			)
 		);
@@ -126,10 +131,11 @@ public:
 		if (results.RowCount() == 1) {
 			GroupId e{};
 
-			e.groupid = static_cast<int32_t>(atoi(row[0]));
-			e.charid  = static_cast<int32_t>(atoi(row[1]));
-			e.name    = row[2] ? row[2] : "";
-			e.ismerc  = static_cast<int8_t>(atoi(row[3]));
+			e.group_id     = row[0] ? static_cast<uint32_t>(strtoul(row[0], nullptr, 10)) : 0;
+			e.name         = row[1] ? row[1] : "";
+			e.character_id = row[2] ? static_cast<uint32_t>(strtoul(row[2], nullptr, 10)) : 0;
+			e.bot_id       = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.merc_id      = row[4] ? static_cast<uint32_t>(strtoul(row[4], nullptr, 10)) : 0;
 
 			return e;
 		}
@@ -163,10 +169,11 @@ public:
 
 		auto columns = Columns();
 
-		v.push_back(columns[0] + " = " + std::to_string(e.groupid));
-		v.push_back(columns[1] + " = " + std::to_string(e.charid));
-		v.push_back(columns[2] + " = '" + Strings::Escape(e.name) + "'");
-		v.push_back(columns[3] + " = " + std::to_string(e.ismerc));
+		v.push_back(columns[0] + " = " + std::to_string(e.group_id));
+		v.push_back(columns[1] + " = '" + Strings::Escape(e.name) + "'");
+		v.push_back(columns[2] + " = " + std::to_string(e.character_id));
+		v.push_back(columns[3] + " = " + std::to_string(e.bot_id));
+		v.push_back(columns[4] + " = " + std::to_string(e.merc_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -174,7 +181,7 @@ public:
 				TableName(),
 				Strings::Implode(", ", v),
 				PrimaryKey(),
-				e.groupid
+				e.group_id
 			)
 		);
 
@@ -188,10 +195,11 @@ public:
 	{
 		std::vector<std::string> v;
 
-		v.push_back(std::to_string(e.groupid));
-		v.push_back(std::to_string(e.charid));
+		v.push_back(std::to_string(e.group_id));
 		v.push_back("'" + Strings::Escape(e.name) + "'");
-		v.push_back(std::to_string(e.ismerc));
+		v.push_back(std::to_string(e.character_id));
+		v.push_back(std::to_string(e.bot_id));
+		v.push_back(std::to_string(e.merc_id));
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -202,7 +210,7 @@ public:
 		);
 
 		if (results.Success()) {
-			e.groupid = results.LastInsertedID();
+			e.group_id = results.LastInsertedID();
 			return e;
 		}
 
@@ -221,10 +229,11 @@ public:
 		for (auto &e: entries) {
 			std::vector<std::string> v;
 
-			v.push_back(std::to_string(e.groupid));
-			v.push_back(std::to_string(e.charid));
+			v.push_back(std::to_string(e.group_id));
 			v.push_back("'" + Strings::Escape(e.name) + "'");
-			v.push_back(std::to_string(e.ismerc));
+			v.push_back(std::to_string(e.character_id));
+			v.push_back(std::to_string(e.bot_id));
+			v.push_back(std::to_string(e.merc_id));
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -258,10 +267,11 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			GroupId e{};
 
-			e.groupid = static_cast<int32_t>(atoi(row[0]));
-			e.charid  = static_cast<int32_t>(atoi(row[1]));
-			e.name    = row[2] ? row[2] : "";
-			e.ismerc  = static_cast<int8_t>(atoi(row[3]));
+			e.group_id     = row[0] ? static_cast<uint32_t>(strtoul(row[0], nullptr, 10)) : 0;
+			e.name         = row[1] ? row[1] : "";
+			e.character_id = row[2] ? static_cast<uint32_t>(strtoul(row[2], nullptr, 10)) : 0;
+			e.bot_id       = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.merc_id      = row[4] ? static_cast<uint32_t>(strtoul(row[4], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -286,10 +296,11 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			GroupId e{};
 
-			e.groupid = static_cast<int32_t>(atoi(row[0]));
-			e.charid  = static_cast<int32_t>(atoi(row[1]));
-			e.name    = row[2] ? row[2] : "";
-			e.ismerc  = static_cast<int8_t>(atoi(row[3]));
+			e.group_id     = row[0] ? static_cast<uint32_t>(strtoul(row[0], nullptr, 10)) : 0;
+			e.name         = row[1] ? row[1] : "";
+			e.character_id = row[2] ? static_cast<uint32_t>(strtoul(row[2], nullptr, 10)) : 0;
+			e.bot_id       = row[3] ? static_cast<uint32_t>(strtoul(row[3], nullptr, 10)) : 0;
+			e.merc_id      = row[4] ? static_cast<uint32_t>(strtoul(row[4], nullptr, 10)) : 0;
 
 			all_entries.push_back(e);
 		}
@@ -348,6 +359,70 @@ public:
 		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
 	}
 
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const GroupId &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.group_id));
+		v.push_back("'" + Strings::Escape(e.name) + "'");
+		v.push_back(std::to_string(e.character_id));
+		v.push_back(std::to_string(e.bot_id));
+		v.push_back(std::to_string(e.merc_id));
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<GroupId> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.group_id));
+			v.push_back("'" + Strings::Escape(e.name) + "'");
+			v.push_back(std::to_string(e.character_id));
+			v.push_back(std::to_string(e.bot_id));
+			v.push_back(std::to_string(e.merc_id));
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_GROUP_ID_REPOSITORY_H

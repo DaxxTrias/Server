@@ -64,7 +64,7 @@ void NpcScaleManager::ScaleNPC(
 
 	if (always_scale || npc->GetMaxHP() == 0) {
 		npc->ModifyNPCStat("max_hp", std::to_string(scale_data.hp));
-		npc->Heal();
+		npc->RestoreHealth();
 	}
 
 	if (always_scale || npc->GetAccuracyRating() == 0) {
@@ -187,7 +187,7 @@ void NpcScaleManager::ScaleNPC(
 		npc->ModifyNPCStat("special_abilities", scale_data.special_abilities);
 	}
 
-	if (LogSys.log_settings[Logs::NPCScaling].is_category_enabled == 1) {
+	if (EQEmuLogSys::Instance()->log_settings[Logs::NPCScaling].is_category_enabled == 1) {
 		std::string scale_log;
 
 		for (const auto &stat : scaling_stats) {
@@ -417,7 +417,7 @@ uint32 NpcScaleManager::GetClassLevelDamageMod(uint32 level, uint32 npc_class)
 	uint32 multiplier;
 
 	switch (npc_class) {
-		case WARRIOR: {
+		case Class::Warrior: {
 			if (level < 20) {
 				multiplier = 220;
 			}
@@ -444,9 +444,9 @@ uint32 NpcScaleManager::GetClassLevelDamageMod(uint32 level, uint32 npc_class)
 			}
 			break;
 		}
-		case DRUID:
-		case CLERIC:
-		case SHAMAN: {
+		case Class::Druid:
+		case Class::Cleric:
+		case Class::Shaman: {
 			if (level < 70) {
 				multiplier = 150;
 			}
@@ -455,9 +455,9 @@ uint32 NpcScaleManager::GetClassLevelDamageMod(uint32 level, uint32 npc_class)
 			}
 			break;
 		}
-		case BERSERKER:
-		case PALADIN:
-		case SHADOWKNIGHT: {
+		case Class::Berserker:
+		case Class::Paladin:
+		case Class::ShadowKnight: {
 			if (level < 35) {
 				multiplier = 210;
 			}
@@ -481,10 +481,10 @@ uint32 NpcScaleManager::GetClassLevelDamageMod(uint32 level, uint32 npc_class)
 			}
 			break;
 		}
-		case MONK:
-		case BARD:
-		case ROGUE:
-		case BEASTLORD: {
+		case Class::Monk:
+		case Class::Bard:
+		case Class::Rogue:
+		case Class::Beastlord: {
 			if (level < 51) {
 				multiplier = 180;
 			}
@@ -499,7 +499,7 @@ uint32 NpcScaleManager::GetClassLevelDamageMod(uint32 level, uint32 npc_class)
 			}
 			break;
 		}
-		case RANGER: {
+		case Class::Ranger: {
 			if (level < 58) {
 				multiplier = 200;
 			}
@@ -511,10 +511,10 @@ uint32 NpcScaleManager::GetClassLevelDamageMod(uint32 level, uint32 npc_class)
 			}
 			break;
 		}
-		case MAGICIAN:
-		case WIZARD:
-		case NECROMANCER:
-		case ENCHANTER: {
+		case Class::Magician:
+		case Class::Wizard:
+		case Class::Necromancer:
+		case Class::Enchanter: {
 			if (level < 70) {
 				multiplier = 120;
 			}

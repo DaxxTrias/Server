@@ -44,7 +44,6 @@ public:
      */
 
 	// Custom extended repository methods here
-
 };
 
 #endif //EQEMU_BOT_DATA_REPOSITORY_H

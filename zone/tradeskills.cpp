@@ -19,6 +19,7 @@
 #include "../common/global_define.h"
 #include "../common/events/player_event_logs.h"
 
+#include <algorithm>
 #include <list>
 
 #ifndef WIN32
@@ -34,6 +35,7 @@
 #include "zonedb.h"
 #include "worldserver.h"
 #include "../common/repositories/char_recipe_list_repository.h"
+#include "../common/repositories/criteria/content_filter_criteria.h"
 #include "../common/repositories/tradeskill_recipe_repository.h"
 #include "../common/repositories/tradeskill_recipe_entries_repository.h"
 
@@ -274,7 +276,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 	);
 
 	EQ::InventoryProfile &user_inv  = user->GetInv();
-	PlayerProfile_Struct    &user_pp   = user->GetPP();
+	PlayerProfile_Struct &user_pp   = user->GetPP();
 	EQ::ItemInstance     *container = nullptr;
 	EQ::ItemInstance     *inst      = nullptr;
 
@@ -326,8 +328,8 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 
 	container = inst;
 	if (container->GetItem() && container->GetItem()->BagType == EQ::item::BagTypeTransformationmold) {
-		const EQ::ItemInstance *inst    = container->GetItem(0);
-		bool                      AllowAll = RuleB(Inventory, AllowAnyWeaponTransformation);
+		const EQ::ItemInstance *inst = container->GetItem(0);
+		bool AllowAll = RuleB(Inventory, AllowAnyWeaponTransformation);
 		if (inst && EQ::ItemInstance::CanTransform(inst->GetItem(), container->GetItem(), AllowAll)) {
 			const EQ::ItemData *new_weapon = inst->GetItem();
 			user->DeleteItemInInventory(EQ::InventoryProfile::CalcSlotId(in_combine->container_slot, 0), 0, true);
@@ -372,7 +374,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 		LogTradeskillsDetail("Check 1");
 
 		const EQ::ItemInstance* inst = container->GetItem(0);
-		if (inst && inst->GetOrnamentationIcon() && inst->GetOrnamentationIcon()) {
+		if (inst && inst->GetOrnamentationIcon()) {
 			const EQ::ItemData* new_weapon = inst->GetItem();
 			user->DeleteItemInInventory(EQ::InventoryProfile::CalcSlotId(in_combine->container_slot, 0), 0, true);
 			container->Clear();
@@ -389,7 +391,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 	}
 
 	DBTradeskillRecipe_Struct spec;
-	bool                      is_augmented = false;
+	bool is_augmented = false;
 
 	if (parse->PlayerHasQuestSub(EVENT_COMBINE)) {
 		if (parse->EventPlayer(EVENT_COMBINE, user, std::to_string(in_combine->container_slot), 0) == 1) {
@@ -448,7 +450,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 
 	//changing from a switch to string of if's since we don't need to iterate through all of the skills in the SkillType enum
 	if (spec.tradeskill == EQ::skills::SkillAlchemy) {
-		if (user_pp.class_ != SHAMAN) {
+		if (user_pp.class_ != Class::Shaman) {
 			user->Message(Chat::Red, "This tradeskill can only be performed by a shaman.");
 			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
 			user->QueuePacket(outapp);
@@ -464,7 +466,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 		}
 	}
 	else if (spec.tradeskill == EQ::skills::SkillTinkering) {
-		if (user_pp.race != GNOME) {
+		if (user_pp.race != Race::Gnome) {
 			user->Message(Chat::Red, "Only gnomes can tinker.");
 			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
 			user->QueuePacket(outapp);
@@ -473,7 +475,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 		}
 	}
 	else if (spec.tradeskill == EQ::skills::SkillMakePoison) {
-		if (user_pp.class_ != ROGUE) {
+		if (user_pp.class_ != Class::Rogue) {
 			user->Message(Chat::Red, "Only rogues can mix poisons.");
 			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
 			user->QueuePacket(outapp);
@@ -553,7 +555,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 	}
 
 	if (success) {
-		if (player_event_logs.IsEventEnabled(PlayerEvent::COMBINE_SUCCESS)) {
+		if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::COMBINE_SUCCESS)) {
 			auto e = PlayerEvent::CombineEvent{
 				.recipe_id = spec.recipe_id,
 				.recipe_name = spec.name,
@@ -568,7 +570,7 @@ void Object::HandleCombine(Client* user, const NewCombine_Struct* in_combine, Ob
 		}
 	}
 	else {
-		if (player_event_logs.IsEventEnabled(PlayerEvent::COMBINE_FAILURE)) {
+		if (PlayerEventLogs::Instance()->IsEventEnabled(PlayerEvent::COMBINE_FAILURE)) {
 			auto e = PlayerEvent::CombineEvent{
 				.recipe_id = spec.recipe_id,
 				.recipe_name = spec.name,
@@ -622,6 +624,41 @@ void Object::HandleAutoCombine(Client* user, const RecipeAutoCombine_Struct* rac
 		user->QueuePacket(outapp);
 		safe_delete(outapp);
 		return;
+	}
+
+	if (spec.tradeskill == EQ::skills::SkillAlchemy) {
+		if (!user->GetClass() == Class::Shaman) {
+			user->Message(Chat::Red, "This tradeskill can only be performed by a shaman.");
+			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
+			user->QueuePacket(outapp);
+			safe_delete(outapp);
+			return;
+		}
+		else if (user->GetLevel() < MIN_LEVEL_ALCHEMY) {
+			user->Message(Chat::Red, "You cannot perform alchemy until you reach level %i.", MIN_LEVEL_ALCHEMY);
+			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
+			user->QueuePacket(outapp);
+			safe_delete(outapp);
+			return;
+		}
+	}
+	else if (spec.tradeskill == EQ::skills::SkillTinkering) {
+		if (user->GetRace() != Race::Gnome) {
+			user->Message(Chat::Red, "Only gnomes can tinker.");
+			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
+			user->QueuePacket(outapp);
+			safe_delete(outapp);
+			return;
+		}
+	}
+	else if (spec.tradeskill == EQ::skills::SkillMakePoison) {
+		if (!user->GetClass() == Class::Rogue) {
+			user->Message(Chat::Red, "Only rogues can mix poisons.");
+			auto outapp = new EQApplicationPacket(OP_TradeSkillCombine, 0);
+			user->QueuePacket(outapp);
+			safe_delete(outapp);
+			return;
+		}
 	}
 
     //pull the list of components
@@ -952,10 +989,16 @@ void Client::SendTradeskillDetails(uint32 recipe_id) {
 
 //returns true on success
 bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
-	if(spec == nullptr)
-		return(false);
+	if (!spec) {
+		return false;
+	}
 
 	uint16 user_skill = GetSkill(spec->tradeskill);
+
+	if (RuleI(Skills, TradeSkillClamp) != 0 && user_skill > RuleI(Skills, TradeSkillClamp)) {
+		user_skill = RuleI(Skills, TradeSkillClamp);
+	}
+
 	float chance = 0.0;
 	float skillup_modifier = 0.0;
 	int16 thirdstat = 0;
@@ -1080,7 +1123,17 @@ bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
 
 	const EQ::ItemData* item = nullptr;
 
-	if (((spec->tradeskill==75) || GetGM() || (chance > res)) || zone->random.Roll(aa_chance)) {
+	if (
+		(
+			spec->tradeskill == EQ::skills::SkillRemoveTraps ||
+			GetGM() ||
+			(chance > res)
+		) ||
+		zone->random.Roll(aa_chance)
+	) {
+		if (GetGM()) {
+			Message(Chat::White, "Your GM flag gives you a 100%% chance to succeed in combining this tradeskill.");
+		}
 
 		success_modifier = 1;
 
@@ -1097,6 +1150,7 @@ bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
 
 			item = database.GetItem(itr->first);
 			if (item) {
+				CheckItemDiscoverability(itr->first);
 				SummonItem(itr->first, itr->second);
 				if (GetGroup()) {
 					entity_list.MessageGroup(this, true, Chat::Skills, "%s has successfully fashioned %s!", GetName(), item->Name);
@@ -1120,13 +1174,6 @@ bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
 				);
 			}
 
-			/* QS: Player_Log_Trade_Skill_Events */
-			if (RuleB(QueryServ, PlayerLogTradeSkillEvents)) {
-
-				std::string event_desc = StringFormat("Success :: fashioned recipe_id:%i tskillid:%i trivial:%i chance:%4.2f  in zoneid:%i instid:%i", spec->recipe_id, spec->tradeskill, spec->trivial, chance, GetZoneID(), GetInstanceID());
-				QServ->PlayerLogEvent(Player_Log_Trade_Skill_Events, CharacterID(), event_desc);
-			}
-
 			if (RuleB(TaskSystem, EnableTaskSystem)) {
 				UpdateTasksForItem(TaskActivityType::TradeSkill, itr->first, itr->second);
 			}
@@ -1147,14 +1194,8 @@ bool Client::TradeskillExecute(DBTradeskillRecipe_Struct *spec) {
 		LogTradeskills("Tradeskill failed");
 			if (GetGroup())
 		{
-			entity_list.MessageGroup(this, true, Chat::Skills,"%s was unsuccessful in %s tradeskill attempt.",GetName(),GetGender() == 0 ? "his" : GetGender() == 1 ? "her" : "its");
+			entity_list.MessageGroup(this, true, Chat::Skills,"%s was unsuccessful in %s tradeskill attempt.",GetName(),GetGender() == Gender::Male ? "his" : GetGender() == Gender::Female ? "her" : "its");
 
-		}
-
-		/* QS: Player_Log_Trade_Skill_Events */
-		if (RuleB(QueryServ, PlayerLogTradeSkillEvents)){
-			std::string event_desc = StringFormat("Failed :: recipe_id:%i tskillid:%i trivial:%i chance:%4.2f  in zoneid:%i instid:%i", spec->recipe_id, spec->tradeskill, spec->trivial, chance, GetZoneID(), GetInstanceID());
-			QServ->PlayerLogEvent(Player_Log_Trade_Skill_Events, CharacterID(), event_desc);
 		}
 
 		itr = spec->onfail.begin();
@@ -1194,15 +1235,18 @@ void Client::CheckIncreaseTradeskill(int16 bonusstat, int16 stat_modifier, float
 		return;	//not allowed to go higher.
 	uint16 maxskill = MaxSkill(tradeskill);
 
+	float min_skill_up_chance = RuleR(Character, TradeskillUpMinChance);
+	min_skill_up_chance = std::max(min_skill_up_chance, 2.5f);
+
 	float chance_stage2 = 0;
 
 	//A successfull combine doubles the stage1 chance for an skillup
 	//Some tradeskill are harder than others. See above for more.
 	float chance_stage1 = (bonusstat - stat_modifier) / (skillup_modifier * success_modifier);
+	chance_stage1 = std::max(min_skill_up_chance, chance_stage1);
 
-	//In stage2 the only thing that matters is your current unmodified skill.
-	//If you want to customize here you probbably need to implement your own
-	//formula instead of tweaking the below one.
+	//In stage2 the only thing that matters is your current unmodified skill
+	//and the Character:TradeskillUpMinChance rule.
 	if (chance_stage1 > zone->random.Real(0, 99)) {
 		if (current_raw_skill < 15) {
 			//Always succeed
@@ -1214,6 +1258,7 @@ void Client::CheckIncreaseTradeskill(int16 bonusstat, int16 stat_modifier, float
 			//At skill 175, your chance of success falls linearly from 12.5% to 2.5% at skill 300.
 			chance_stage2 = 12.5 - (.08 * (current_raw_skill - 175));
 		}
+		chance_stage2 = std::max(min_skill_up_chance, chance_stage2);
 	}
 
 	if (chance_stage2 > zone->random.Real(0, 99)) {
@@ -1886,4 +1931,31 @@ bool Client::CheckTradeskillLoreConflict(int32 recipe_id)
 	return false;
 }
 
+void Client::ScribeRecipes(uint32_t item_id) const
+{
+	if (item_id == 0)
+	{
+		return;
+	}
 
+	auto recipes = TradeskillRecipeRepository::GetWhere(content_db, fmt::format(
+		"learned_by_item_id = {} {}", item_id, ContentFilterCriteria::apply()));
+
+	std::vector<CharRecipeListRepository::CharRecipeList> learned;
+	learned.reserve(recipes.size());
+
+	for (const auto& recipe : recipes)
+	{
+		auto entry = CharRecipeListRepository::NewEntity();
+		entry.char_id = static_cast<int32_t>(CharacterID());
+		entry.recipe_id = recipe.id;
+		learned.push_back(entry);
+	}
+
+	if (!learned.empty())
+	{
+		// avoid replacing madecount for recipes the client already has
+		int rows = CharRecipeListRepository::InsertUpdateMany(database, learned);
+		LogTradeskills("Client [{}] scribed [{}] recipes from [{}]", CharacterID(), rows, item_id);
+	}
+}

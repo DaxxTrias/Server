@@ -6,7 +6,7 @@
  * Any modifications to base repositories are to be made by the generator only
  *
  * @generator ./utils/scripts/generators/repository-generator.pl
- * @docs https://eqemu.gitbook.io/server/in-development/developer-area/repositories
+ * @docs https://docs.eqemu.io/developer/repositories
  */
 
 #ifndef EQEMU_BASE_ACCOUNT_IP_REPOSITORY_H
@@ -22,7 +22,7 @@ public:
 		int32_t     accid;
 		std::string ip;
 		int32_t     count;
-		std::string lastused;
+		time_t      lastused;
 	};
 
 	static std::string PrimaryKey()
@@ -46,7 +46,7 @@ public:
 			"accid",
 			"ip",
 			"count",
-			"lastused",
+			"UNIX_TIMESTAMP(lastused)",
 		};
 	}
 
@@ -116,8 +116,9 @@ public:
 	{
 		auto results = db.QueryDatabase(
 			fmt::format(
-				"{} WHERE id = {} LIMIT 1",
+				"{} WHERE {} = {} LIMIT 1",
 				BaseSelect(),
+				PrimaryKey(),
 				account_ip_id
 			)
 		);
@@ -126,10 +127,10 @@ public:
 		if (results.RowCount() == 1) {
 			AccountIp e{};
 
-			e.accid    = static_cast<int32_t>(atoi(row[0]));
+			e.accid    = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.ip       = row[1] ? row[1] : "";
-			e.count    = static_cast<int32_t>(atoi(row[2]));
-			e.lastused = row[3] ? row[3] : "";
+			e.count    = row[2] ? static_cast<int32_t>(atoi(row[2])) : 1;
+			e.lastused = strtoll(row[3] ? row[3] : "-1", nullptr, 10);
 
 			return e;
 		}
@@ -166,7 +167,7 @@ public:
 		v.push_back(columns[0] + " = " + std::to_string(e.accid));
 		v.push_back(columns[1] + " = '" + Strings::Escape(e.ip) + "'");
 		v.push_back(columns[2] + " = " + std::to_string(e.count));
-		v.push_back(columns[3] + " = '" + Strings::Escape(e.lastused) + "'");
+		v.push_back(columns[3] + " = FROM_UNIXTIME(" + (e.lastused > 0 ? std::to_string(e.lastused) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -191,7 +192,7 @@ public:
 		v.push_back(std::to_string(e.accid));
 		v.push_back("'" + Strings::Escape(e.ip) + "'");
 		v.push_back(std::to_string(e.count));
-		v.push_back("'" + Strings::Escape(e.lastused) + "'");
+		v.push_back("FROM_UNIXTIME(" + (e.lastused > 0 ? std::to_string(e.lastused) : "null") + ")");
 
 		auto results = db.QueryDatabase(
 			fmt::format(
@@ -224,7 +225,7 @@ public:
 			v.push_back(std::to_string(e.accid));
 			v.push_back("'" + Strings::Escape(e.ip) + "'");
 			v.push_back(std::to_string(e.count));
-			v.push_back("'" + Strings::Escape(e.lastused) + "'");
+			v.push_back("FROM_UNIXTIME(" + (e.lastused > 0 ? std::to_string(e.lastused) : "null") + ")");
 
 			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
 		}
@@ -258,10 +259,10 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			AccountIp e{};
 
-			e.accid    = static_cast<int32_t>(atoi(row[0]));
+			e.accid    = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.ip       = row[1] ? row[1] : "";
-			e.count    = static_cast<int32_t>(atoi(row[2]));
-			e.lastused = row[3] ? row[3] : "";
+			e.count    = row[2] ? static_cast<int32_t>(atoi(row[2])) : 1;
+			e.lastused = strtoll(row[3] ? row[3] : "-1", nullptr, 10);
 
 			all_entries.push_back(e);
 		}
@@ -286,10 +287,10 @@ public:
 		for (auto row = results.begin(); row != results.end(); ++row) {
 			AccountIp e{};
 
-			e.accid    = static_cast<int32_t>(atoi(row[0]));
+			e.accid    = row[0] ? static_cast<int32_t>(atoi(row[0])) : 0;
 			e.ip       = row[1] ? row[1] : "";
-			e.count    = static_cast<int32_t>(atoi(row[2]));
-			e.lastused = row[3] ? row[3] : "";
+			e.count    = row[2] ? static_cast<int32_t>(atoi(row[2])) : 1;
+			e.lastused = strtoll(row[3] ? row[3] : "-1", nullptr, 10);
 
 			all_entries.push_back(e);
 		}
@@ -348,6 +349,68 @@ public:
 		return (results.Success() && results.begin()[0] ? strtoll(results.begin()[0], nullptr, 10) : 0);
 	}
 
+	static std::string BaseReplace()
+	{
+		return fmt::format(
+			"REPLACE INTO {} ({}) ",
+			TableName(),
+			ColumnsRaw()
+		);
+	}
+
+	static int ReplaceOne(
+		Database& db,
+		const AccountIp &e
+	)
+	{
+		std::vector<std::string> v;
+
+		v.push_back(std::to_string(e.accid));
+		v.push_back("'" + Strings::Escape(e.ip) + "'");
+		v.push_back(std::to_string(e.count));
+		v.push_back("FROM_UNIXTIME(" + (e.lastused > 0 ? std::to_string(e.lastused) : "null") + ")");
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES ({})",
+				BaseReplace(),
+				Strings::Implode(",", v)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
+
+	static int ReplaceMany(
+		Database& db,
+		const std::vector<AccountIp> &entries
+	)
+	{
+		std::vector<std::string> insert_chunks;
+
+		for (auto &e: entries) {
+			std::vector<std::string> v;
+
+			v.push_back(std::to_string(e.accid));
+			v.push_back("'" + Strings::Escape(e.ip) + "'");
+			v.push_back(std::to_string(e.count));
+			v.push_back("FROM_UNIXTIME(" + (e.lastused > 0 ? std::to_string(e.lastused) : "null") + ")");
+
+			insert_chunks.push_back("(" + Strings::Implode(",", v) + ")");
+		}
+
+		std::vector<std::string> v;
+
+		auto results = db.QueryDatabase(
+			fmt::format(
+				"{} VALUES {}",
+				BaseReplace(),
+				Strings::Implode(",", insert_chunks)
+			)
+		);
+
+		return (results.Success() ? results.RowsAffected() : 0);
+	}
 };
 
 #endif //EQEMU_BASE_ACCOUNT_IP_REPOSITORY_H

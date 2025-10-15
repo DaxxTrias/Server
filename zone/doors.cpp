@@ -30,9 +30,13 @@
 #include "string_ids.h"
 #include "worldserver.h"
 #include "zonedb.h"
+#include "../common/evolving_items.h"
 #include "../common/repositories/criteria/content_filter_criteria.h"
 
 #include <string.h>
+
+#include <glm/ext/matrix_transform.hpp>
+#include <numbers>
 
 #define OPEN_DOOR 0x02
 #define CLOSE_DOOR 0x03
@@ -43,7 +47,7 @@ extern EntityList  entity_list;
 extern WorldServer worldserver;
 
 Doors::Doors(const DoorsRepository::Doors &door) :
-	m_close_timer(5000),
+	m_close_timer(door.close_timer_ms),
 	m_position(door.pos_x, door.pos_y, door.pos_z, door.heading),
 	m_destination(door.dest_x, door.dest_y, door.dest_z, door.dest_heading)
 {
@@ -73,6 +77,15 @@ Doors::Doors(const DoorsRepository::Doors &door) :
 	m_door_param              = door.door_param;
 	m_size                    = door.size;
 	m_invert_state            = door.invert_state;
+
+	// if the target zone is the same as the current zone, use the instance of the current zone
+	// if we don't use the same instance_id that the client was sent, the client will forcefully
+	// issue a zone change request when they should be simply moving to a different point in the same zone
+	// because the client will think the zone point target is different from the current instance
+	if (door.dest_zone == zone->GetShortName() && m_destination_instance_id == 0) {
+		m_destination_instance_id = zone->GetInstanceID();
+	}
+
 	m_destination_instance_id = door.dest_instance;
 	m_is_ldon_door            = door.is_ldon_door;
 	m_dz_switch_id            = door.dz_switch_id;
@@ -277,13 +290,17 @@ void Doors::HandleClick(Client *sender, uint8 trigger)
 	// enforce flags before they hit zoning process
 	auto z = GetZone(m_destination_zone_name, 0);
 	if (z && !z->flag_needed.empty() && Strings::IsNumber(z->flag_needed) && Strings::ToInt(z->flag_needed) == 1) {
-		if (!sender->GetGM() && !sender->HasZoneFlag(z->zoneidnumber)) {
-			LogInfo(
-				"Character [{}] does not have the flag to be in this zone [{}]!",
-				sender->GetCleanName(),
-				z->flag_needed
-			);
-			sender->MessageString(Chat::LightBlue, DOORS_LOCKED);
+		if (!sender->HasZoneFlag(z->zoneidnumber)) {
+			if (!sender->GetGM()) {
+				LogInfo(
+					"Character [{}] does not have the flag to be in this zone [{}]!",
+					sender->GetCleanName(),
+					z->flag_needed
+				);
+				sender->MessageString(Chat::LightBlue, DOORS_LOCKED);
+			} else {
+				sender->Message(Chat::White, "Your GM flag allows you to use this door.");
+			}
 		}
 	}
 
@@ -309,20 +326,40 @@ void Doors::HandleClick(Client *sender, uint8 trigger)
 		/**
 		 * Guild Doors
 		 */
-		if ((GetGuildID() > 0) && !sender->GetGM()) {
+		if (GetGuildID() > 0) {
 			std::string guild_name;
-			char        door_message[240];
+			const bool has_guild_name = guild_mgr.GetGuildNameByID(m_guild_id, guild_name);
+			if (!sender->GetGM()) {
+				std::string door_message;
 
-			if (guild_mgr.GetGuildNameByID(m_guild_id, guild_name)) {
-				sprintf(door_message, "Only members of the <%s> guild may enter here", guild_name.c_str());
-			}
-			else {
-				strcpy(door_message, "Door is locked by an unknown guild");
-			}
+				if (has_guild_name) {
+					door_message = fmt::format(
+						"Only members of the <{}> guild may enter here.",
+						guild_name
+					);
+				} else {
+					door_message = "Door is locked by an unknown guild.";
+				}
 
-			sender->Message(Chat::LightBlue, door_message);
-			safe_delete(outapp);
-			return;
+				sender->Message(Chat::LightBlue, door_message.c_str());
+				safe_delete(outapp);
+				return;
+			} else {
+				sender->Message(
+					Chat::White,
+					fmt::format(
+						"Your GM flag allows you to use this door{}.",
+						(
+							has_guild_name ?
+							fmt::format(
+								" assigned to the <{}> guild",
+								guild_name
+							) :
+							""
+						)
+					).c_str()
+				);
+			}
 		}
 
 		/**
@@ -506,8 +543,13 @@ void Doors::HandleClick(Client *sender, uint8 trigger)
 	}
 
 	// teleport door
-	if (((m_open_type == 57) || (m_open_type == 58)) && HasDestinationZone()) {
-		bool has_key_required = (required_key_item && ((required_key_item == player_key) || sender->GetGM()));
+	if (EQ::ValueWithin(m_open_type, 57, 58) && HasDestinationZone()) {
+		bool has_key_required = (required_key_item && required_key_item == player_key);
+
+		if (sender->GetGM() && !has_key_required) {
+			has_key_required = true;
+			sender->Message(Chat::White, "Your GM flag allows you to open this door without a key.");
+		}
 
 		if (IsDestinationZoneSame() && (!required_key_item)) {
 			if (!disable_add_to_key_ring) {
@@ -571,6 +613,10 @@ void Doors::HandleClick(Client *sender, uint8 trigger)
 				);
 			}
 		}
+	}
+
+	if (GetOpenType() == 40 && sender->GetZoneID() == Zones::CORATHUS) {
+		sender->SendEvolveXPTransferWindow();
 	}
 }
 
@@ -806,11 +852,13 @@ void Doors::CreateDatabaseEntry()
 	const auto& l = DoorsRepository::GetWhere(
 		content_db,
 		fmt::format(
-			"zone = '{}' AND doorid = {}",
+			"zone = '{}' AND (version = {} OR version = -1) AND doorid = {}",
 			zone->GetShortName(),
+			zone->GetInstanceVersion(),
 			GetDoorID()
 		)
 	);
+
 	if (!l.empty()) {
 		auto e = l[0];
 
@@ -926,4 +974,69 @@ bool Doors::GetIsDoorBlacklisted()
 
 bool Doors::IsDoorBlacklisted() {
 	return m_is_blacklisted_to_open;
+}
+
+bool Doors::IsDoorBetween(glm::vec4 loc_a, glm::vec4 loc_c, uint16 door_size, float door_depth, bool draw_box) {
+	glm::vec4 door_loc = GetPosition();
+	float half_size = door_size * 0.5f;
+	float half_depth = door_depth * 0.5f;
+	float normalized_heading = std::fmod(door_loc.w, 512.0f);
+	float heading_radians = normalized_heading * (std::numbers::pi / 256.0f);
+	glm::mat4 door_rotation = glm::rotate(glm::mat4(1.0f), -heading_radians, glm::vec3(0.0f, 0.0f, 1.0f));
+	glm::vec3 box_corner_one = glm::vec3(door_size, -half_depth, 0.0f);
+	glm::vec3 box_corner_two = glm::vec3(-door_size, -half_depth, 0.0f);
+	glm::vec3 box_corner_three = glm::vec3(-door_size, half_depth, 0.0f);
+	glm::vec3 box_corner_four = glm::vec3(door_size, half_depth, 0.0f);
+	glm::vec3 door_center_offset = glm::vec3(-(door_size * 0.75f), half_depth * 0.5f, 0.0f);
+	glm::vec3 door_center = glm::vec3(door_loc) + glm::vec3(door_rotation * glm::vec4(door_center_offset, 1.0f));
+	glm::mat4 transform = glm::translate(glm::mat4(1.0f), door_center) * door_rotation;
+
+	box_corner_one = glm::vec3(transform * glm::vec4(box_corner_one, 1.0f));
+	box_corner_two = glm::vec3(transform * glm::vec4(box_corner_two, 1.0f));
+	box_corner_three = glm::vec3(transform * glm::vec4(box_corner_three, 1.0f));
+	box_corner_four = glm::vec3(transform * glm::vec4(box_corner_four, 1.0f));
+
+	if (draw_box) {
+		NPC::SpawnZonePointNodeNPC("loc_a", loc_a);
+		NPC::SpawnZonePointNodeNPC("door_anchor", door_loc);
+		NPC::SpawnZonePointNodeNPC("loc_c", loc_c);
+		NPC::SpawnZonePointNodeNPC("box_corner_one", glm::vec4(box_corner_one.x, box_corner_one.y, box_corner_one.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_corner_two", glm::vec4(box_corner_two.x, box_corner_two.y, box_corner_two.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_corner_three", glm::vec4(box_corner_three.x, box_corner_three.y, box_corner_three.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_corner_four", glm::vec4(box_corner_four.x, box_corner_four.y, box_corner_four.z, 0));
+		NPC::SpawnZonePointNodeNPC("box_center", glm::vec4(door_center.x, door_center.y, door_center.z, 0));
+	}
+
+	// Check if LoS intersects box
+	auto intersects_box = [](const glm::vec3& a, const glm::vec3& b, const glm::vec3& p1, const glm::vec3& p2) {
+		glm::vec3 ab = b - a;
+		glm::vec3 p1p2 = p2 - p1;
+
+		glm::vec3 cross = glm::cross(ab, p1p2);
+		float cross_magnitude_squared = glm::dot(cross, cross);
+
+		if (cross_magnitude_squared < 1e-6f) {
+			return false; // Lines are parallel or coincident
+		}
+
+		float t = glm::dot(glm::cross(p1 - a, p1p2), cross) / cross_magnitude_squared;
+		float u = glm::dot(glm::cross(p1 - a, ab), cross) / cross_magnitude_squared;
+
+		return (t >= 0.0f && t <= 1.0f && u >= 0.0f && u <= 1.0f);
+		};
+
+	// Check intersection with each edge of the door bounding box
+	glm::vec3 loc_a_vec3(loc_a.x, loc_a.y, loc_a.z);
+	glm::vec3 loc_c_vec3(loc_c.x, loc_c.y, loc_c.z);
+
+	if (
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_one, box_corner_two) ||
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_two, box_corner_three) ||
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_three, box_corner_four) ||
+		intersects_box(loc_a_vec3, loc_c_vec3, box_corner_four, box_corner_one)
+	) {
+		return true;
+	}
+
+	return false;
 }

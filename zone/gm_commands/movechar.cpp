@@ -13,7 +13,7 @@ void command_movechar(Client *c, const Seperator *sep)
 		database.GetCharNameByID(Strings::ToUnsignedInt(sep->arg[1])) :
 		sep->arg[1]
 	);
-	const uint32 character_id = database.GetCharacterID(character_name.c_str());
+	const uint32 character_id = database.GetCharacterID(character_name);
 	if (!character_id) {
 		c->Message(
 			Chat::White,
@@ -53,7 +53,7 @@ void command_movechar(Client *c, const Seperator *sep)
 		return;
 	}
 
-	const bool  moved        = database.MoveCharacterToZone(character_name.c_str(), zone_id);
+	const bool  moved        = database.MoveCharacterToZone(character_name, zone_id);
 	std::string moved_string = moved ? "Succeeded" : "Failed";
 	c->Message(
 		Chat::White,

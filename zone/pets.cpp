@@ -20,6 +20,10 @@
 #include "../common/spdat.h"
 #include "../common/strings.h"
 
+#include "../common/repositories/pets_repository.h"
+#include "../common/repositories/pets_beastlord_data_repository.h"
+#include "../common/repositories/character_pet_name_repository.h"
+
 #include "entity.h"
 #include "client.h"
 #include "mob.h"
@@ -161,6 +165,15 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 	// 4 - Keep DB name
 	// 5 - `s ward
 
+	const auto vanity_name = (IsClient() && !petname) ? CharacterPetNameRepository::FindOne(database, CastToClient()->CharacterID()) : CharacterPetNameRepository::CharacterPetName{};
+
+	if (
+		IsClient() &&
+		!petname &&
+		!vanity_name.name.empty()
+	) {
+		petname = vanity_name.name.c_str();
+	}
 
 	if (petname != nullptr) {
 		// Name was provided, use it.
@@ -194,15 +207,18 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 	}
 
 	// Beastlord Pets
-	if(record.petnaming == 2) {
+	if (record.petnaming == 2) {
 		uint16 race_id = GetBaseRace();
-		auto beastlord_pet_data = content_db.GetBeastlordPetData(race_id);
-		npc_type->race = beastlord_pet_data.race_id;
-		npc_type->texture = beastlord_pet_data.texture;
-		npc_type->helmtexture = beastlord_pet_data.helm_texture;
-		npc_type->gender = beastlord_pet_data.gender;
-		npc_type->size *= beastlord_pet_data.size_modifier;
-		npc_type->luclinface = beastlord_pet_data.face;
+
+		auto d = content_db.GetBeastlordPetData(race_id);
+
+		npc_type->race        = d.race_id;
+		npc_type->texture     = d.texture;
+		npc_type->helmtexture = d.helm_texture;
+		npc_type->gender      = d.gender;
+		npc_type->luclinface  = d.face;
+
+		npc_type->size *= d.size_modifier;
 	}
 
 	// handle monster summoning pet appearance
@@ -251,7 +267,7 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 	}
 
 	//this takes ownership of the npc_type data
-	auto npc = new Pet(npc_type, this, (PetType)record.petcontrol, spell_id, record.petpower);
+	auto npc = new Pet(npc_type, this, record.petcontrol, spell_id, record.petpower);
 
 	// Now that we have an actual object to interact with, load
 	// the base items for the pet. These are always loaded
@@ -265,7 +281,7 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 		for (int i = EQ::invslot::EQUIPMENT_BEGIN; i <= EQ::invslot::EQUIPMENT_END; i++)
 			if (petinv[i]) {
 				item = database.GetItem(petinv[i]);
-				npc->AddLootDrop(item, &npc->itemlist, NPC::NewLootDropEntry(), true);
+				npc->AddLootDrop(item, LootdropEntriesRepository::NewNpcEntity(), true);
 			}
 	}
 
@@ -279,7 +295,7 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 	SetPetID(npc->GetID());
 	// We need to handle PetType 5 (petHatelist), add the current target to the hatelist of the pet
 
-	if (record.petcontrol == petTargetLock)
+	if (record.petcontrol == PetType::TargetLock)
 	{
 		Mob* m_target = GetTarget();
 
@@ -300,7 +316,7 @@ void Mob::MakePoweredPet(uint16 spell_id, const char* pettype, int16 petpower,
 		if (activiate_pet){
 			npc->AddToHateList(m_target, 1);
 			npc->SetPetTargetLockID(m_target->GetID());
-			npc->SetSpecialAbility(IMMUNE_AGGRO, 1);
+			npc->SetSpecialAbility(SpecialAbility::AggroImmunity, 1);
 		}
 		else {
 			npc->CastSpell(SPELL_UNSUMMON_SELF, npc->GetID()); //Live like behavior, damages self for 20K
@@ -325,7 +341,7 @@ void NPC::TryDepopTargetLockedPets(Mob* current_target) {
 			return;
 		}
 		//Use when pets are given petype 5
-		if (IsPet() && GetPetType() == petTargetLock && GetPetTargetLockID()) {
+		if (IsPet() && GetPetType() == PetType::TargetLock && GetPetTargetLockID()) {
 			CastSpell(SPELL_UNSUMMON_SELF, GetID()); //Live like behavior, damages self for 20K
 			if (!HasDied()) {
 				Kill(); //Ensure pet dies if over 20k HP.
@@ -340,11 +356,11 @@ void NPC::TryDepopTargetLockedPets(Mob* current_target) {
 /* This is why the pets ghost - pets were being spawned too far away from its npc owner and some
 into walls or objects (+10), this sometimes creates the "ghost" effect. I changed to +2 (as close as I
 could get while it still looked good). I also noticed this can happen if an NPC is spawned on the same spot of another or in a related bad spot.*/
-Pet::Pet(NPCType *type_data, Mob *owner, PetType type, uint16 spell_id, int16 power)
+Pet::Pet(NPCType *type_data, Mob *owner, uint8 pet_type, uint16 spell_id, int16 power)
 : NPC(type_data, 0, owner->GetPosition() + glm::vec4(2.0f, 2.0f, 0.0f, 0.0f), GravityBehavior::Water)
 {
 	GiveNPCTypeData(type_data);
-	SetPetType(type);
+	SetPetType(pet_type);
 	SetPetPower(power);
 	SetOwnerID(owner ? owner->GetID() : 0);
 	SetPetSpellID(spell_id);
@@ -358,8 +374,8 @@ Pet::Pet(NPCType *type_data, Mob *owner, PetType type, uint16 spell_id, int16 po
 	if (owner && owner->IsClient()) {
 		if (!(owner->CastToClient()->ClientVersionBit() & EQ::versions::maskUFAndLater)) {
 			if (
-				(GetPetType() != petFamiliar && GetPetType() != petAnimation) ||
-				aabonuses.PetCommands[PET_TAUNT]
+				(GetPetType() != PetType::Familiar && GetPetType() != PetType::Animation) ||
+				aabonuses.PetCommands[PetCommand::Taunt]
 			) {
 				SetTaunting(true);
 			}
@@ -369,38 +385,35 @@ Pet::Pet(NPCType *type_data, Mob *owner, PetType type, uint16 spell_id, int16 po
 	// Class should use npc constructor to set light properties
 }
 
-bool ZoneDatabase::GetPetEntry(const char *pet_type, PetRecord *into) {
-	return GetPoweredPetEntry(pet_type, 0, into);
+bool ZoneDatabase::GetPetEntry(const std::string& pet_type, PetRecord *p)
+{
+	return GetPoweredPetEntry(pet_type, 0, p);
 }
 
-bool ZoneDatabase::GetPoweredPetEntry(const char *pet_type, int16 petpower, PetRecord *into) {
-	std::string query;
+bool ZoneDatabase::GetPoweredPetEntry(const std::string& pet_type, int16 pet_power, PetRecord* r)
+{
+	const auto& l = PetsRepository::GetWhere(
+		content_db,
+		fmt::format(
+			"`type` = '{}' AND `petpower` <= {} ORDER BY `petpower` DESC LIMIT 1",
+			pet_type,
+			pet_power <= 0 ? 0 : pet_power
+		)
+	);
 
-	if (petpower <= 0)
-		query = StringFormat("SELECT npcID, temp, petpower, petcontrol, petnaming, monsterflag, equipmentset "
-							"FROM pets WHERE type='%s' AND petpower<=0", pet_type);
-	else
-		query = StringFormat("SELECT npcID, temp, petpower, petcontrol, petnaming, monsterflag, equipmentset "
-							"FROM pets WHERE type='%s' AND petpower<=%d ORDER BY petpower DESC LIMIT 1",
-							pet_type, petpower);
-
-	auto results = content_db.QueryDatabase(query);
-	if (!results.Success()) {
+	if (l.empty()) {
 		return false;
 	}
 
-	if (results.RowCount() != 1)
-		return false;
+	auto &e = l.front();
 
-	auto row = results.begin();
-
-	into->npc_type = Strings::ToInt(row[0]);
-	into->temporary = Strings::ToInt(row[1]);
-	into->petpower = Strings::ToInt(row[2]);
-	into->petcontrol = Strings::ToInt(row[3]);
-	into->petnaming = Strings::ToInt(row[4]);
-	into->monsterflag = Strings::ToInt(row[5]);
-	into->equipmentset = Strings::ToInt(row[6]);
+	r->npc_type     = e.npcID;
+	r->temporary    = e.temp;
+	r->petpower     = e.petpower;
+	r->petcontrol   = e.petcontrol;
+	r->petnaming    = e.petnaming;
+	r->monsterflag  = e.monsterflag;
+	r->equipmentset = e.equipmentset;
 
 	return true;
 }
@@ -534,22 +547,22 @@ void NPC::SetPetState(SpellBuff_Struct *pet_buffs, uint32 *items) {
 		if (buffs[j1].spellid <= (uint32)SPDAT_RECORDS) {
 			for (int x1=0; x1 < EFFECT_COUNT; x1++) {
 				switch (spells[buffs[j1].spellid].effect_id[x1]) {
-					case SE_AddMeleeProc:
-					case SE_WeaponProc:
+					case SpellEffect::AddMeleeProc:
+					case SpellEffect::WeaponProc:
 						// We need to reapply buff based procs
 						// We need to do this here so suspended pets also regain their procs.
 						AddProcToWeapon(GetProcID(buffs[j1].spellid,x1), false, 100+spells[buffs[j1].spellid].limit_value[x1], buffs[j1].spellid, buffs[j1].casterlevel, GetSpellProcLimitTimer(buffs[j1].spellid, ProcType::MELEE_PROC));
 						break;
-					case SE_DefensiveProc:
+					case SpellEffect::DefensiveProc:
 						AddDefensiveProc(GetProcID(buffs[j1].spellid, x1), 100 + spells[buffs[j1].spellid].limit_value[x1], buffs[j1].spellid, GetSpellProcLimitTimer(buffs[j1].spellid, ProcType::DEFENSIVE_PROC));
 						break;
-					case SE_RangedProc:
+					case SpellEffect::RangedProc:
 						AddRangedProc(GetProcID(buffs[j1].spellid, x1), 100 + spells[buffs[j1].spellid].limit_value[x1], buffs[j1].spellid, GetSpellProcLimitTimer(buffs[j1].spellid, ProcType::RANGED_PROC));
 						break;
-					case SE_Charm:
-					case SE_Rune:
-					case SE_NegateAttacks:
-					case SE_Illusion:
+					case SpellEffect::Charm:
+					case SpellEffect::Rune:
+					case SpellEffect::NegateAttacks:
+					case SpellEffect::Illusion:
 						buffs[j1].spellid = SPELL_UNKNOWN;
 						pet_buffs[j1].spellid = SPELLBOOK_UNKNOWN;
 						pet_buffs[j1].effect_type = 0;
@@ -574,10 +587,10 @@ void NPC::SetPetState(SpellBuff_Struct *pet_buffs, uint32 *items) {
 
 		if (item2) {
 			bool noDrop           = (item2->NoDrop == 0); // Field is reverse logic
-			bool petCanHaveNoDrop = (RuleB(Pets, CanTakeNoDrop) && _CLIENTPET(this) && GetPetType() <= petOther);
+			bool petCanHaveNoDrop = (RuleB(Pets, CanTakeNoDrop) && _CLIENTPET(this) && GetPetType() <= PetType::Normal);
 
 			if (!noDrop || petCanHaveNoDrop) {
-				AddLootDrop(item2, &itemlist, NPC::NewLootDropEntry(), true);
+				AddLootDrop(item2, LootdropEntriesRepository::NewNpcEntity(), true);
 			}
 		}
 	}
@@ -656,27 +669,20 @@ bool Pet::CheckSpellLevelRestriction(Mob *caster, uint16 spell_id)
 }
 
 BeastlordPetData::PetStruct ZoneDatabase::GetBeastlordPetData(uint16 race_id) {
-	BeastlordPetData::PetStruct beastlord_pet_data;
-	std::string query = fmt::format(
-		SQL(
-			SELECT
-			`pet_race`, `texture`, `helm_texture`, `gender`, `size_modifier`, `face`
-			FROM `pets_beastlord_data`
-			WHERE `player_race` = {}
-		),
-		race_id
-	);
-	auto results = QueryDatabase(query);
-	if (!results.Success() || results.RowCount() != 1) {
-		return beastlord_pet_data;
+	BeastlordPetData::PetStruct d;
+
+	const auto& e = PetsBeastlordDataRepository::FindOne(*this, race_id);
+
+	if (!e.player_race) {
+		return d;
 	}
 
-	auto row = results.begin();
-	beastlord_pet_data.race_id = Strings::ToInt(row[0]);
-	beastlord_pet_data.texture = Strings::ToInt(row[1]);
-	beastlord_pet_data.helm_texture = Strings::ToInt(row[2]);
-	beastlord_pet_data.gender = Strings::ToInt(row[3]);
-	beastlord_pet_data.size_modifier = Strings::ToFloat(row[4]);
-	beastlord_pet_data.face = Strings::ToInt(row[5]);
-	return beastlord_pet_data;
+	d.race_id       = e.pet_race;
+	d.texture       = e.texture;
+	d.helm_texture  = e.helm_texture;
+	d.gender        = e.gender;
+	d.size_modifier = e.size_modifier;
+	d.face          = e.face;
+
+	return d;
 }

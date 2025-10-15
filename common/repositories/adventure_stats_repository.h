@@ -44,7 +44,65 @@ public:
      */
 
 	// Custom extended repository methods here
+	static void UpdateAdventureStatsEntry(Database& db, uint32 character_id, uint8 theme_id, bool is_win, bool is_remove)
+	{
+		std::string field;
 
+		switch (theme_id) {
+			case LDoNTheme::GUK: {
+				field = "guk_";
+				break;
+			}
+			case LDoNTheme::MIR: {
+				field = "mir_";
+				break;
+			}
+			case LDoNTheme::MMC: {
+				field = "mmc_";
+				break;
+			}
+			case LDoNTheme::RUJ: {
+				field = "ruj_";
+				break;
+			}
+			case LDoNTheme::TAK: {
+				field = "tak_";
+				break;
+			}
+		}
+
+		field += is_win ? "wins" : "losses";
+
+		auto e = FindOne(db, character_id);
+
+		if (!e.player_id && !is_remove) {
+			const std::string& query = fmt::format(
+				"INSERT INTO `{}` SET `{}` = 1, `{}` = {}",
+				TableName(),
+				field,
+				PrimaryKey(),
+				character_id
+			);
+
+			db.QueryDatabase(query);
+
+			return;
+		}
+
+		const std::string& field_operation = is_remove ? "-" : "+";
+
+		const std::string& query = fmt::format(
+			"UPDATE `{}` SET `{}` = {} {} 1 WHERE `{}` = {}",
+			TableName(),
+			field,
+			field,
+			field_operation,
+			PrimaryKey(),
+			character_id
+		);
+
+		db.QueryDatabase(query);
+	}
 };
 
 #endif //EQEMU_ADVENTURE_STATS_REPOSITORY_H

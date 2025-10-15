@@ -469,11 +469,11 @@ static void ProcessCommandIgnore(Client *c, std::string Ignoree) {
 Clientlist::Clientlist(int ChatPort) {
 	EQStreamManagerInterfaceOptions chat_opts(ChatPort, false, false);
 	chat_opts.opcode_size = 1;
-	chat_opts.daybreak_options.stale_connection_ms = 600000;
-	chat_opts.daybreak_options.resend_delay_ms = RuleI(Network, ResendDelayBaseMS);
-	chat_opts.daybreak_options.resend_delay_factor = RuleR(Network, ResendDelayFactor);
-	chat_opts.daybreak_options.resend_delay_min = RuleI(Network, ResendDelayMinMS);
-	chat_opts.daybreak_options.resend_delay_max = RuleI(Network, ResendDelayMaxMS);
+	chat_opts.reliable_stream_options.stale_connection_ms = 600000;
+	chat_opts.reliable_stream_options.resend_delay_ms = RuleI(Network, ResendDelayBaseMS);
+	chat_opts.reliable_stream_options.resend_delay_factor = RuleR(Network, ResendDelayFactor);
+	chat_opts.reliable_stream_options.resend_delay_min = RuleI(Network, ResendDelayMinMS);
+	chat_opts.reliable_stream_options.resend_delay_max = RuleI(Network, ResendDelayMaxMS);
 
 	chatsf = new EQ::Net::EQStreamManager(chat_opts);
 
@@ -482,7 +482,7 @@ Clientlist::Clientlist(int ChatPort) {
 	const ucsconfig *Config = ucsconfig::get();
 
 
-	std::string opcodes_file = fmt::format("{}/{}", path.GetServerPath(), Config->MailOpCodesFile);
+	std::string opcodes_file = fmt::format("{}/{}", PathManager::Instance()->GetServerPath(), Config->MailOpCodesFile);
 
 	LogInfo("Loading [{}]", opcodes_file);
 	if (!ChatOpMgr->LoadOpcodes(opcodes_file.c_str()))
@@ -651,7 +651,7 @@ void Clientlist::Process()
 				OpcodeManager::EmuToName(app->GetOpcode()),
 				o->EmuToEQ(app->GetOpcode()) == 0 ? app->GetProtocolOpcode() : o->EmuToEQ(app->GetOpcode()),
 				app->Size(),
-				(LogSys.IsLogEnabled(Logs::Detail, Logs::PacketClientServer) ? DumpPacketToString(app) : "")
+				(EQEmuLogSys::Instance()->IsLogEnabled(Logs::Detail, Logs::PacketClientServer) ? DumpPacketToString(app) : "")
 			);
 
 			switch (opcode) {
