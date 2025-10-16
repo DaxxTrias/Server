@@ -168,6 +168,7 @@ int bot_command_init(void)
 		bot_command_add("owneroption", "Sets options available to bot owners", AccountStatus::Player, bot_command_owner_option) ||
 		bot_command_add("petassist", "Orders a bot's controllable pet to attack your target (assist)", AccountStatus::Player, bot_command_pet_assist) ||
 		bot_command_add("aacount", "Estimates how many AA ranks bots qualify for (optionally at level)", AccountStatus::Player, bot_command_aa_count) ||
+		bot_command_add("spawninfo", "Shows spawn2/spawngroup info for the targeted NPC", AccountStatus::Player, bot_command_spawn_info) ||
 		bot_command_add("pet", "Lists the available bot pet [subcommands]", AccountStatus::Player, bot_command_pet) ||
 		bot_command_add("petgetlost", "Orders a bot to remove its summoned pet", AccountStatus::Player, bot_command_pet_get_lost) ||
 		bot_command_add("petremove", "Orders a bot to remove its charmed pet", AccountStatus::Player, bot_command_pet_remove) ||
@@ -896,6 +897,7 @@ void SendSpellTypeWindow(Client* c, const Seperator* sep) {
 #include "bot_commands/owner_option.cpp"
 #include "bot_commands/pet.cpp"
 #include "bot_commands/aa_count.cpp"
+#include "bot_commands/spawn_info.cpp"
 #include "bot_commands/pick_lock.cpp"
 #include "bot_commands/pickpocket.cpp"
 #include "bot_commands/precombat.cpp"

@@ -1115,6 +1115,7 @@ void bot_command_timer(Client* c, const Seperator* sep);
 void bot_command_track(Client *c, const Seperator *sep);
 void bot_command_view_combos(Client *c, const Seperator *sep);
 void bot_command_aa_count(Client* c, const Seperator* sep);
+void bot_command_spawn_info(Client* c, const Seperator* sep);
 
 // Bot Subcommands
 void bot_command_appearance(Client *c, const Seperator *sep);
