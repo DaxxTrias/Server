@@ -44,23 +44,23 @@ void bot_command_cast(Client* c, const Seperator* sep)
 		};
 		p.examples_two =
 		{
-			"To tell Skbot to Harm Touch the target:",
+			"Quick links:",
 			fmt::format(
-				"{} aa 6000 byname Skbot",
-				sep->arg[0]
-			),
-			fmt::format(
-				"{} harmtouch byname Skbot",
-				sep->arg[0]
+				"{} {} {} {} {} {}",
+				Saylink::Silent("^cast invisibility help", "invis"),
+				Saylink::Silent("^cast resistbuffs help", "resists"),
+				Saylink::Silent("^cast rune help", "rune"),
+				Saylink::Silent("^cast levitate help", "lev"),
+				Saylink::Silent("^cast dispels help", "dispels"),
+				Saylink::Silent("^cast waterbreathing help", "water")
 			)
 		};
 		p.examples_three =
 		{
-			"To tell all bots to try to cast spell #93 (Burst of Flame)",
-			fmt::format(
-				"{} spellid 93",
-				sep->arg[0]
-			)
+			"Subtargets:",
+			"single, group, ae",
+			"Spell ID example:",
+			fmt::format("{} spellid 93", sep->arg[0])
 		};
 		p.actionables = { "target, byname, ownergroup, ownerraid, targetgroup, namesgroup, healrotationtargets, mmr, byclass, byrace, spawned" };
 
