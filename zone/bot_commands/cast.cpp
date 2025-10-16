@@ -45,7 +45,8 @@ void bot_command_cast(Client* c, const Seperator* sep)
 		p.examples_two =
 		{
 			"Quick topics (type in chat):",
-			"invis: ^cast invisibility help | resists: ^cast resistbuffs help | rune: ^cast rune help | lev: ^cast levitate help | dispels: ^cast dispels help | water: ^cast waterbreathing help"
+			"invis: ^cast invisibility help | resists: ^cast resistbuffs help | rune: ^cast rune help | lev: ^cast levitate help | dispels: ^cast dispels help | water: ^cast waterbreathing help",
+			"size: ^cast size help | pets: ^cast petresistbuffs help | speed: ^cast movementspeed help"
 		};
 		p.examples_three =
 		{
