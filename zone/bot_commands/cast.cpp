@@ -44,16 +44,8 @@ void bot_command_cast(Client* c, const Seperator* sep)
 		};
 		p.examples_two =
 		{
-			"Quick links:",
-			fmt::format(
-				"{} {} {} {} {} {}",
-				Saylink::Silent("^cast invisibility help", "invis"),
-				Saylink::Silent("^cast resistbuffs help", "resists"),
-				Saylink::Silent("^cast rune help", "rune"),
-				Saylink::Silent("^cast levitate help", "lev"),
-				Saylink::Silent("^cast dispels help", "dispels"),
-				Saylink::Silent("^cast waterbreathing help", "water")
-			)
+			"Quick topics (type in chat):",
+			"invis: ^cast invisibility help | resists: ^cast resistbuffs help | rune: ^cast rune help | lev: ^cast levitate help | dispels: ^cast dispels help | water: ^cast waterbreathing help"
 		};
 		p.examples_three =
 		{
