@@ -245,7 +245,7 @@ void bot_command_cast(Client* c, const Seperator* sep)
 		c->Message(
 			Chat::Yellow,
 			fmt::format(
-				"Available options for {} are: {}, {}.",
+				"Available options for {} are: {}.",
 				sep->arg[0],
 				Saylink::Silent("^cast movementspeed selo", "selo")
 			).c_str()
