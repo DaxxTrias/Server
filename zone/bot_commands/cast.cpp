@@ -79,6 +79,19 @@ void bot_command_cast(Client* c, const Seperator* sep)
 			).c_str()
 		);
 
+		c->Message(
+			Chat::Yellow,
+			fmt::format(
+				"Other helpful topics: {}, {}, {}, {}, {}, {}.",
+				Saylink::Silent("^cast resistbuffs help"),
+				Saylink::Silent("^cast rune help"),
+				Saylink::Silent("^cast waterbreathing help"),
+				Saylink::Silent("^cast dispels help"),
+				Saylink::Silent("^cast petresistbuffs help"),
+				Saylink::Silent("^cast levitate help")
+			).c_str()
+		);
+
 		if (RuleB(Bots, SendClassRaceOnHelp)) {
 			c->Message(
 				Chat::Yellow,
@@ -234,7 +247,7 @@ void bot_command_cast(Client* c, const Seperator* sep)
 			fmt::format(
 				"Available options for {} are: {}, {}.",
 				sep->arg[0],
-				Saylink::Silent("^cast movementspeed selo"), "selo"
+				Saylink::Silent("^cast movementspeed selo", "selo")
 			).c_str()
 		);
 
