@@ -1120,7 +1120,7 @@ protected:
 	void BotMeditate(bool is_sitting);
 	bool CheckBotDoubleAttack(bool triple_attack = false);
 	bool CheckTripleAttack();
-	void PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client* client, int16 chosen_slot = INVALID_INDEX);
+	void PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client* client, int16 chosen_slot = INVALID_INDEX, bool bypass_lore = false);
 	bool AIDoSpellCast(int32 i, Mob* tar, int32 mana_cost, uint32* oDontDoAgainBefore = nullptr) override;
 
 	BotCastingRoles& GetCastingRoles() { return m_CastingRoles; }
