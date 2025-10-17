@@ -35,7 +35,7 @@ void bot_command_inventory_give(Client* c, const Seperator* sep)
 	int ab_mask = (ActionableBots::ABM_Target | ActionableBots::ABM_ByName);
 	int ab_arg = 1;
 	int slot_arg = 1;
-	bool bypass_lore = false;
+	bool bypass_lore = (c->Admin() >= AccountStatus::GMMgmt);
 	int16 chosen_slot = INVALID_INDEX;
 	bool byname = false;
 
@@ -204,7 +204,7 @@ void bot_command_inventory_remove(Client* c, const Seperator* sep)
 	}
 
 	int ab_mask = (ActionableBots::ABM_Target | ActionableBots::ABM_ByName);
-	bool bypass_lore = false;
+	bool bypass_lore = (c->Admin() >= AccountStatus::GMMgmt);
 
 	if (c->GetTradeskillObject() || (c->trade->state == Trading)) {
 		c->MessageString(Chat::Tell, MERCHANT_BUSY);
