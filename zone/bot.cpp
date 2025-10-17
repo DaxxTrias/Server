@@ -4240,7 +4240,7 @@ bool Bot::AddBotToGroup(Bot* bot, Group* group) {
 }
 
 // Completes a trade with a client bot owner
-void Bot::FinishTrade(Client* client, BotTradeType trade_type, int16 chosen_slot)
+void Bot::FinishTrade(Client* client, BotTradeType trade_type, int16 chosen_slot, bool bypass_lore)
 {
 	if (
 		!client ||
@@ -4259,12 +4259,12 @@ void Bot::FinishTrade(Client* client, BotTradeType trade_type, int16 chosen_slot
 	if (trade_type == BotTradeClientNormal) {
 		// Items being traded are found in the normal trade window used to trade between a Client and a Client or NPC
 		// Items in this mode are found in slot ids 3000 thru 3003 - thought bots used the full 8-slot window..?
-		PerformTradeWithClient(EQ::invslot::TRADE_BEGIN, EQ::invslot::TRADE_END, client); // {3000..3007}
+        PerformTradeWithClient(EQ::invslot::TRADE_BEGIN, EQ::invslot::TRADE_END, client, chosen_slot, bypass_lore); // {3000..3007}
 	}
 	else if (trade_type == BotTradeClientNoDropNoTrade) {
 		// Items being traded are found on the Client's cursor slot, slot id 30. This item can be either a single item or it can be a bag.
 		// If it is a bag, then we have to search for items in slots 331 thru 340
-		PerformTradeWithClient(EQ::invslot::slotCursor, EQ::invslot::slotCursor, client, chosen_slot);
+        PerformTradeWithClient(EQ::invslot::slotCursor, EQ::invslot::slotCursor, client, chosen_slot, bypass_lore);
 
 		// TODO: Add logic here to test if the item in SLOT_CURSOR is a container type, if it is then we need to call the following:
 		// PerformTradeWithClient(331, 340, client);
@@ -4272,7 +4272,7 @@ void Bot::FinishTrade(Client* client, BotTradeType trade_type, int16 chosen_slot
 }
 
 // Perfoms the actual trade action with a client bot owner
-void Bot::PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client* client, int16 chosen_slot)
+void Bot::PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client* client, int16 chosen_slot, bool bypass_lore)
 {
 	using namespace EQ;
 
@@ -4429,13 +4429,13 @@ void Bot::PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client*
 			return;
 		}
 
-		for (int m = EQ::invaug::SOCKET_BEGIN; m <= EQ::invaug::SOCKET_END; ++m) {
+        for (int m = EQ::invaug::SOCKET_BEGIN; m <= EQ::invaug::SOCKET_END; ++m) {
 			const auto augment = trade_instance->GetAugment(m);
 			if (!augment) {
 				continue;
 			}
 
-			if (!CheckLoreConflict(augment->GetItem())) {
+            if (bypass_lore || !CheckLoreConflict(augment->GetItem())) {
 				continue;
 			}
 
@@ -4456,7 +4456,7 @@ void Bot::PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client*
 			return;
 		}
 
-		if (CheckLoreConflict(trade_instance->GetItem())) {
+        if (!bypass_lore && CheckLoreConflict(trade_instance->GetItem())) {
 			if (trade_event_exists) {
 				event_trade.push_back(ClientTrade(trade_instance, trade_index));
 				continue;
@@ -4682,7 +4682,7 @@ void Bot::PerformTradeWithClient(int16 begin_slot_id, int16 end_slot_id, Client*
 
 		// non-failing checks above are causing this to trigger (i.e., !ItemClassCommon and !IsEquipable{race, class, min_level})
 		// this process is hindered by not having bots use the inventory trade method (TODO: implement bot inventory use)
-		if (client->CheckLoreConflict(return_instance->GetItem())) {
+        if (!bypass_lore && client->CheckLoreConflict(return_instance->GetItem())) {
 			client->Message(
 				Chat::Yellow,
 				fmt::format(

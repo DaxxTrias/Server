@@ -25,7 +25,7 @@ void bot_command_inventory_give(Client* c, const Seperator* sep)
 		c->Message(
 			Chat::White,
 			fmt::format(
-				"Usage: {} ([actionable: target | byname] ([actionable_name])) [optional: slot ID]",
+				"Usage: {} ([actionable: target | byname] ([actionable_name])) [optional: slot ID] [optional: nolore (GM)]",
 				sep->arg[0]
 			).c_str()
 		);
@@ -35,14 +35,30 @@ void bot_command_inventory_give(Client* c, const Seperator* sep)
 	int ab_mask = (ActionableBots::ABM_Target | ActionableBots::ABM_ByName);
 	int ab_arg = 1;
 	int slot_arg = 1;
+	bool bypass_lore = false;
 	int16 chosen_slot = INVALID_INDEX;
 	bool byname = false;
+
+	// optional GM-only nolore flag can appear before or after slot id
+	if (!strcasecmp(sep->arg[1], "nolore")) {
+		bypass_lore = (c->Admin() >= AccountStatus::GMMgmt);
+		++ab_arg;
+		++slot_arg;
+	}
 
 	std::string byname_arg = sep->arg[ab_arg];
 
 	if (!byname_arg.compare("byname")) {
 		byname = true;
 		slot_arg = ab_arg + 2;
+	}
+
+	if (!bypass_lore && !strcasecmp(sep->arg[slot_arg], "nolore")) {
+		bypass_lore = (c->Admin() >= AccountStatus::GMMgmt);
+		++slot_arg;
+		if (!byname) {
+			++ab_arg;
+		}
 	}
 
 	if (sep->IsNumber(slot_arg)) {
@@ -56,7 +72,7 @@ void bot_command_inventory_give(Client* c, const Seperator* sep)
 
 		if (!byname) {
 			++ab_arg;
-		}	
+		}
 	}
 
 	std::vector<Bot*> sbl;
@@ -71,7 +87,7 @@ void bot_command_inventory_give(Client* c, const Seperator* sep)
 		return;
 	}
 
-	my_bot->FinishTrade(c, Bot::BotTradeClientNoDropNoTrade, chosen_slot);
+	my_bot->FinishTrade(c, Bot::BotTradeClientNoDropNoTrade, chosen_slot, bypass_lore);
 }
 
 void bot_command_inventory_list(Client* c, const Seperator* sep)
@@ -180,7 +196,7 @@ void bot_command_inventory_remove(Client* c, const Seperator* sep)
 		c->Message(
 			Chat::White,
 			fmt::format(
-				"Usage: {} [Slot ID: 0-22] ([actionable: target | byname] ([actionable_name]))",
+				"Usage: {} [Slot ID: 0-22] ([actionable: target | byname] ([actionable_name])) [optional: nolore (GM)]",
 				sep->arg[0]
 			).c_str()
 		);
@@ -188,6 +204,7 @@ void bot_command_inventory_remove(Client* c, const Seperator* sep)
 	}
 
 	int ab_mask = (ActionableBots::ABM_Target | ActionableBots::ABM_ByName);
+	bool bypass_lore = false;
 
 	if (c->GetTradeskillObject() || (c->trade->state == Trading)) {
 		c->MessageString(Chat::Tell, MERCHANT_BUSY);
@@ -195,7 +212,16 @@ void bot_command_inventory_remove(Client* c, const Seperator* sep)
 	}
 
 	std::vector<Bot*> sbl;
-	if (ActionableBots::PopulateSBL(c, sep->arg[2], sbl, ab_mask, sep->arg[3]) == ActionableBots::ABT_None) {
+	// parse optional nolore (GM) before actionable
+	const char* ab_arg0 = sep->arg[2];
+	const char* ab_arg1 = sep->arg[3];
+	if (!strcasecmp(sep->arg[2], "nolore")) {
+		bypass_lore = (c->Admin() >= AccountStatus::GMMgmt);
+		ab_arg0 = sep->arg[3];
+		ab_arg1 = sep->arg[4];
+	}
+
+	if (ActionableBots::PopulateSBL(c, ab_arg0, sbl, ab_mask, ab_arg1) == ActionableBots::ABT_None) {
 		return;
 	}
 
@@ -247,7 +273,7 @@ void bot_command_inventory_remove(Client* c, const Seperator* sep)
 	linker.SetLinkType(EQ::saylink::SayLinkItemInst);
 	linker.SetItemInst(inst);
 
-	if (inst && itm && c->CheckLoreConflict(itm)) {
+	if (!bypass_lore && inst && itm && c->CheckLoreConflict(itm)) {
 		c->Message(
 			Chat::White,
 			fmt::format(
@@ -264,7 +290,7 @@ void bot_command_inventory_remove(Client* c, const Seperator* sep)
 			continue;
 		}
 
-		if (!c->CheckLoreConflict(augment->GetItem())) {
+		if (bypass_lore || !c->CheckLoreConflict(augment->GetItem())) {
 			continue;
 		}
 
